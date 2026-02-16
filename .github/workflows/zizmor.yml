@@ -1,4 +1,4 @@
-name: GitHub Actions Security Analysis with zizmor 🌈
+name: GitHub Actions Security Analysis with zizmor
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run zizmor 🌈
+      - name: Run zizmor
         uses: zizmorcore/zizmor-action@135698455da5c3b3e55f73f4419e481ab68cdd95 # v0.4.1
         with:
           advanced-security: false
