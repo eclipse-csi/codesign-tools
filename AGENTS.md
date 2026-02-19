@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI agents when working with code in this repository.
 
 ## Project Overview
 
@@ -20,7 +20,9 @@ Requires Java 21+ and Maven 3.9+ (enforced by maven-enforcer-plugin).
 
 ## Contribution guideline
 
-Commit messages shall use convential commits format
+Commit messages shall use [convential commits format](https://www.conventionalcommits.org/en/v1.0.0/#specification)
+
+A changelog should be kept following recommendations from [keepachangelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Architecture
 
