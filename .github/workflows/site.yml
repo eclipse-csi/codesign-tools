@@ -78,6 +78,90 @@ jobs:
           cp -r target/site/. "target/gh-pages-store/$version/"
           cp -r target/site/. target/gh-pages-store/latest/
 
+      - name: Generate root index page
+        run: |
+          python3 << 'PYEOF'
+          import os, re
+
+          store = "target/gh-pages-store"
+
+          versions = sorted(
+              [e.name for e in os.scandir(store)
+               if e.is_dir() and re.match(r'^\d', e.name)],
+              key=lambda v: tuple(
+                  (0, int(x)) if x.isdigit() else (1, x)
+                  for x in re.split(r'[.\-]', v)
+              ),
+              reverse=True
+          )
+
+          has_latest = os.path.isdir(os.path.join(store, 'latest'))
+          has_snapshot = os.path.isdir(os.path.join(store, 'snapshot'))
+
+          css = (
+              'body{'
+              'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;'
+              'max-width:800px;margin:0 auto;padding:2rem;color:#333}'
+              'h1{border-bottom:2px solid #e0e0e0;padding-bottom:.5rem}'
+              '.card{border:1px solid #e0e0e0;border-radius:8px;padding:1.5rem;margin:1rem 0}'
+              'a.big{display:inline-block;background:#2980b9;color:#fff;'
+              'text-decoration:none;padding:.75rem 2rem;border-radius:6px;'
+              'font-size:1.2rem;font-weight:bold;margin-top:.5rem}'
+              'a.big:hover{background:#1a6a9a}'
+              'a.snap{background:#e67e22}'
+              'a.snap:hover{background:#c96a12}'
+              'ul{list-style:none;padding:0}'
+              'li{margin:.4rem 0}'
+              'li a{color:#2980b9;text-decoration:none}'
+              'li a:hover{text-decoration:underline}'
+          )
+
+          parts = [
+              '<!DOCTYPE html>',
+              '<html lang="en">',
+              '<head>',
+              '<meta charset="UTF-8">',
+              '<meta name="viewport" content="width=device-width,initial-scale=1">',
+              '<title>SignPath Maven Plugin \u2013 Documentation</title>',
+              '<style>' + css + '</style>',
+              '</head>',
+              '<body>',
+              '<h1>SignPath Maven Plugin</h1>',
+              '<p>Maven plugin that signs artifacts via the '
+              '<a href="https://signpath.io">SignPath REST API</a>.</p>',
+          ]
+
+          if has_latest:
+              parts += [
+                  '<div class="card">',
+                  '<h2>Latest Release</h2>',
+                  '<p>Documentation for the most recent stable release.</p>',
+                  '<a class="big" href="latest/">Latest &#8594;</a>',
+                  '</div>',
+              ]
+
+          if has_snapshot:
+              parts += [
+                  '<div class="card">',
+                  '<h2>Snapshot</h2>',
+                  '<p>Documentation built from the <code>main</code> branch (may be unstable).</p>',
+                  '<a class="big snap" href="snapshot/">Snapshot &#8594;</a>',
+                  '</div>',
+              ]
+
+          if versions:
+              parts.append('<div class="card"><h2>All Releases</h2><ul>')
+              parts += ['<li><a href="%s/">v%s</a></li>' % (v, v) for v in versions]
+              parts.append('</ul></div>')
+
+          parts += ['</body>', '</html>']
+
+          with open(os.path.join(store, 'index.html'), 'w') as f:
+              f.write('\n'.join(parts) + '\n')
+
+          print("Generated index.html with %d release(s)" % len(versions))
+          PYEOF
+
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
