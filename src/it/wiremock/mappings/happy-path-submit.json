@@ -1,0 +1,13 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/Api/v1/happy-org/SigningRequests"
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Location": "{{request.baseUrl}}/Api/v1/happy-org/SigningRequests/abc123"
+    },
+    "transformers": ["response-template"]
+  }
+}

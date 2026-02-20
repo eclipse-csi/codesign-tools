@@ -1,0 +1,28 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/Api/v1/multi-exec-org/SigningRequests",
+    "multipartPatterns": [
+      {
+        "matchingType": "ANY",
+        "headers": {
+          "Content-Disposition": {
+            "contains": "name=\"SigningPolicySlug\""
+          }
+        },
+        "bodyPatterns": [
+          {
+            "equalTo": "jar-policy"
+          }
+        ]
+      }
+    ]
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Location": "{{request.baseUrl}}/Api/v1/multi-exec-org/SigningRequests/jar-req-id"
+    },
+    "transformers": ["response-template"]
+  }
+}

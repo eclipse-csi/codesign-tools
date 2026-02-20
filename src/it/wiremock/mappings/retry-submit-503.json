@@ -1,0 +1,13 @@
+{
+  "scenarioName": "retry-submit",
+  "requiredScenarioState": "Started",
+  "newScenarioState": "Failed",
+  "request": {
+    "method": "POST",
+    "urlPath": "/Api/v1/retry-org/SigningRequests"
+  },
+  "response": {
+    "status": 503,
+    "body": "Service Unavailable"
+  }
+}

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.eclipse.csi.it</groupId>
+  <artifactId>multi-execution</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <!--
+    Verifies that the plugin can be invoked multiple times in the same build with
+    different signing policies. The first execution signs .exe files using
+    exe-policy; the second execution signs .jar files (under classes/) using
+    jar-policy. WireMock distinguishes the two POST requests by matching the
+    SigningPolicySlug multipart field.
+  -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.eclipse.csi</groupId>
+        <artifactId>signpath-maven-plugin</artifactId>
+        <version>@project.version@</version>
+        <executions>
+          <execution>
+            <id>sign-exe</id>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+            <configuration>
+              <organizationId>multi-exec-org</organizationId>
+              <projectSlug>test-project</projectSlug>
+              <signingPolicySlug>exe-policy</signingPolicySlug>
+              <apiToken>test-token</apiToken>
+              <baseUrl>http://localhost:@mockserver.port@/Api</baseUrl>
+              <signProjectArtifact>false</signProjectArtifact>
+              <signAttachedArtifacts>false</signAttachedArtifacts>
+              <includes>
+                <include>**/*.exe</include>
+              </includes>
+              <pollInterval>1</pollInterval>
+              <retryInterval>1</retryInterval>
+            </configuration>
+          </execution>
+          <execution>
+            <id>sign-jar</id>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+            <configuration>
+              <organizationId>multi-exec-org</organizationId>
+              <projectSlug>test-project</projectSlug>
+              <signingPolicySlug>jar-policy</signingPolicySlug>
+              <apiToken>test-token</apiToken>
+              <baseUrl>http://localhost:@mockserver.port@/Api</baseUrl>
+              <signProjectArtifact>true</signProjectArtifact>
+              <signAttachedArtifacts>false</signAttachedArtifacts>
+              <pollInterval>1</pollInterval>
+              <retryInterval>1</retryInterval>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

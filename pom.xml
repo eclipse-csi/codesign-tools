@@ -157,6 +157,11 @@
           <version>3.5.4</version>
         </plugin>
         <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-antrun-plugin</artifactId>
+          <version>3.1.0</version>
+        </plugin>
+        <plugin>
           <groupId>org.jreleaser</groupId>
           <artifactId>jreleaser-maven-plugin</artifactId>
           <version>1.22.0</version>
@@ -252,6 +257,159 @@
   </build>
 
   <profiles>
+    <profile>
+      <id>integration-tests</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>build-helper-maven-plugin</artifactId>
+            <version>3.6.1</version>
+            <executions>
+              <execution>
+                <id>reserve-wiremock-port</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>reserve-network-port</goal>
+                </goals>
+                <configuration>
+                  <portNames>
+                    <portName>mockserver.port</portName>
+                  </portNames>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <version>3.8.1</version>
+            <executions>
+              <execution>
+                <id>download-wiremock</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>copy</goal>
+                </goals>
+                <configuration>
+                  <artifactItems>
+                    <artifactItem>
+                      <groupId>org.wiremock</groupId>
+                      <artifactId>wiremock-standalone</artifactId>
+                      <version>3.9.2</version>
+                      <type>jar</type>
+                      <destFileName>wiremock-standalone.jar</destFileName>
+                    </artifactItem>
+                  </artifactItems>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <version>3.5.1</version>
+            <executions>
+              <execution>
+                <id>start-wiremock</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>java</executable>
+                  <!-- async=true returns immediately; asyncDestroyOnShutdown=true
+                       (the default) registers a JVM shutdown hook that terminates
+                       WireMock automatically when Maven exits, so no explicit stop
+                       step is needed. -->
+                  <async>true</async>
+                  <outputFile>${project.build.directory}/wiremock.log</outputFile>
+                  <arguments>
+                    <argument>-jar</argument>
+                    <argument>${project.build.directory}/wiremock-standalone.jar</argument>
+                    <argument>--port</argument>
+                    <argument>${mockserver.port}</argument>
+                    <argument>--root-dir</argument>
+                    <argument>${project.basedir}/src/it/wiremock</argument>
+                    <argument>--disable-banner</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>wait-for-wiremock</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+                <configuration>
+                  <target>
+                    <!-- Poll the WireMock health endpoint every 500 ms for up to
+                         30 seconds. Uses only the JDK's java.net.URL internally,
+                         so no external tools (curl, wget, …) are required. -->
+                    <waitfor maxwait="30" maxwaitunit="second"
+                             checkevery="500" checkeveryunit="millisecond"
+                             timeoutproperty="wiremock.start.timeout">
+                      <http url="http://localhost:${mockserver.port}/__admin/health"/>
+                    </waitfor>
+                    <fail if="wiremock.start.timeout"
+                          message="WireMock did not become healthy within 30 s on port ${mockserver.port}"/>
+                  </target>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-invoker-plugin</artifactId>
+            <version>3.9.0</version>
+            <configuration>
+              <projectsDirectory>src/it</projectsDirectory>
+              <cloneProjectsTo>${project.build.directory}/it</cloneProjectsTo>
+              <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
+              <streamLogsOnFailures>true</streamLogsOnFailures>
+              <settingsFile>src/it/settings.xml</settingsFile>
+              <filterProperties>
+                <mockserver.port>${mockserver.port}</mockserver.port>
+              </filterProperties>
+              <goals>
+                <goal>verify</goal>
+              </goals>
+              <environmentVariables>
+                <SIGNPATH_API_TOKEN>my-env-token</SIGNPATH_API_TOKEN>
+              </environmentVariables>
+              <properties>
+                <signpath.pollInterval>1</signpath.pollInterval>
+                <signpath.retryInterval>1</signpath.retryInterval>
+              </properties>
+              <showErrors>true</showErrors>
+            </configuration>
+            <executions>
+              <execution>
+                <id>install-plugin</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>install</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>run-its</id>
+                <phase>integration-test</phase>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>release</id>
       <properties>

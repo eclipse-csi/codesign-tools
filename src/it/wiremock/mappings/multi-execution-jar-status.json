@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/Api/v1/multi-exec-org/SigningRequests/jar-req-id"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"status\":\"Completed\",\"workflowStatus\":\"Completed\",\"isFinalStatus\":true,\"signedArtifactLink\":\"{{request.baseUrl}}/Api/v1/multi-exec-org/signed-jar\",\"unsignedArtifactLink\":null}",
+    "transformers": ["response-template"]
+  }
+}

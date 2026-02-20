@@ -1,0 +1,22 @@
+{
+  "scenarioName": "happy-path-status",
+  "requiredScenarioState": "Started",
+  "newScenarioState": "Polled",
+  "request": {
+    "method": "GET",
+    "urlPath": "/Api/v1/happy-org/SigningRequests/abc123"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "status": "InProgress",
+      "workflowStatus": "WaitingForApproval",
+      "isFinalStatus": false,
+      "signedArtifactLink": null,
+      "unsignedArtifactLink": null
+    }
+  }
+}

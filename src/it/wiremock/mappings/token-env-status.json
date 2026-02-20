@@ -1,0 +1,14 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/Api/v1/token-env-org/SigningRequests/abc123"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "body": "{\"status\":\"Completed\",\"workflowStatus\":\"Completed\",\"isFinalStatus\":true,\"signedArtifactLink\":\"{{request.baseUrl}}/Api/v1/token-env-org/signed-artifact\",\"unsignedArtifactLink\":null}",
+    "transformers": ["response-template"]
+  }
+}

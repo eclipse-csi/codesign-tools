@@ -143,8 +143,9 @@ public class SignMojo extends AbstractMojo {
 	/**
 	 * Include glob patterns used to select files under {@link #baseDirectory}.
 	 * <p>
-	 * Optional. If empty, all regular files are considered before excludes are
-	 * applied.
+	 * Optional. If empty, no files are selected by the file scan; use
+	 * {@link #signProjectArtifact} or {@link #signAttachedArtifacts} to sign
+	 * Maven artifacts explicitly.
 	 */
 	@Parameter
 	private String[] includes;
@@ -152,7 +153,8 @@ public class SignMojo extends AbstractMojo {
 	/**
 	 * Exclude glob patterns applied after includes.
 	 * <p>
-	 * Optional.
+	 * Optional. Has no effect when {@link #includes} is empty, since an empty
+	 * {@link #includes} produces no candidates for excludes to filter.
 	 */
 	@Parameter
 	private String[] excludes;
@@ -542,12 +544,18 @@ public class SignMojo extends AbstractMojo {
 		List<PathMatcher> includeMatchers = toPathMatchers(fs, includes);
 		List<PathMatcher> excludeMatchers = toPathMatchers(fs, excludes);
 
+		if (includeMatchers.isEmpty()) {
+			if (!excludeMatchers.isEmpty()) {
+				getLog().warn("<excludes> is configured but has no effect because <includes> is empty");
+			}
+			return new String[0];
+		}
+
 		try (Stream<Path> stream = Files.walk(basePath)) {
 			return stream
 					.filter(Files::isRegularFile)
 					.map(basePath::relativize)
-					.filter(p -> includeMatchers.isEmpty()
-							|| includeMatchers.stream().anyMatch(m -> m.matches(p)))
+					.filter(p -> includeMatchers.stream().anyMatch(m -> m.matches(p)))
 					.filter(p -> excludeMatchers.stream().noneMatch(m -> m.matches(p)))
 					.map(Path::toString)
 					.toArray(String[]::new);

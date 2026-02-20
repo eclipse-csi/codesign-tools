@@ -1,0 +1,18 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/Api/v1/token-env-org/SigningRequests",
+    "headers": {
+      "Authorization": {
+        "equalTo": "Bearer my-env-token"
+      }
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": {
+      "Location": "{{request.baseUrl}}/Api/v1/token-env-org/SigningRequests/abc123"
+    },
+    "transformers": ["response-template"]
+  }
+}

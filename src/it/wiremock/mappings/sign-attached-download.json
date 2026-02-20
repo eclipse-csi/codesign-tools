@@ -1,0 +1,10 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/Api/v1/sign-attached-org/signed-artifact"
+  },
+  "response": {
+    "status": 200,
+    "body": "signed-content"
+  }
+}

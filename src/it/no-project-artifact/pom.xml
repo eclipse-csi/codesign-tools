@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.eclipse.csi.it</groupId>
+  <artifactId>no-project-artifact</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+
+  <!--
+    Verifies that when signProjectArtifact=true but the project artifact does not
+    exist (JAR creation is skipped because there are no classes), the plugin logs
+    a warning and exits cleanly without failure. No API calls should be made.
+  -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <configuration>
+          <!-- Skip JAR creation when target/classes is empty or absent,
+               leaving project.getArtifact().getFile() null -->
+          <skipIfEmpty>true</skipIfEmpty>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.csi</groupId>
+        <artifactId>signpath-maven-plugin</artifactId>
+        <version>@project.version@</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>sign</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <organizationId>no-artifact-org</organizationId>
+          <projectSlug>test-project</projectSlug>
+          <signingPolicySlug>test-policy</signingPolicySlug>
+          <apiToken>test-token</apiToken>
+          <baseUrl>http://localhost:@mockserver.port@/Api</baseUrl>
+          <signProjectArtifact>true</signProjectArtifact>
+          <signAttachedArtifacts>false</signAttachedArtifacts>
+          <includes>
+            <include>**/*.exe</include>
+          </includes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
