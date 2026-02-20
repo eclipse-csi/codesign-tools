@@ -1,32 +1,35 @@
 # Security Policy
 
-## Reporting a Vulnerability
+This Eclipse Foundation Project adheres to the [Eclipse Foundation Vulnerability Reporting Policy](https://www.eclipse.org/security/policy/).
 
-The Eclipse Foundation and the Eclipse CSI SignPath Maven Plugin project take security
-seriously. We appreciate your efforts to responsibly disclose any
-security issues you find.
+## How To Report a Vulnerability
 
-**Please do NOT report security vulnerabilities through public GitHub
-issues.**
+If you think you have found a vulnerability in this repository, please report it to us through coordinated disclosure.
 
-Instead, report vulnerabilities through the Eclipse Foundation's
-security reporting process:
+**Please do not report security vulnerabilities through public issues, discussions, or change requests.**
 
-- https://www.eclipse.org/security/
+Instead, report it using one of the following ways:
 
-You may also email the Eclipse Security Team directly at:
+* Report a [vulnerability](https://github.com/eclipse-csi/signpath-maven-plugin/security/advisories/new) via private vulnerability reporting on GitHub
+* Contact the [Eclipse Foundation Security Team](mailto:security@eclipse-foundation.org) via email
+* Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability) in the Eclipse Foundation Vulnerability Reporting Tracker
 
-- security@eclipse.org
+You can find more information about reporting and disclosure at the [Eclipse Foundation Security page](https://www.eclipse.org/security/).
 
-Please include the following information in your report:
+Please include as much of the information listed below as you can to help us better understand and resolve the issue:
 
-- Description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact of the vulnerability
-- Suggested fix (if any)
+* The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
+* Affected version(s)
+* Impact of the issue, including how an attacker might exploit the issue
+* Step-by-step instructions to reproduce the issue
+* The location of the affected source code (tag/branch/commit or direct URL)
+* Full paths of source file(s) related to the manifestation of the issue
+* Configuration required to reproduce the issue
+* Log files that are related to this issue (if possible)
+* Proof-of-concept or exploit code (if possible)
 
-## Response
+This information will help us triage your report more quickly.
 
-The Eclipse Security Team will acknowledge your report within 48 hours
-and will send a more detailed response within 5 business days indicating
-the next steps in handling your report.
+## Supported Versions
+
+Only the latest released version is supported. Vulnerability fixes will not be backported to earlier versions.
