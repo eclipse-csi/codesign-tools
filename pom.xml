@@ -324,7 +324,7 @@
                     <artifactItem>
                       <groupId>org.wiremock</groupId>
                       <artifactId>wiremock-standalone</artifactId>
-                      <version>3.9.2</version>
+                      <version>3.13.2</version>
                       <type>jar</type>
                       <destFileName>wiremock-standalone.jar</destFileName>
                     </artifactItem>
