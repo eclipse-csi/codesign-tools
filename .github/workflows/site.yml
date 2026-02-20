@@ -21,7 +21,13 @@ jobs:
     timeout-minutes: 30
 
     permissions:
-      contents: write # needed to push to gh-pages branch
+      contents: write  # to maintain the gh-pages storage branch
+      pages: write     # to deploy to GitHub Pages
+      id-token: write  # OIDC token required by actions/deploy-pages
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -39,32 +45,64 @@ jobs:
       - name: Build Maven site
         run: ./mvnw -B -ntp -DskipTests package site
 
-      - name: Deploy SNAPSHOT site
-        if: github.ref == 'refs/heads/main'
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
+      # Check out the accumulated gh-pages content so we can overlay new files
+      # and re-deploy the full site (native Pages has no keep_files equivalent).
+      # continue-on-error handles the first run when the branch doesn't exist yet.
+      - name: Checkout gh-pages storage branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: target/site
-          destination_dir: snapshot
-          keep_files: true
+          ref: gh-pages
+          path: target/gh-pages-store
+        continue-on-error: true
 
-      - name: Prepare versioned release layout
-        # Copies the site into {version}/ and latest/ so both are published
-        # atomically in a single gh-pages commit.
+      - name: Initialize gh-pages store if branch does not exist yet
+        run: |
+          if [ ! -d target/gh-pages-store/.git ]; then
+            git init target/gh-pages-store
+            git -C target/gh-pages-store checkout -b gh-pages
+          fi
+
+      - name: Update snapshot content
+        if: github.ref == 'refs/heads/main'
+        run: |
+          rm -rf target/gh-pages-store/snapshot
+          mkdir -p target/gh-pages-store/snapshot
+          cp -r target/site/. target/gh-pages-store/snapshot/
+
+      - name: Update release content
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           version="${GITHUB_REF_NAME#v}"
-          mkdir -p target/gh-pages/"$version"
-          mkdir -p target/gh-pages/latest
-          cp -r target/site/. target/gh-pages/"$version"/
-          cp -r target/site/. target/gh-pages/latest/
+          rm -rf "target/gh-pages-store/$version" target/gh-pages-store/latest
+          mkdir -p "target/gh-pages-store/$version" target/gh-pages-store/latest
+          cp -r target/site/. "target/gh-pages-store/$version/"
+          cp -r target/site/. target/gh-pages-store/latest/
 
-      - name: Deploy release site
-        # Deploys {version}/ and latest/ to the gh-pages root.
-        # keep_files: true preserves snapshot/ and all previous {version}/ dirs.
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: target/gh-pages
-          keep_files: true
+          path: target/gh-pages-store
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+      # Push the updated tree back so the next run can check it out.
+      - name: Commit and push gh-pages storage branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git -C target/gh-pages-store config user.name "github-actions[bot]"
+          git -C target/gh-pages-store config user.email "github-actions[bot]@users.noreply.github.com"
+          git -C target/gh-pages-store add -A
+          if git -C target/gh-pages-store diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git -C target/gh-pages-store commit -m "chore: update site for ${GITHUB_REF_NAME}"
+            git -C target/gh-pages-store remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" 2>/dev/null \
+              || git -C target/gh-pages-store remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git -C target/gh-pages-store push origin gh-pages
+          fi
