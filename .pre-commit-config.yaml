@@ -10,6 +10,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: check-pom-consistency
+        name: Check POM/dependabot consistency
+        language: system
+        entry: python3 .github/scripts/check-pom-consistency.py
+        files: ^pom\.xml$|^\.github/dependabot\.yml$
+        pass_filenames: false
+
       - id: unit-tests
         name: Unit tests
         language: system
