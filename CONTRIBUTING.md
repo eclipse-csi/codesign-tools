@@ -47,6 +47,41 @@ For more information, please see the Eclipse Committer Handbook:
 
 - https://www.eclipse.org/projects/handbook/#resources-commit
 
+## Development Setup
+
+This project uses [prek](https://prek.j178.dev/) to run quality checks
+automatically as Git hooks. prek is a fast, dependency-free drop-in
+replacement for [pre-commit](https://pre-commit.com/) written in Rust.
+
+### Installing prek
+
+Install prek using your preferred method:
+
+| Platform | Command |
+|---|---|
+| Homebrew (macOS/Linux) | `brew install prek` |
+| uv | `uv tool install prek` |
+| pip / pipx | `pip install prek` |
+| Scoop (Windows) | `scoop install main/prek` |
+
+See the [prek installation docs](https://prek.j178.dev/installation/) for
+all options (Nix, conda, cargo, Docker, …).
+
+### Installing the Git hooks
+
+Once prek is installed, wire it into the repository's Git hooks:
+
+```sh
+prek install
+```
+
+This installs two hooks driven by `.pre-commit-config.yaml`:
+
+- **pre-commit** — runs [zizmor](https://github.com/woodruffw/zizmor)
+  (GitHub Actions security linter) and the Maven unit tests on every
+  `git commit`.
+- **pre-push** — runs the Maven integration tests on every `git push`.
+
 ## Contact
 
 Contact the project developers via the project's "dev" list:

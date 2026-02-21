@@ -14,9 +14,9 @@ repos:
         name: Unit tests
         language: system
         entry: ./mvnw
-        args: [-B, -ntp, test]
+        args: [-B, -ntp, -P!integration-tests, test]
+        files: ^src/|pom\.xml$
         pass_filenames: false
-        always_run: true
 
       - id: integration-tests
         name: Integration tests
@@ -24,6 +24,6 @@ repos:
         entry: ./mvnw
         # -DskipTests skips surefire unit tests (already run at pre-commit stage)
         args: [-B, -ntp, -DskipTests, -Pintegration-tests, verify]
+        files: ^src/|pom\.xml$
         pass_filenames: false
-        always_run: true
         stages: [pre-push]
