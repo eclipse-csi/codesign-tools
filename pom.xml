@@ -24,10 +24,15 @@
   <developers>
     <developer>
       <name>Eclipse CSI Project Contributors</name>
-      <organization>Eclipse Foundation AISBL</organization>
+      <organization>Eclipse Foundation</organization>
       <organizationUrl>https://www.eclipse.org/</organizationUrl>
     </developer>
   </developers>
+
+  <organization>
+    <name>Eclipse Foundation</name>
+    <url>https://www.eclipse.org/</url>
+  </organization>
 
   <scm>
     <connection>scm:git:https://github.com/eclipse-csi/signpath-maven-plugin.git</connection>
