@@ -12,7 +12,9 @@ repos:
     hooks:
       - id: check-pom-consistency
         name: Check POM/dependabot consistency
-        language: system
+        language: python
+        language_version: python3
+        additional_dependencies: [defusedxml]
         entry: python3 .github/scripts/check-pom-consistency.py
         files: ^pom\.xml$|^\.github/dependabot\.yml$
         pass_filenames: false
