@@ -4,8 +4,8 @@ Tools for signing artifacts via the [SignPath](https://about.signpath.io/) REST 
 
 - **CLI** (`csi-codesign`) — standalone native binary for signing in any CI/CD pipeline
 - **Maven Plugin** (`codesign-maven-plugin`) — integrates signing into Maven builds
-- **Java API** — Java API for signing from any Java application (used by both the CLI
-and the Maven Plugin)
+- **Java API** — integrates signing into Java application (used by both the CLI and the
+Maven Plugin)
 
 ## Quick Start
 
