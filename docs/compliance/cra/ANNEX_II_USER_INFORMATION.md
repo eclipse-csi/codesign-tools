@@ -325,7 +325,7 @@ To use these security features effectively:
 | Feature | Disable mechanism | Recommendation |
 | --- | --- | --- |
 | Entire signing step | Set `CSI_CODESIGN_SKIP_SIGNING=1` (or `true`/`yes`) | Use only in development builds; never in release pipelines |
-| HTTPS enforcement | **Cannot be disabled.** The `https://` scheme requirement is hardcoded. | N/A |
+| HTTPS enforcement | **Cannot be disabled.** The `https://` scheme requirement is hardcoded. `http://localhost` and `http://127.0.0.1` are exempted for integration testing (loopback only). | N/A |
 | Token file permission check | No disable mechanism; the check is informational only | N/A |
 | SHA-256 audit logging | No disable mechanism | N/A |
 | Token source warnings | No disable mechanism | N/A |
@@ -429,19 +429,7 @@ scheme is always enforced.
 
 ---
 
-## 12. Product Identification
-
-The product can be identified via:
-
-* **Maven Central:** <https://central.sonatype.com/artifact/org.eclipse.csi/codesign-maven-plugin>
-* **GitHub Releases:** <https://github.com/eclipse-csi/codesign-tools/releases>
-* **CLI version flag:** `csi-codesign --version` (native binary or fat JAR)
-* **Maven effective POM:** `mvn help:effective-pom` shows the resolved plugin version
-  in the build
-
----
-
-## 13. Applicable Cybersecurity Standards and Conditions
+## 12. Applicable Cybersecurity Standards and Conditions
 
 The product is developed in alignment with the following standards, frameworks, and policies:
 

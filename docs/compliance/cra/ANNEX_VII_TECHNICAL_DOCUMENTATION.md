@@ -40,7 +40,7 @@ The authoritative version is declared in the root `pom.xml`:
 ```
 
 The version is embedded in the CLI at build time via the filtered resource
-`cli/src/main/resources/version.properties` and exposed through `codesign --version`.
+`cli/src/main/resources/version.properties` and exposed through `csi-codesign --version`.
 
 Release tags in the Git repository follow the format `v<MAJOR>.<MINOR>.<PATCH>`
 (e.g., `v1.0.0`). Each GitHub Release includes the full set of distributed artifacts
@@ -101,8 +101,9 @@ activity. All requests are made via OkHttp5 with standard TLS certificate valida
 **`SigningWorkflow`** (`api` module) — Orchestrates the three-phase signing operation:
 (1) compute SHA-256 of input artifact and log it; (2) submit the artifact to SignPath and
 obtain a signing request ID; (3) poll status until a terminal state is reached; (4) download
-the signed artifact and log its SHA-256. This class is the implementation of the
-SHA-256 audit log control (DS-2).
+the signed artifact. The post-download SHA-256 is computed and logged by the calling code
+(`CodesignMojo` and `SignCommand`). Together with `SigningWorkflow`, these classes implement
+the SHA-256 audit log control (DS-2).
 
 **`RetryInterceptor`** (`api` module, package-private) — OkHttp5 interceptor providing
 retry with configurable exponential-like backoff for HTTP 429, 502, 503, 504 responses
@@ -208,10 +209,10 @@ correctly in the native image.
 
 | Design choice | Rationale | Annex I requirement |
 | --- | --- | --- |
-| **HTTPS enforcement at construction time** — `CodesignClient(Config)` throws `IllegalArgumentException` if `baseUrl` does not begin with `https://`. | Prevents accidental or malicious redirection of the Bearer token or artifact data to a non-TLS endpoint. Fail-fast at configuration time provides immediate feedback and no partial-operation state. | §2(c)(d) |
+| **HTTPS enforcement at construction time** — `CodesignClient(Config)` throws `IllegalArgumentException` if `baseUrl` does not begin with `https://`. `http://localhost` and `http://127.0.0.1` are exempted for integration testing (loopback only — traffic never leaves the machine). | Prevents accidental or malicious redirection of the Bearer token or artifact data to a non-TLS endpoint. Fail-fast at configuration time provides immediate feedback and no partial-operation state. | §2(c)(d) |
 | **Immutable `Config` record** — `CodesignClient.Config` is a Java `record`; all fields are final. | Eliminates TOCTOU risks in configuration; ensures the same security parameters apply throughout a signing operation. | §2(e) |
 | **SHA-256 audit log (pre-upload and post-download)** — `SigningWorkflow` computes and logs SHA-256 of the input artifact before upload, and of the signed artifact after download. | Provides a tamper-evident client-side record that can be correlated with SignPath's server-side audit logs. Enables forensic detection of TOCTOU tampering and MITM substitution. | §2(e)(j)(k) |
-| **Token source warning system** — explicit `[WARN]` / `[WARNING]` emitted when the token is supplied via CLI flag or Maven system property. | Guides operators away from credential paths that expose the token in process listings or build logs, without breaking backward compatibility. | §2(c)(d) |
+| **Config file permission warning system** — explicit `[WARNING]` emitted when `config.properties` has insecure file permissions (group- or world-readable on POSIX; non-owner read access on Windows). | Alerts operators to credential exposure risk from misconfigured file permissions on shared build hosts. | §2(c)(d) |
 | **File permission check on `config.properties`** — `TokenResolver` (and `CodesignMojo`) warn if the config file is group- or world-readable on POSIX systems; on Windows, warns if any non-owner principal has `READ_DATA` access via ACL inspection. | Reduces the risk of token exposure from misconfigured file permissions on shared build hosts across all supported platforms. | §2(c) |
 | **Package-private internal classes** — `RetryInterceptor`, `TokenResolver`, `SignCommand`, `SignProjectArtifact` are not `public`. | Minimises the API attack surface; external code cannot instantiate or subclass internal implementation classes. | §2(i) |
 | **Atomic file writes** — temporary file with `.codesign-tmp` suffix, then atomic rename. | Prevents partially-written signed artifacts from being treated as valid outputs if the process is interrupted. | §2(e) |
@@ -221,7 +222,7 @@ correctly in the native image.
 
 | Default behaviour | Security rationale |
 | --- | --- |
-| Token resolution order: `settings.xml` → env var → config file; no command-line token argument | The token is never passed as a CLI argument, eliminating exposure via process listings. The environment variable is not visible in process listings. |
+| Token resolution order: `settings.xml` (plugin) → env var → config file; no command-line token argument | The token is never passed as a CLI argument, eliminating exposure via process listings. Environment variables are not visible in process listings on most systems. |
 | `signProjectArtifact=auto` — skips `pom` packaging | Avoids accidentally uploading non-binary Maven POM artifacts for signing. |
 | `failOnNoFilesFound=false` — warns but does not fail | Build continues if no files match; operators in release pipelines should override to `true`. |
 | `maxRetries=10`, `retryTimeout=600s` | Bounds retry behaviour to prevent excessive resource consumption. |
@@ -276,7 +277,7 @@ A full per-requirement applicability and implementation analysis is documented i
 | (a) No known exploitable vulnerabilities | Yes | Trivy CI scan (DV-5); Dependabot (DV-6) |
 | (b) Secure by default; reset to original state | Partially | HTTPS-only default; conservative artifact selection defaults; no persistent mutable state |
 | (c) Protection from unauthorised access | Yes | Bearer token via secure stores; POSIX permission check; HTTPS enforcement |
-| (d) Confidentiality of data in transit | Yes | HTTPS enforced; OkHttp5 TLS; `http://` rejected at startup |
+| (d) Confidentiality of data in transit | Yes | HTTPS enforced (loopback exempted); OkHttp5 TLS; `http://` rejected at startup |
 | (e) Integrity of data | Yes | SHA-256 pre-upload + post-download logging; TLS integrity; atomic file write |
 | (f) Data minimisation | Yes | Only necessary signing data transmitted; no telemetry |
 | (g) Availability of essential functions | Partially | Configurable retry/timeout; HTTP 429 backoff |

@@ -187,8 +187,16 @@ without publishing.
 ### Local Dry Run
 
 ```shell
-./mvnw -Prelease -DskipTests -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean verify
-./mvnw -Prelease -Djreleaser.dry.run=true jreleaser:full-release
+# Step 1: build + deploy to local staging directories
+./mvnw -B -ntp -P'!integration-tests',release -Dsigstore.skip=true -DskipTests clean deploy
+
+# Step 2: JReleaser dry run (mocked credentials are OK for SNAPSHOT)
+JRELEASER_GITHUB_TOKEN=dry_run_token \
+  JRELEASER_MAVENCENTRAL_USERNAME=dry_run_user \
+  JRELEASER_MAVENCENTRAL_PASSWORD=dry_run_pass \
+  JRELEASER_NEXUS2_USERNAME=dry_run_user \
+  JRELEASER_NEXUS2_PASSWORD=dry_run_pass \
+  ./mvnw -B -ntp -DskipTests jreleaser:full-release -Djreleaser.dry.run=true
 ```
 
 ## Contact

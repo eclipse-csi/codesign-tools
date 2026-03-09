@@ -41,15 +41,16 @@ Download the pre-built native binary for your platform from the
 | Platform | Binary name |
 | --- | --- |
 | Linux x86\_64 | `csi-codesign-linux-x86_64` |
-| Linux aarch64 | `csi-codesign-linux-aarch64` |
-| macOS Apple Silicon | `csi-codesign-macos-aarch64` |
-| macOS Intel | `csi-codesign-macos-x86_64` |
+| Linux aarch64 | `csi-codesign-linux-aarch_64` |
+| macOS Apple Silicon | `csi-codesign-osx-aarch_64` |
+| macOS Intel | `csi-codesign-osx-x86_64` |
 | Windows x86\_64 | `csi-codesign-windows-x86_64.exe` |
 
 ```bash
 # Linux / macOS: make executable and place on PATH
 chmod +x csi-codesign-linux-x86_64
 sudo mv csi-codesign-linux-x86_64 /usr/local/bin/csi-codesign
+# Adapt the binary name for your platform (see table above)
 ```
 
 **JVM alternative:** if you prefer running on the JVM, the `-bin` fat JAR is published to Maven
@@ -121,7 +122,7 @@ If none are set, the CLI prints a descriptive error and exits with code 2.
 ```bash
 export CSI_CODESIGN_API_TOKEN=your-token-here
 
-codesign sign app.jar \
+csi-codesign sign app.jar \
   --organization-id my-org \
   --project-id my-product \
   --signing-policy release-signing \
@@ -206,7 +207,7 @@ After `mvn package`, signed files are available in `target/signed/`.
 
 Reference documentation is published on the [project site](https://eclipse-csi.github.io/codesign-tools/):
 
-- **Maven Plugin parameters**: [`codesign:sign` goal reference](https://eclipse-csi.github.io/codesign-tools/latest/maven-plugin/sign-mojo.html)
+- **Maven Plugin parameters**: [`codesign:codesign` goal reference](https://eclipse-csi.github.io/codesign-tools/latest/maven-plugin/codesign-mojo.html)
 - **CLI options**: [CLI man page](https://eclipse-csi.github.io/codesign-tools/latest/cli-manpage/)
 - **Java API**: [API Javadoc](https://eclipse-csi.github.io/codesign-tools/latest/api-javadoc/)
 
@@ -382,7 +383,7 @@ shell glob expansion. On Windows PowerShell, expand globs manually:
 
 ```powershell
 $files = Get-ChildItem target\*.jar | ForEach-Object { $_.FullName }
-codesign sign @files --organization-id ... --output-dir signed\
+csi-codesign sign @files --organization-id ... --output-dir signed\
 ```
 
 **`--output` rejected when multiple input files are given**

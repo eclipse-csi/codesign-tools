@@ -32,7 +32,6 @@ The product is an **open-source Eclipse CSI project** distributed via Maven Cent
 **Reasonably foreseeable misuse scenarios:**
 
 * A build engineer embeds the API token in a public repository's `pom.xml` or CI log.
-* A build engineer embeds the API token in a public repository's `pom.xml` or CI log.
 * An attacker targeting a downstream software project compromises the signing pipeline to sign a malicious artifact.
 * A dependency confusion attack delivers a fake `org.eclipse.csi:codesign-maven-plugin` JAR.
 
@@ -108,10 +107,10 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 
 | ID | Threat | Data Flow | Risk | Existing controls |
 | --- | --- | --- | --- | --- |
-| **S1** | Attacker intercepts HTTPS traffic (MITM) and receives the Bearer token and/or returns a maliciously crafted signed artifact link | DF3, DF4, DF5 | **H** | OkHttp performs TLS certificate validation by default; HTTPS scheme enforced at `CodesignClient` construction time (`CodesignClient.java:73`); SHA-256 of downloaded artifact logged post-download |
+| **S1** | Attacker intercepts HTTPS traffic (MITM) and receives the Bearer token and/or returns a maliciously crafted signed artifact link | DF3, DF4, DF5 | **H** | OkHttp performs TLS certificate validation by default; HTTPS scheme enforced at `CodesignClient` construction time (`CodesignClient.java:74`); SHA-256 of downloaded artifact logged post-download |
 | **S2** | Attacker steals Bearer token (from CI log, process list, config file) and impersonates the legitimate CI pipeline to sign malicious artifacts | DF1 | **H** | TruffleHog secret scanning in CI; WARN emitted when token supplied via parameter/flag; env-var preferred path; settings.xml encryption support; SECURITY.md |
 | **S3** | Dependency confusion: attacker publishes `org.eclipse.csi:codesign-maven-plugin` to a higher-priority repository with a higher version number, injecting malicious code into build pipelines | DF7 | **H** | Maven Central groupId registration; Sigstore keyless signing; GPG signatures on releases; SLSA attestations; Trivy dependency vulnerability scanning in CI |
-| **S4** | Attacker configures `baseUrl` to point to a spoofed server causing the tool to send the Bearer token to an attacker-controlled endpoint (SSRF-like) | DF3 | **L** | `CodesignClient(Config)` constructor rejects any `baseUrl` that does not start with `https://`; `http://` endpoints unreachable; attacker must control a certificate-backed HTTPS endpoint |
+| **S4** | Attacker configures `baseUrl` to point to a spoofed server causing the tool to send the Bearer token to an attacker-controlled endpoint (SSRF-like) | DF3 | **L** | `CodesignClient(Config)` constructor rejects any `baseUrl` that does not start with `https://`; `http://localhost` and `http://127.0.0.1` are exempted to allow integration testing against local mock servers (traffic never leaves the machine); attacker must control a certificate-backed HTTPS endpoint |
 
 ### 3.2 Tampering
 
@@ -153,7 +152,7 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 
 | ID | Threat | Data Flow | Risk | Existing controls |
 | --- | --- | --- | --- | --- |
-| **E1** | `baseUrl` set to an internal service (SSRF): the tool transmits the Bearer token to an internal API endpoint accessible only from the build runner's network | DF3 | **L** | `CodesignClient(Config)` constructor rejects `http://` base URLs; only HTTPS endpoints reachable; HTTPS SSRF requires control of a certificate-backed endpoint |
+| **E1** | `baseUrl` set to an internal service (SSRF): the tool transmits the Bearer token to an internal API endpoint accessible only from the build runner's network | DF3 | **L** | `CodesignClient(Config)` constructor rejects `http://` base URLs except `http://localhost` and `http://127.0.0.1` (loopback only, for integration testing); only HTTPS endpoints reachable for non-loopback addresses; HTTPS SSRF requires control of a certificate-backed endpoint |
 | **E2** | Arbitrary file write via a compromised signed artifact download response: attacker influences what bytes are atomically written to a build-runner path | DF5, DF6 | **M** | Output path is entirely user-specified and normalised to absolute path; filename not derived from server response; TLS integrity; SHA-256 post-download audit log |
 | **E3** | Plugin running with elevated CI runner privileges (e.g., `root`) performs file operations (atomic move) across the filesystem; a path traversal in `outputDirectory` configuration could overwrite system files | DF6 | **L** | `toAbsolutePath().normalize()` is applied; attacker would need control over Maven configuration |
 
@@ -209,7 +208,7 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 
 | # | Action | Status | Addresses |
 | --- | --- | --- | --- |
-| **DS-1** | **Enforce HTTPS-only for `baseUrl`:** add validation in `CodesignClient` that rejects any `baseUrl` that does not start with `https://`. Throw an `IllegalArgumentException` at configuration time, not at request time. | ✅ `CodesignClient.java:73` | S1, S4, E1 |
+| **DS-1** | **Enforce HTTPS-only for `baseUrl`:** add validation in `CodesignClient` that rejects any `baseUrl` that does not start with `https://`. Throw an `IllegalArgumentException` at configuration time, not at request time. `http://localhost` and `http://127.0.0.1` are exempted (loopback only, for integration testing — traffic never leaves the machine). | ✅ `CodesignClient.java:74` | S1, S4, E1 |
 | **DS-2** | **Design a client-side artifact hash audit record:** before uploading, compute the SHA-256 of the input artifact and log it together with the signing request ID returned by SignPath. After download, re-compute the SHA-256 of the signed artifact and log it. | ✅ `SigningWorkflow`, `CodesignMojo`, `SignCommand` | T1, T2, R1 |
 | **DS-3** | **Prevent token exposure via process listings by design:** neither the CLI nor the Maven plugin accept the API token as a command-line argument. Token resolution is restricted to `settings.xml`, environment variables, and the config file. | ✅ Architecture-level control; no CLI token arg | I2 |
 | **DS-4** | **`config.properties` permission guidance:** check that `~/.config/eclipse-csi-codesign/config.properties` is not readable by other users and emit a `[WARNING]` if it is. Cover both POSIX (`chmod 600`) and Windows (ACL check). The check is also applied in `CodesignMojo`. | ✅ `TokenResolver.java`, `CodesignMojo.java` | I3 |
@@ -221,7 +220,7 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 
 | # | Action | Status | Addresses |
 | --- | --- | --- | --- |
-| **DV-1** | **HTTPS enforcement** in `CodesignClient(Config)` constructor; unit test `httpBaseUrlIsRejected` added. | ✅ | S1, S4, E1 |
+| **DV-1** | **HTTPS enforcement** in `CodesignClient(Config)` constructor (`http://localhost` and `http://127.0.0.1` exempted for integration testing); unit test `httpBaseUrlIsRejected` added. | ✅ | S1, S4, E1 |
 | **DV-2** | **SHA-256 artifact hash logging** (pre-upload in `SigningWorkflow`; post-download in `CodesignMojo` and `SignCommand`); `SigningWorkflowTest` verifies log ordering and hash format. | ✅ | T1, T2, R1 |
 | **DV-3** | **No command-line token argument**: neither `SignCommand` nor `CodesignMojo` expose a CLI/parameter path for the API token. Token resolution is tested via `CodesignMojoTest` (settings.xml, env var, config file paths) and `SignCommandIntegrationTest`. | ✅ | I2 |
 | **DV-4** | **File permission check** in `TokenResolver` and `CodesignMojo`: POSIX check (`chmod 600`) + Windows ACL check (warns if any non-owner principal has `READ_DATA` access). Jimfs in-memory filesystem used in tests so checks run on all platforms without `@EnabledOnOs`/`@DisabledOnOs` guards. | ✅ | I3 |
@@ -277,7 +276,7 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 The codesign-maven-plugin is a **build toolchain component** and does not directly interact with health or safety systems. However, the following second-order health and safety considerations apply:
 
 * If the tool is used to sign software deployed in **safety-critical systems** (medical devices, industrial control, automotive), a supply-chain compromise (T1, T2, T3) resulting in a maliciously signed artifact could have indirect health and safety consequences. Such deployments should implement additional controls: independent signature verification, multiple signing witnesses, and air-gapped artifact verification before deployment. The SHA-256 audit log (DS-2) strengthens traceability but does not substitute for these additional controls.
-* The risk of build pipeline **denial of service** (D1) could delay security patches to safety-critical software; the `skipOnSigningServiceUnavailable` option (DS-5) should be set to `false` for safety-critical release pipelines to prevent unsigned artifacts from being accidentally shipped.
+* The risk of build pipeline **denial of service** (D1) could delay security patches to safety-critical software; once the planned `skipOnSigningServiceUnavailable` option (DS-5, currently open) is implemented, it should be set to `false` for safety-critical release pipelines to prevent unsigned artifacts from being accidentally shipped.
 
 ---
 
@@ -331,7 +330,7 @@ The following table addresses each of the 12 specific requirements in Part I, po
 | --- | --- |
 | **Applicable** | Partially |
 | **Assessment** | The product has no persistent mutable state of its own beyond user-managed configuration files. "Reset to original state" is not directly applicable; the product always reads its configuration fresh on each invocation. |
-| **Implementation** | Default values are designed to be secure: the default token resolution order prioritises the environment variable (less exposed) over the CLI flag (more exposed); `signProjectArtifact=auto` avoids accidentally signing non-binary artifacts; `failOnNoFilesFound=false` emits a warning rather than silently succeeding. HTTPS enforcement is a hard default that cannot be disabled. The `CSI_CODESIGN_SKIP_SIGNING` environment variable allows signing to be skipped in development, but this is intentionally transparent (no silent skip). |
+| **Implementation** | Default values are designed to be secure: neither the CLI nor the Maven plugin accept the API token as a command-line argument — token resolution is restricted to `settings.xml` (plugin), environment variables, and the config file; `signProjectArtifact=auto` avoids accidentally signing non-binary artifacts; `failOnNoFilesFound=false` emits a warning rather than silently succeeding. HTTPS enforcement is a hard default that cannot be disabled (with a loopback exception for `localhost`/`127.0.0.1` to support integration testing). The `CSI_CODESIGN_SKIP_SIGNING` environment variable allows signing to be skipped in development, but this is intentionally transparent (no silent skip). |
 | **Threat IDs** | I1, I2, I3 |
 
 #### Requirement (2)(c) — Protection from Unauthorised Access by Appropriate Control Mechanisms
@@ -350,7 +349,7 @@ The following table addresses each of the 12 specific requirements in Part I, po
 | --- | --- |
 | **Applicable** | Yes |
 | **Assessment** | The product transmits Bearer tokens and artifact bytes over the network to SignPath. It also handles tokens in memory and optionally via configuration files. |
-| **Implementation** | (1) All network communication uses HTTPS; `CodesignClient(Config)` rejects `http://` scheme at construction time (DS-1). TLS certificate validation is performed by OkHttp5 using the JVM platform trust store. (2) The Bearer token is held in memory only for the duration of the signing operation and is not persisted by the tool. (3) No telemetry or other data is transmitted to any third party. (4) `config.properties` permission checking warns users of overly permissive file permissions (DS-4). |
+| **Implementation** | (1) All network communication uses HTTPS; `CodesignClient(Config)` rejects `http://` scheme at construction time (DS-1), with a loopback exception for `localhost`/`127.0.0.1` (integration testing only — traffic never leaves the machine). TLS certificate validation is performed by OkHttp5 using the JVM platform trust store. (2) The Bearer token is held in memory only for the duration of the signing operation and is not persisted by the tool. (3) No telemetry or other data is transmitted to any third party. (4) `config.properties` permission checking warns users of overly permissive file permissions (DS-4). |
 | **Residual risk** | Artifact content (I5) and project metadata (I6) are inherently transmitted to SignPath as part of the signing service model. Operators must accept this as a condition of using the service. |
 | **Threat IDs** | S1, I1, I2, I3, I5, I6 |
 
@@ -379,7 +378,7 @@ The following table addresses each of the 12 specific requirements in Part I, po
 | --- | --- |
 | **Applicable** | Partially |
 | **Assessment** | The product is a build tool, not a persistent service; "availability" applies in the sense of resilience against transient failures during a signing operation. |
-| **Implementation** | (1) `RetryInterceptor` retries HTTP 429/502/503/504 and connection/read timeout errors with configurable backoff, up to `maxRetries` (default 10) or `retryTimeout` (default 600 s). (2) Status polling is bounded by `waitForCompletionTimeout`. (3) HTTP 429 responses trigger backoff without spinning. (4) The `skipOnSigningServiceUnavailable` option (DS-5, open action) will allow release pipelines to continue when SignPath is unavailable, if that is the operator's preference. |
+| **Implementation** | (1) `RetryInterceptor` retries HTTP 429/502/503/504 and connection/read timeout errors with configurable backoff, up to `maxRetries` (default 10) or `retryTimeout` (default 600 s). (2) Status polling is bounded by `waitForCompletionTimeout`. (3) HTTP 429 responses trigger backoff without spinning. (4) A planned `skipOnSigningServiceUnavailable` option (DS-5, open action) will allow release pipelines to continue when SignPath is unavailable, if that is the operator's preference. |
 | **Residual risk** | Sustained SignPath unavailability (D1) will block release pipelines; this is inherent to a service-dependent tool. |
 | **Threat IDs** | D1, D2, D3 |
 

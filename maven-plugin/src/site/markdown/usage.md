@@ -138,7 +138,7 @@ request (e.g. build number, Git commit SHA):
 
 ## Complete Goal Reference
 
-See the [codesign:sign goal documentation](./sign-mojo.html) for the full list of
+See the [codesign:codesign goal documentation](./codesign-mojo.html) for the full list of
 configuration parameters and their defaults.
 
 For authentication options, output modes, retry behaviour, failure conditions, and

@@ -1,4 +1,4 @@
-# Notices for Eclipse CSI Codesign Maven Plugin
+# Notices for Eclipse CSI Codesign Tools
 
 This content is produced and maintained by the Eclipse Common Security
 Infrastructure (CSI) project.

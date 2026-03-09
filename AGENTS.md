@@ -58,7 +58,7 @@ Three-module Maven aggregator (`codesign-parent`):
 | Module directory | Artifact ID | Root package |
 | --- | --- | --- |
 | `api/` | `codesign-api` | `org.eclipse.csi.codesign` |
-| `maven-plugin/` | `codesign-maven-plugin` | `org.eclipse.csi.maven.plugins.signing` |
+| `maven-plugin/` | `codesign-maven-plugin` | `org.eclipse.csi.codesign.mojo` |
 | `cli/` | `codesign-cli` | `org.eclipse.csi.codesign.cli` |
 
 ### Core Components
@@ -71,7 +71,7 @@ Three-module Maven aggregator (`codesign-parent`):
 - **SigningRequest** / **SigningRequestStatus** — DTOs modelling SignPath API responses. `SigningRequestStatus` has predicates `isCompleted()`, `isFailed()`, `isDenied()`, `isCanceled()`.
 - **CodesignException** — Checked exception carrying HTTP status code and response body.
 
-**`codesign-maven-plugin`** (`org.eclipse.csi.maven.plugins.signing`):
+**`codesign-maven-plugin`** (`org.eclipse.csi.codesign.mojo`):
 
 - **CodesignMojo** — Maven plugin entry point (goal: `codesign`, phase: `package`). Scans for files via glob patterns, resolves API token (parameter → `settings.xml` → env var `CSI_CODESIGN_API_TOKEN`), delegates to `SigningWorkflow`.
 - **CodesignMojo.SignProjectArtifact** — internal enum for Mojo config parsing (private nested enum).
