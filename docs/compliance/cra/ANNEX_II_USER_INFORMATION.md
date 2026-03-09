@@ -7,10 +7,10 @@
 
 ---
 
-## 1. Manufacturer Contact Information
+## 1. Steward Contact Information
 
 * **Organisation:** Eclipse Foundation AISBL
-* **Registered address:** Avenue de Tervueren 64, 1040 Etterbeek, Belgium
+* **Registered address:** Rond Point Schuman 11, Brussels 1040, Belgium
 * **General website:** <https://www.eclipse.org/>
 * **Project website:** <https://projects.eclipse.org/projects/technology.csi>
 * **Source repository:** <https://github.com/eclipse-csi/codesign-tools>

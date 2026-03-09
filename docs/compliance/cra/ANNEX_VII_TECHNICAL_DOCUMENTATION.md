@@ -364,7 +364,7 @@ will be drawn up once:
 1. The product has been formally classified under Article 6 (assessment pending under
    action PL-2 in [`RISK_ASSESSMENT.md`](./RISK_ASSESSMENT.md)).
 2. The applicable conformity assessment procedure has been identified and completed.
-3. The manufacturer has drawn up the technical documentation required under Article 31.
+3. The Steward has drawn up the technical documentation required under Article 31.
 
 Upon completion, the EU declaration of conformity will be appended to this document and
 published in the `docs/compliance/` directory of the repository.
