@@ -2,7 +2,8 @@ name: SAST
 
 on:
   push:
-    branches: [main]
+    branches:
+      - 'main'
   pull_request:
   schedule:
     - cron: '32 3 * * 1'
