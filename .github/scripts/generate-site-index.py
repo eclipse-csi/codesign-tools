@@ -65,17 +65,17 @@ has_latest_manpage = os.path.isdir(os.path.join(STORE, "latest", "cli-manpage"))
 if has_latest_plugin or has_latest_apidocs or has_latest_manpage:
     version = read_stored_version("latest") or (version_dirs[0] if version_dirs else "")
     links = []
+    if has_latest_manpage:
+        links.append(
+            '    <a class="big" href="latest/cli-manpage/codesign.html">CLI Manual &#8594;</a>'
+        )
     if has_latest_plugin:
         links.append(
-            '    <a class="big" href="latest/maven-plugin/">Maven Plugin Docs &#8594;</a>'
+            '    <a class="big" href="latest/maven-plugin/">Maven Plugin &#8594;</a>'
         )
     if has_latest_apidocs:
         links.append(
-            '    <a class="big" href="latest/api-javadoc/">API Javadoc &#8594;</a>'
-        )
-    if has_latest_manpage:
-        links.append(
-            '    <a class="big" href="latest/cli-manpage/codesign.html">CLI Man Page &#8594;</a>'
+            '    <a class="big" href="latest/api-javadoc/">Javadoc &#8594;</a>'
         )
     sections.append(LATEST_SECTION.format(version=version, links="\n".join(links)))
 
@@ -86,17 +86,17 @@ has_snapshot_manpage = os.path.isdir(os.path.join(STORE, "snapshot", "cli-manpag
 if has_snapshot_plugin or has_snapshot_apidocs or has_snapshot_manpage:
     version = read_stored_version("snapshot") or ""
     links = []
+    if has_snapshot_manpage:
+        links.append(
+            '    <a class="big snap" href="snapshot/cli-manpage/codesign.html">CLI Manual &#8594;</a>'
+        )
     if has_snapshot_plugin:
         links.append(
-            '    <a class="big snap" href="snapshot/maven-plugin/">Maven Plugin Docs &#8594;</a>'
+            '    <a class="big snap" href="snapshot/maven-plugin/">Maven Plugin &#8594;</a>'
         )
     if has_snapshot_apidocs:
         links.append(
-            '    <a class="big snap" href="snapshot/api-javadoc/">API Javadoc &#8594;</a>'
-        )
-    if has_snapshot_manpage:
-        links.append(
-            '    <a class="big snap" href="snapshot/cli-manpage/codesign.html">CLI Man Page &#8594;</a>'
+            '    <a class="big snap" href="snapshot/api-javadoc/">Javadoc &#8594;</a>'
         )
     sections.append(SNAPSHOT_SECTION.format(version=version, links="\n".join(links)))
 
@@ -105,14 +105,12 @@ if version_dirs:
     items = []
     for v in version_dirs:
         link_parts = []
-        if os.path.isdir(os.path.join(STORE, v, "maven-plugin")):
-            link_parts.append(f'<a href="{v}/maven-plugin/">Maven Plugin Docs</a>')
-        if os.path.isdir(os.path.join(STORE, v, "api-javadoc")):
-            link_parts.append(f'<a href="{v}/api-javadoc/">API Javadoc</a>')
         if os.path.isdir(os.path.join(STORE, v, "cli-manpage")):
-            link_parts.append(
-                f'<a href="{v}/cli-manpage/codesign.html">CLI Man Page</a>'
-            )
+            link_parts.append(f'<a href="{v}/cli-manpage/codesign.html">CLI Manual</a>')
+        if os.path.isdir(os.path.join(STORE, v, "maven-plugin")):
+            link_parts.append(f'<a href="{v}/maven-plugin/">Maven Plugin</a>')
+        if os.path.isdir(os.path.join(STORE, v, "api-javadoc")):
+            link_parts.append(f'<a href="{v}/api-javadoc/">Javadoc</a>')
         if link_parts:
             items.append(
                 f"      <li><strong>v{v}</strong> &mdash; {' &bull; '.join(link_parts)}</li>"
