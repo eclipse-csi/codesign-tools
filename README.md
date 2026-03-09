@@ -10,7 +10,7 @@ Tools for signing artifacts via the [SignPath](https://about.signpath.io/) REST 
 ### CLI
 
 Download the native binary for your platform from the
-[Releases](https://github.com/eclipse-csi/codesign-maven-plugin/releases) page and
+[Releases](https://github.com/eclipse-csi/codesign-tools/releases) page and
 run:
 
 ```bash

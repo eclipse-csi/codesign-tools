@@ -13,7 +13,7 @@
 * **Registered address:** Avenue de Tervueren 64, 1040 Etterbeek, Belgium
 * **General website:** <https://www.eclipse.org/>
 * **Project website:** <https://projects.eclipse.org/projects/technology.csi>
-* **Source repository:** <https://github.com/eclipse-csi/codesign-maven-plugin>
+* **Source repository:** <https://github.com/eclipse-csi/codesign-tools>
 
 For security matters, use the contact in §2. For general development and usage questions,
 use the mailing list: <https://accounts.eclipse.org/mailing-list/csi-dev>
@@ -24,7 +24,7 @@ use the mailing list: <https://accounts.eclipse.org/mailing-list/csi-dev>
 
 | Channel | Address |
 | --- | --- |
-| GitHub private vulnerability reporting | <https://github.com/eclipse-csi/codesign-maven-plugin/security/advisories/new> |
+| GitHub private vulnerability reporting | <https://github.com/eclipse-csi/codesign-tools/security/advisories/new> |
 | Eclipse Foundation Security Team | <security@eclipse-foundation.org> |
 | Eclipse Foundation confidential tracker | <https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability> |
 
@@ -46,7 +46,7 @@ to include in a vulnerability report.
 The current released version is available at:
 
 * Maven Central: <https://central.sonatype.com/artifact/org.eclipse.csi/codesign-maven-plugin>
-* GitHub Releases: <https://github.com/eclipse-csi/codesign-maven-plugin/releases>
+* GitHub Releases: <https://github.com/eclipse-csi/codesign-tools/releases>
 
 All three components share a single version number. See §7 for version identification.
 
@@ -183,7 +183,7 @@ share the same version number in any given release.
 | API library | Maven artifact version in `pom.xml` / `build.gradle` |
 
 The full version history is documented in [`CHANGELOG.md`](../../CHANGELOG.md) and on
-the [GitHub Releases](https://github.com/eclipse-csi/codesign-maven-plugin/releases) page.
+the [GitHub Releases](https://github.com/eclipse-csi/codesign-tools/releases) page.
 
 ---
 
@@ -206,7 +206,7 @@ updating, verify the new release (see §11(a)).
 **CLI native binary:**
 
 Download the new binary archive for your platform from
-[GitHub Releases](https://github.com/eclipse-csi/codesign-maven-plugin/releases), verify
+[GitHub Releases](https://github.com/eclipse-csi/codesign-tools/releases), verify
 its authenticity (see §11(a)), extract it, and replace the existing binary on your `PATH`.
 
 **CLI JVM fat JAR:**
@@ -217,7 +217,7 @@ and replace the existing JAR.
 **Update notifications:**
 
 Subscribe to release notifications via **GitHub Watch → "Releases only"** on the
-[repository page](https://github.com/eclipse-csi/codesign-maven-plugin). Security-relevant
+[repository page](https://github.com/eclipse-csi/codesign-tools). Security-relevant
 releases are additionally published as GitHub Security Advisories visible in the
 "Security" tab of the repository.
 
@@ -287,7 +287,7 @@ Native CLI binaries include SLSA provenance attestations. Verify using
 ```bash
 slsa-verifier verify-artifact \
   --provenance-path codesign-linux-x86_64.intoto.jsonl \
-  --source-uri github.com/eclipse-csi/codesign-maven-plugin \
+  --source-uri github.com/eclipse-csi/codesign-tools \
   codesign-linux-x86_64
 ```
 
@@ -434,7 +434,7 @@ scheme is always enforced.
 The product can be identified via:
 
 * **Maven Central:** <https://central.sonatype.com/artifact/org.eclipse.csi/codesign-maven-plugin>
-* **GitHub Releases:** <https://github.com/eclipse-csi/codesign-maven-plugin/releases>
+* **GitHub Releases:** <https://github.com/eclipse-csi/codesign-tools/releases>
 * **CLI version flag:** `codesign --version` (native binary or fat JAR)
 * **Maven effective POM:** `mvn help:effective-pom` shows the resolved plugin version
   in the build

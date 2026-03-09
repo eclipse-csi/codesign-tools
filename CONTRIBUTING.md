@@ -19,7 +19,7 @@ and more.
 
 The project maintains the following source code repository:
 
-- <https://github.com/eclipse-csi/codesign-maven-plugin>
+- <https://github.com/eclipse-csi/codesign-tools>
 
 ## Eclipse Development Process
 
@@ -201,4 +201,4 @@ Contact the project developers via the project's "dev" list:
 
 For bug reports and feature requests, please use GitHub Issues:
 
-- <https://github.com/eclipse-csi/codesign-maven-plugin/issues>
+- <https://github.com/eclipse-csi/codesign-tools/issues>

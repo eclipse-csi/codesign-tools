@@ -76,7 +76,7 @@ Three-module Maven aggregator (`codesign-parent`):
 - **CodesignMojo** — Maven plugin entry point (goal: `codesign`, phase: `package`). Scans for files via glob patterns, resolves API token (parameter → `settings.xml` → env var `CSI_CODESIGN_API_TOKEN`), delegates to `SigningWorkflow`.
 - **CodesignMojo.SignProjectArtifact** — internal enum for Mojo config parsing (private nested enum).
 
-**`cli`** (`org.eclipse.csi.codesign.cli`):
+**`codesign-cli`** (`org.eclipse.csi.codesign.cli`):
 
 - **CodesignCli** — picocli root `@Command`; main entry point for both the fat JAR and the native binary.
 - **SignCommand** — picocli `sign` subcommand; delegates to `SigningWorkflow` (package-private).

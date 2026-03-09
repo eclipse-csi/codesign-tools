@@ -15,5 +15,5 @@ General instructions on how to use the CSI Codesign Maven Plugin can be found on
 [usage page](./usage.html).
 
 If you still have questions about how to use the plugin, have a look at the
-[GitHub Discussions](https://github.com/eclipse-csi/codesign-maven-plugin/discussions)
-or open an [issue](https://github.com/eclipse-csi/codesign-maven-plugin/issues).
+[GitHub Discussions](https://github.com/eclipse-csi/codesign-tools/discussions)
+or open an [issue](https://github.com/eclipse-csi/codesign-tools/issues).

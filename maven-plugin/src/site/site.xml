@@ -24,7 +24,7 @@
   <custom>
     <fluidoSkin>
       <gitHub>
-        <projectId>eclipse-csi/codesign-maven-plugin</projectId>
+        <projectId>eclipse-csi/codesign-tools</projectId>
         <ribbonOrientation>right</ribbonOrientation>
         <ribbonColor>gray</ribbonColor>
       </gitHub>

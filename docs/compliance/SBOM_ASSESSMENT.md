@@ -46,7 +46,7 @@ The generated SBOM uses CycloneDX 1.6, which meets the minimum format version re
       <manufacturer>
         <name>Eclipse Foundation</name>
         <urls>
-          <url>https://github.com/eclipse-csi/codesign-maven-plugin</url>
+          <url>https://github.com/eclipse-csi/codesign-tools</url>
         </urls>
       </manufacturer>
     </manufacturers>

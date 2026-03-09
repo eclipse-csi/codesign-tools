@@ -36,7 +36,7 @@ Replace `VERSION` with the latest release from
 ### CLI
 
 Download the pre-built native binary for your platform from the
-[GitHub Releases](https://github.com/eclipse-csi/codesign-maven-plugin/releases) page.
+[GitHub Releases](https://github.com/eclipse-csi/codesign-tools/releases) page.
 
 | Platform | Binary name |
 | --- | --- |
@@ -204,14 +204,14 @@ After `mvn package`, signed files are available in `target/signed/`.
 
 ## Configuration Reference
 
-Reference documentation is published on the [project site](https://eclipse-csi.github.io/codesign-maven-plugin/):
+Reference documentation is published on the [project site](https://eclipse-csi.github.io/codesign-tools/):
 
-- **Maven Plugin parameters**: [`codesign:sign` goal reference](https://eclipse-csi.github.io/codesign-maven-plugin/latest/maven-plugin/sign-mojo.html)
-- **CLI options**: [CLI man page](https://eclipse-csi.github.io/codesign-maven-plugin/latest/cli-manpage/)
-- **Java API**: [API Javadoc](https://eclipse-csi.github.io/codesign-maven-plugin/latest/api-javadoc/)
+- **Maven Plugin parameters**: [`codesign:sign` goal reference](https://eclipse-csi.github.io/codesign-tools/latest/maven-plugin/sign-mojo.html)
+- **CLI options**: [CLI man page](https://eclipse-csi.github.io/codesign-tools/latest/cli-manpage/)
+- **Java API**: [API Javadoc](https://eclipse-csi.github.io/codesign-tools/latest/api-javadoc/)
 
 > Documentation for past releases and for snapshot (built from the `main` branch) are
-> [available](https://eclipse-csi.github.io/codesign-maven-plugin/).
+> [available](https://eclipse-csi.github.io/codesign-tools/).
 
 ### Environment Variables
 

@@ -8,7 +8,7 @@ This Eclipse Foundation Project adheres to the [Eclipse Foundation Vulnerability
 
 Report it using one of the following channels:
 
-* Report a [vulnerability](https://github.com/eclipse-csi/codesign-maven-plugin/security/advisories/new) via private vulnerability reporting on GitHub
+* Report a [vulnerability](https://github.com/eclipse-csi/codesign-tools/security/advisories/new) via private vulnerability reporting on GitHub
 * Contact the [Eclipse Foundation Security Team](mailto:security@eclipse-foundation.org) via email
 * Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability) in the Eclipse Foundation Vulnerability Reporting Tracker
 

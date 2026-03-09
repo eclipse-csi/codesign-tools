@@ -143,4 +143,4 @@ configuration parameters and their defaults.
 
 For authentication options, output modes, retry behaviour, failure conditions, and
 troubleshooting guidance, see
-[USAGE.md](https://github.com/eclipse-csi/codesign-maven-plugin/blob/main/USAGE.md).
+[USAGE.md](https://github.com/eclipse-csi/codesign-tools/blob/main/USAGE.md).

@@ -11,7 +11,7 @@
 
   <name>Eclipse CSI Codesign Tools</name>
   <description>Eclipse CSI Codesign tools include API, Maven Plugin, and CLI components.</description>
-  <url>https://github.com/eclipse-csi/codesign-maven-plugin</url>
+  <url>https://github.com/eclipse-csi/codesign-tools</url>
 
   <modules>
     <module>api</module>
@@ -41,9 +41,9 @@
   </organization>
 
   <scm>
-    <connection>scm:git:https://github.com/eclipse-csi/codesign-maven-plugin.git</connection>
-    <developerConnection>scm:git:ssh://git@github.com/eclipse-csi/codesign-maven-plugin.git</developerConnection>
-    <url>https://github.com/eclipse-csi/codesign-maven-plugin</url>
+    <connection>scm:git:https://github.com/eclipse-csi/codesign-tools.git</connection>
+    <developerConnection>scm:git:ssh://git@github.com/eclipse-csi/codesign-tools.git</developerConnection>
+    <url>https://github.com/eclipse-csi/codesign-tools</url>
     <tag>HEAD</tag>
   </scm>
 
