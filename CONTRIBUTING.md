@@ -153,7 +153,7 @@ Hook/tool revisions are updated automatically by
 
 # Build a native CLI binary (requires GraalVM with native-image)
 ./mvnw -Pnative package -pl cli --also-make -DskipTests
-# Output: cli/target/codesign  (or codesign.exe on Windows)
+# Output: cli/target/csi-codesign  (or csi-codesign.exe on Windows)
 ```
 
 To generate SBOMs (CycloneDX) in a build, enable the `generate-sbom` profile

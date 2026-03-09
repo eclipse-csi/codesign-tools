@@ -21,23 +21,23 @@ jobs:
           - os: ubuntu-latest
             platform: linux-x86_64
             jreleaser-platform: linux-x86_64
-            binary: codesign
+            binary: csi-codesign
           - os: ubuntu-24.04-arm
             platform: linux-aarch64
             jreleaser-platform: linux-aarch_64
-            binary: codesign
+            binary: csi-codesign
           - os: macos-latest
             platform: macos-aarch64
             jreleaser-platform: osx-aarch_64
-            binary: codesign
+            binary: csi-codesign
           - os: macos-15-intel
             platform: macos-x86_64
             jreleaser-platform: osx-x86_64
-            binary: codesign
+            binary: csi-codesign
           - os: windows-latest
             platform: windows-x86_64
             jreleaser-platform: windows-x86_64
-            binary: codesign.exe
+            binary: csi-codesign.exe
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -67,7 +67,7 @@ jobs:
       - name: Upload native binary artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: codesign-${{ matrix.jreleaser-platform }}
+          name: csi-codesign-${{ matrix.jreleaser-platform }}
           path: cli/target/${{ matrix.binary }}
           if-no-files-found: error
           retention-days: ${{ inputs.artifact-retention-days }}

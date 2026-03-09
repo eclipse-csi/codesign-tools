@@ -157,35 +157,35 @@ jobs:
       - name: Download native binary (linux-x86_64)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: codesign-linux-x86_64
+          name: csi-codesign-linux-x86_64
           path: out/linux-x86_64
 
       - name: Download native binary (linux-aarch_64)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: codesign-linux-aarch_64
+          name: csi-codesign-linux-aarch_64
           path: out/linux-aarch_64
 
       - name: Download native binary (osx-aarch_64)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: codesign-osx-aarch_64
+          name: csi-codesign-osx-aarch_64
           path: out/osx-aarch_64
 
       - name: Download native binary (osx-x86_64)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: codesign-osx-x86_64
+          name: csi-codesign-osx-x86_64
           path: out/osx-x86_64
 
       - name: Download native binary (windows-x86_64)
         uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
         with:
-          name: codesign-windows-x86_64
+          name: csi-codesign-windows-x86_64
           path: out/windows-x86_64
 
       - name: Restore executable permissions on Linux and macOS binaries
-        run: chmod +x out/linux-x86_64/codesign out/linux-aarch_64/codesign out/osx-aarch_64/codesign out/osx-x86_64/codesign
+        run: chmod +x out/linux-x86_64/csi-codesign out/linux-aarch_64/csi-codesign out/osx-aarch_64/csi-codesign out/osx-x86_64/csi-codesign
 
       - name: Assemble native image archives
         env:

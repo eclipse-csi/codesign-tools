@@ -63,7 +63,7 @@ cryptographic code signing. The toolset:
 
 * Integrates into Maven build lifecycles (Maven plugin) to sign artifacts automatically
   during the build.
-* Provides a standalone native binary CLI (`codesign`) for signing in any CI/CD pipeline
+* Provides a standalone native binary CLI (`csi-codesign`) for signing in any CI/CD pipeline
   or shell script, regardless of build system.
 * Exposes a Java API library (`codesign-api`) for programmatic use from any JVM application.
 
@@ -142,11 +142,11 @@ For the complete risk matrix, see [`RISK_ASSESSMENT.md`](./RISK_ASSESSMENT.md) Â
 
 | Platform | Binary archive name |
 | --- | --- |
-| Linux x86\_64 | `codesign-linux-x86_64.tar.gz` |
-| Linux aarch64 | `codesign-linux-aarch_64.tar.gz` |
-| macOS Apple Silicon (aarch64) | `codesign-osx-aarch_64.tar.gz` |
-| macOS Intel (x86\_64) | `codesign-osx-x86_64.tar.gz` |
-| Windows x86\_64 | `codesign-windows-x86_64.zip` |
+| Linux x86\_64 | `csi-codesign-linux-x86_64.tar.gz` |
+| Linux aarch64 | `csi-codesign-linux-aarch_64.tar.gz` |
+| macOS Apple Silicon (aarch64) | `csi-codesign-osx-aarch_64.tar.gz` |
+| macOS Intel (x86\_64) | `csi-codesign-osx-x86_64.tar.gz` |
+| Windows x86\_64 | `csi-codesign-windows-x86_64.zip` |
 
 No Java installation is required for the native binary. Outbound HTTPS access to the
 configured signing endpoint is required.
@@ -178,8 +178,8 @@ share the same version number in any given release.
 | Component | Method |
 | --- | --- |
 | Maven plugin | `<version>` element in `pom.xml`; or `mvn help:effective-pom` |
-| CLI native binary | `codesign --version` |
-| CLI fat JAR | `java -jar codesign-cli-<version>-bin.jar --version` |
+| CLI native binary | `csi-codesign --version` |
+| CLI fat JAR | `java -jar csi-codesign-cli-<version>-bin.jar --version` |
 | API library | Maven artifact version in `pom.xml` / `build.gradle` |
 
 The full version history is documented in [`CHANGELOG.md`](../../CHANGELOG.md) and on
@@ -286,9 +286,9 @@ Native CLI binaries include SLSA provenance attestations. Verify using
 
 ```bash
 slsa-verifier verify-artifact \
-  --provenance-path codesign-linux-x86_64.intoto.jsonl \
+  --provenance-path csi-codesign-linux-x86_64.intoto.jsonl \
   --source-uri github.com/eclipse-csi/codesign-tools \
-  codesign-linux-x86_64
+  csi-codesign-linux-x86_64
 ```
 
 GPG signatures (`.asc` files) are also provided for each release artifact and can be
@@ -435,7 +435,7 @@ The product can be identified via:
 
 * **Maven Central:** <https://central.sonatype.com/artifact/org.eclipse.csi/codesign-maven-plugin>
 * **GitHub Releases:** <https://github.com/eclipse-csi/codesign-tools/releases>
-* **CLI version flag:** `codesign --version` (native binary or fat JAR)
+* **CLI version flag:** `csi-codesign --version` (native binary or fat JAR)
 * **Maven effective POM:** `mvn help:effective-pom` shows the resolved plugin version
   in the build
 

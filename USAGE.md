@@ -3,7 +3,7 @@
 This guide covers both tools in the Eclipse CSI Codesign project:
 
 - **Maven Plugin** (`codesign-maven-plugin`) — integrates artifact signing into Maven builds
-- **CLI** (`codesign`) — standalone binary for signing in any pipeline or shell
+- **CLI** (`csi-codesign`) — standalone binary for signing in any pipeline or shell
 
 > For contributor and developer documentation, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -40,23 +40,23 @@ Download the pre-built native binary for your platform from the
 
 | Platform | Binary name |
 | --- | --- |
-| Linux x86\_64 | `codesign-linux-x86_64` |
-| Linux aarch64 | `codesign-linux-aarch64` |
-| macOS Apple Silicon | `codesign-macos-aarch64` |
-| macOS Intel | `codesign-macos-x86_64` |
-| Windows x86\_64 | `codesign-windows-x86_64.exe` |
+| Linux x86\_64 | `csi-codesign-linux-x86_64` |
+| Linux aarch64 | `csi-codesign-linux-aarch64` |
+| macOS Apple Silicon | `csi-codesign-macos-aarch64` |
+| macOS Intel | `csi-codesign-macos-x86_64` |
+| Windows x86\_64 | `csi-codesign-windows-x86_64.exe` |
 
 ```bash
 # Linux / macOS: make executable and place on PATH
-chmod +x codesign-linux-x86_64
-sudo mv codesign-linux-x86_64 /usr/local/bin/codesign
+chmod +x csi-codesign-linux-x86_64
+sudo mv csi-codesign-linux-x86_64 /usr/local/bin/csi-codesign
 ```
 
 **JVM alternative:** if you prefer running on the JVM, the `-bin` fat JAR is published to Maven
 Central alongside the native binaries:
 
 ```bash
-java -jar codesign-cli-<version>-bin.jar sign --help
+java -jar csi-codesign-cli-<version>-bin.jar sign --help
 ```
 
 ---
