@@ -426,6 +426,13 @@
                 </nexus2>
               </maven>
             </deploy>
+            <files>
+              <artifacts>
+                <artifact>
+                  <path>out/cli-fatjar/csi-codesign-cli-{{projectVersion}}-bin.jar</path>
+                </artifact>
+              </artifacts>
+            </files>
             <assemble>
               <nativeImage>
                 <csi-codesign>

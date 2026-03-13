@@ -107,6 +107,15 @@ jobs:
           ./mvnw -B -ntp -DskipTests jreleaser:deploy -Djreleaser.dry.run=true
           ./mvnw -B -ntp -DskipTests jreleaser:release -Djreleaser.dry.run=true
 
+      - name: Upload CLI fat JAR
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cli-fatjar
+          path: cli/target/csi-codesign-cli-*-bin.jar
+          retention-days: 1
+          if-no-files-found: error
+
       - name: Attest build provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
@@ -185,6 +194,12 @@ jobs:
         with:
           name: csi-codesign-windows-x86_64
           path: out/windows-x86_64
+
+      - name: Download CLI fat JAR
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: cli-fatjar
+          path: out/cli-fatjar
 
       - name: Restore executable permissions on Linux and macOS binaries
         run: chmod +x out/linux-x86_64/csi-codesign out/linux-aarch_64/csi-codesign out/osx-aarch_64/csi-codesign out/osx-x86_64/csi-codesign
