@@ -61,16 +61,6 @@ jobs:
           echo "::error::Publish mode requires a tag ref (refs/tags/v*). Dispatch this workflow from the release tag."
           exit 1
 
-      - name: Verify GPG secrets are set
-        env:
-          JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
-        run: |
-          [ -n "$JRELEASER_GPG_SECRET_KEY" ] && echo "SECRET_KEY is set (${#JRELEASER_GPG_SECRET_KEY} chars)" || echo "SECRET_KEY is EMPTY"
-          [ -n "$JRELEASER_GPG_PASSPHRASE" ] && echo "PASSPHRASE is set (${#JRELEASER_GPG_PASSPHRASE} chars)" || echo "PASSPHRASE is EMPTY"
-          [ -n "$JRELEASER_GPG_PUBLIC_KEY" ] && echo "PUBLIC_KEY is set (${#JRELEASER_GPG_PUBLIC_KEY} chars)" || echo "PUBLIC_KEY is EMPTY"
-
       - name: Build release artifacts (publish mode)
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
         run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean deploy
