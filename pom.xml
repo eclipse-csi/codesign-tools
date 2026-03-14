@@ -380,8 +380,9 @@
               </links>
             </project>
             <signing>
+              <active>RELEASE</active>
+              <mode>COMMAND</mode>
               <command>
-                <active>RELEASE</active>
                 <args>
                   <arg>--pinentry-mode</arg>
                   <arg>loopback</arg>
