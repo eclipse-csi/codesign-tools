@@ -88,12 +88,15 @@ jobs:
 
       - name: Update snapshot content
         if: github.ref == 'refs/heads/main'
+        id: snapshot
         run: |
           version=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version)
           if [[ "${version}" != *-SNAPSHOT ]]; then
             echo "Version '${version}' is not a SNAPSHOT — skipping snapshot site update"
+            echo "updated=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "updated=true" >> "$GITHUB_OUTPUT"
           rm -rf target/gh-pages-store/snapshot
           mkdir -p target/gh-pages-store/snapshot/maven-plugin target/gh-pages-store/snapshot/api-javadoc \
                    target/gh-pages-store/snapshot/cli-manpage
@@ -120,23 +123,46 @@ jobs:
           echo "${version}" > "target/gh-pages-store/${version}/.version"
           echo "${version}" > target/gh-pages-store/latest/.version
 
+      # Skip index generation, deployment, and push when nothing was updated.
+      # This prevents a main-branch push (e.g. "prepare for vX.Y.Z" with a
+      # non-SNAPSHOT version) from re-deploying a stale site that overwrites
+      # a tag-push deployment.
+      - name: Check if site content was updated
+        id: content
+        env:
+          SNAPSHOT_UPDATED: ${{ steps.snapshot.outputs.updated }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif [[ "${SNAPSHOT_UPDATED}" == "true" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No site content was updated — skipping deployment"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Generate root index page
+        if: steps.content.outputs.changed == 'true'
         run: uv run --project .github/tools --group python-common python3 .github/scripts/generate-site-index.py
 
       - name: Configure Pages
+        if: steps.content.outputs.changed == 'true'
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Upload Pages artifact
+        if: steps.content.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
         with:
           path: target/gh-pages-store
 
       - name: Deploy to GitHub Pages
+        if: steps.content.outputs.changed == 'true'
         id: deploy
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
 
       # Push the updated tree back so the next run can check it out.
       - name: Commit and push gh-pages storage branch
+        if: steps.content.outputs.changed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
