@@ -435,6 +435,14 @@
                 </nexus2>
               </maven>
             </deploy>
+            <distributions>
+              <csi-codesign>
+                <type>NATIVE_IMAGE</type>
+                <executable>
+                  <name>csi-codesign</name>
+                </executable>
+              </csi-codesign>
+            </distributions>
             <files>
               <artifacts>
                 <artifact>
