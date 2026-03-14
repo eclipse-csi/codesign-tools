@@ -227,6 +227,9 @@ jobs:
           echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
           gpgconf --kill gpg-agent
 
+      - name: Create staging directories required by JReleaser validation
+        run: mkdir -p api/target/staging-deploy maven-plugin/target/staging-deploy cli/target/staging-deploy
+
       - name: Sign archives
         env:
           JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
