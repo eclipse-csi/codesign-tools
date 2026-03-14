@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Fit shellcheck calls in reviewdog workflow
+
+### Changed
+
+* Grant `issues:write` permission for JReleaser release labeling
+
 ## [v0.6.0] - 2026-03-14
 
 ### Security

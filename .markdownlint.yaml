@@ -4,3 +4,7 @@ default: true
 # prose naturally exceed 80 characters; enforcing a limit here would require
 # either disruptive rewrapping or ignoring the rule selectively everywhere.
 MD013: false
+# MD024/no-duplicate-header: disabled — duplicate headers are common in
+# change logs, and enforcing uniqueness would require disruptive renaming or
+# ignoring the rule selectively everywhere.
+MD024: false
