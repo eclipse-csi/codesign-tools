@@ -9,7 +9,7 @@ python-common = [
   "defusedxml==0.7.1",
 ]
 reviewdog-ruff = [
-  "ruff==0.15.4",
+  "ruff==0.15.5",
 ]
 prek = [
   "prek==0.3.4",
