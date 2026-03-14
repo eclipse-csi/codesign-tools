@@ -58,13 +58,10 @@ jobs:
       - name: Import GPG key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
-          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
-          gpgconf --reload gpg-agent
-          GPG_KEYGRIP=$(gpg --with-keygrip --list-secret-keys | grep -A1 '^\[S\]' | grep Keygrip | awk '{print $3}' || gpg --with-keygrip --list-secret-keys | grep Keygrip | head -1 | awk '{print $3}')
-          /usr/lib/gnupg/gpg-preset-passphrase --preset "${GPG_KEYGRIP}" <<<"${GPG_PASSPHRASE}"
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
 
       - name: Validate publish dispatch is run on a tag
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'publish' && !startsWith(github.ref, 'refs/tags/v') }}
@@ -221,13 +218,10 @@ jobs:
       - name: Import GPG key
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: |
           echo "${GPG_PRIVATE_KEY}" | gpg --batch --import
-          echo "allow-preset-passphrase" >> ~/.gnupg/gpg-agent.conf
-          gpgconf --reload gpg-agent
-          GPG_KEYGRIP=$(gpg --with-keygrip --list-secret-keys | grep -A1 '^\[S\]' | grep Keygrip | awk '{print $3}' || gpg --with-keygrip --list-secret-keys | grep Keygrip | head -1 | awk '{print $3}')
-          /usr/lib/gnupg/gpg-preset-passphrase --preset "${GPG_KEYGRIP}" <<<"${GPG_PASSPHRASE}"
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
 
       - name: Sign archives
         env:

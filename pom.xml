@@ -382,6 +382,10 @@
             <signing>
               <command>
                 <active>RELEASE</active>
+                <args>
+                  <arg>--pinentry-mode</arg>
+                  <arg>loopback</arg>
+                </args>
               </command>
             </signing>
             <catalog>
