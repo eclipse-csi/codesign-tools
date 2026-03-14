@@ -75,7 +75,7 @@ jobs:
 
       - name: Build release artifacts (dry-run mode)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run' }}
-        run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean verify
+        run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean deploy
 
       - name: Scan SBOM for vulnerabilities
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.29.0
