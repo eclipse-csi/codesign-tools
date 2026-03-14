@@ -15,7 +15,7 @@ permissions: {}
 
 jobs:
   deploy-site:
-    name: Build and publish Maven site
+    name: Build and publish documentation site
     runs-on: ubuntu-latest
     # Run on main (SNAPSHOT site) and version tags (release site) only
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
