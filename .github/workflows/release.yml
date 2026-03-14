@@ -109,9 +109,7 @@ jobs:
           JRELEASER_NEXUS2_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
           JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           JRELEASER_GPG_KEYNAME: ${{ secrets.GPG_KEY_ID }}
-        run: |
-          ./mvnw -B -ntp -DskipTests jreleaser:deploy -Djreleaser.dry.run=true
-          ./mvnw -B -ntp -DskipTests jreleaser:release -Djreleaser.dry.run=true
+        run: ./mvnw -B -ntp -DskipTests jreleaser:deploy -Djreleaser.dry.run=true
 
       - name: Upload CLI fat JAR
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
