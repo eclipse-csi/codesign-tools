@@ -447,6 +447,9 @@
                 <csi-codesign>
                   <active>ALWAYS</active>
                   <executable>csi-codesign</executable>
+                  <mainJar>
+                    <path>out/cli-fatjar/codesign-cli-{{projectVersion}}-bin.jar</path>
+                  </mainJar>
                   <!-- Pre-built platform binaries downloaded by CI before jreleaser:assemble runs.
                        JReleaser wraps each into a platform-specific .zip/.tar.gz archive. -->
                   <artifacts>
