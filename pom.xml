@@ -380,10 +380,9 @@
               </links>
             </project>
             <signing>
-              <pgp>
+              <command>
                 <active>RELEASE</active>
-                <armored>true</armored>
-              </pgp>
+              </command>
             </signing>
             <catalog>
               <github>
