@@ -115,7 +115,7 @@ jobs:
             echo "No shell scripts to check."
             exit 0
           fi
-          shellcheck -f checkstyle "${files}" \
+          git ls-files '*.sh' | xargs shellcheck -f checkstyle \
             | reviewdog -f=checkstyle -name="shellcheck" -reporter=github-pr-review -filter-mode=added -fail-level=error
 
   reviewdog-prek:
