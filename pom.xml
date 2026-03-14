@@ -384,6 +384,35 @@
                 <homepage>${project.url}</homepage>
               </links>
             </project>
+            <release>
+              <github>
+                <overwrite>false</overwrite>
+                <update>
+                  <enabled>true</enabled>
+                  <sections>
+                    <section>ASSETS</section>
+                  </sections>
+                </update>
+                <changelog>
+                  <formatted>ALWAYS</formatted>
+                  <preset>conventional-commits</preset>
+                  <contributors>
+                    <format>- {{contributorName}}</format>
+                  </contributors>
+                  <hide>
+                    <categories>
+                      <category>merge</category>
+                    </categories>
+                    <contributors>
+                      <contributor>[bot]</contributor>
+                    </contributors>
+                  </hide>
+                </changelog>
+                <issues>
+                  <enabled>true</enabled>
+                </issues>
+              </github>
+            </release>
             <signing>
               <active>RELEASE</active>
               <mode>COMMAND</mode>
@@ -424,8 +453,8 @@
                     <snapshotUrl>https://central.sonatype.com/repository/maven-snapshots/</snapshotUrl>
                     <applyMavenCentralRules>false</applyMavenCentralRules>
                     <snapshotSupported>true</snapshotSupported>
-                    <closeRepository>true</closeRepository>
-                    <releaseRepository>true</releaseRepository>
+                    <closeRepository>false</closeRepository>
+                    <releaseRepository>false</releaseRepository>
                     <stagingRepositories>
                       <stagingRepository>api/target/staging-deploy</stagingRepository>
                       <stagingRepository>maven-plugin/target/staging-deploy</stagingRepository>
