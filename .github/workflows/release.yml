@@ -111,12 +111,18 @@ jobs:
           JRELEASER_GPG_KEYNAME: ${{ secrets.GPG_KEY_ID }}
         run: ./mvnw -B -ntp -DskipTests jreleaser:deploy -Djreleaser.dry.run=true
 
+      - name: Prepare CLI fat JAR
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
+        run: |
+          mkdir -p out/cli-fatjar
+          cp cli/target/csi-codesign-cli-*-bin.jar out/cli-fatjar/
+
       - name: Upload CLI fat JAR
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: cli-fatjar
-          path: cli/target/csi-codesign-cli-*-bin.jar
+          path: out/cli-fatjar/
           retention-days: 1
           if-no-files-found: error
 
