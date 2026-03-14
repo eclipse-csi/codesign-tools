@@ -152,6 +152,7 @@ jobs:
       contents: write # needed to create GitHub release and upload artifacts
       id-token: write # needed for OIDC-based Sigstore keyless signing
       attestations: write # needed to create GitHub attestations via JReleaser catalog
+      issues: write # needed by JReleaser to apply the 'released' label to issues
 
     steps:
       - name: Harden Runner
