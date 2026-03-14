@@ -115,7 +115,7 @@ jobs:
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
         run: |
           mkdir -p out/cli-fatjar
-          cp cli/target/csi-codesign-cli-*-bin.jar out/cli-fatjar/
+          cp cli/target/codesign-cli-*-bin.jar out/cli-fatjar/
 
       - name: Upload CLI fat JAR
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}

@@ -438,7 +438,7 @@
             <files>
               <artifacts>
                 <artifact>
-                  <path>out/cli-fatjar/csi-codesign-cli-{{projectVersion}}-bin.jar</path>
+                  <path>out/cli-fatjar/codesign-cli-{{projectVersion}}-bin.jar</path>
                 </artifact>
               </artifacts>
             </files>
