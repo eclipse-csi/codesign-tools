@@ -437,10 +437,32 @@
             </deploy>
             <distributions>
               <csi-codesign>
-                <type>NATIVE_IMAGE</type>
+                <type>BINARY</type>
                 <executable>
                   <name>csi-codesign</name>
                 </executable>
+                <artifacts>
+                  <artifact>
+                    <path>out/archives/csi-codesign-{{projectVersion}}-linux-x86_64.tar.gz</path>
+                    <platform>linux-x86_64</platform>
+                  </artifact>
+                  <artifact>
+                    <path>out/archives/csi-codesign-{{projectVersion}}-linux-aarch_64.tar.gz</path>
+                    <platform>linux-aarch_64</platform>
+                  </artifact>
+                  <artifact>
+                    <path>out/archives/csi-codesign-{{projectVersion}}-osx-x86_64.tar.gz</path>
+                    <platform>osx-x86_64</platform>
+                  </artifact>
+                  <artifact>
+                    <path>out/archives/csi-codesign-{{projectVersion}}-osx-aarch_64.tar.gz</path>
+                    <platform>osx-aarch_64</platform>
+                  </artifact>
+                  <artifact>
+                    <path>out/archives/csi-codesign-{{projectVersion}}-windows-x86_64.zip</path>
+                    <platform>windows-x86_64</platform>
+                  </artifact>
+                </artifacts>
               </csi-codesign>
             </distributions>
             <files>
@@ -450,41 +472,6 @@
                 </artifact>
               </artifacts>
             </files>
-            <assemble>
-              <nativeImage>
-                <csi-codesign>
-                  <active>ALWAYS</active>
-                  <executable>csi-codesign</executable>
-                  <mainJar>
-                    <path>out/cli-fatjar/codesign-cli-{{projectVersion}}-bin.jar</path>
-                  </mainJar>
-                  <!-- Pre-built platform binaries downloaded by CI before jreleaser:assemble runs.
-                       JReleaser wraps each into a platform-specific .zip/.tar.gz archive. -->
-                  <artifacts>
-                    <artifact>
-                      <path>out/linux-x86_64/csi-codesign</path>
-                      <platform>linux-x86_64</platform>
-                    </artifact>
-                    <artifact>
-                      <path>out/linux-aarch_64/csi-codesign</path>
-                      <platform>linux-aarch_64</platform>
-                    </artifact>
-                    <artifact>
-                      <path>out/osx-x86_64/csi-codesign</path>
-                      <platform>osx-x86_64</platform>
-                    </artifact>
-                    <artifact>
-                      <path>out/osx-aarch_64/csi-codesign</path>
-                      <platform>osx-aarch_64</platform>
-                    </artifact>
-                    <artifact>
-                      <path>out/windows-x86_64/csi-codesign.exe</path>
-                      <platform>windows-x86_64</platform>
-                    </artifact>
-                  </artifacts>
-                </csi-codesign>
-              </nativeImage>
-            </assemble>
           </jreleaser>
         </configuration>
       </plugin>
