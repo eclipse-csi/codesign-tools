@@ -54,32 +54,37 @@ for cmd in git sed gpg; do
     exit 1
   fi
 done
+echo "✅ Required tools (git, sed, gpg) are available."
 
 # Verify that the Maven wrapper is available and executable
 if [[ ! -x "./mvnw" ]]; then
   echo "Error: Maven wrapper (mvnw) not found or not executable."
   exit 1
 fi
+echo "✅ Maven wrapper (mvnw) is available and executable."
 
 # Verify that RELEASE_VERSION is in semver format
 if ! [[ "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Error: RELEASE_VERSION must be in semver format (e.g., 0.5.12)"
   exit 1
 fi
+echo "✅ Release version (${RELEASE_VERSION}) is in valid semver format."
 
 # Verify that NEXT_DEV_VERSION is in semver format with -SNAPSHOT suffix
 if ! [[ "${NEXT_DEV_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
   echo "Error: NEXT_DEV_VERSION must be in semver format with -SNAPSHOT suffix (e.g., 0.5.13-SNAPSHOT)"
   exit 1
 fi
+echo "✅ Next development version (${NEXT_DEV_VERSION}) is in valid semver-SNAPSHOT format."
 
 # Verify that NEXT_DEV_VERSION is greater than RELEASE_VERSION
 NEXT_DEV_BASE="${NEXT_DEV_VERSION%-SNAPSHOT}"
 if [[ "$(printf '%s\n' "${RELEASE_VERSION}" "${NEXT_DEV_BASE}" | sort -V | tail -1)" != "${NEXT_DEV_BASE}" ]] \
    || [[ "${RELEASE_VERSION}" == "${NEXT_DEV_BASE}" ]]; then
-  echo "Error: NEXT_DEV_VERSION (${NEXT_DEV_VERSION}) must be greater than RELEASE_VERSION (${RELEASE_VERSION})"
+  echo "Error: Next development version (${NEXT_DEV_VERSION}) must be greater than release version (${RELEASE_VERSION})"
   exit 1
 fi
+echo "✅ Next development version (${NEXT_DEV_VERSION}) is greater than release version (${RELEASE_VERSION})."
 
 # Verify that GPG signing is properly configured
 GPG_KEY=$(git config --get user.signingkey 2>/dev/null || true)
@@ -91,12 +96,14 @@ if ! gpg --list-secret-keys "${GPG_KEY}" &>/dev/null; then
   echo "Error: GPG secret key '${GPG_KEY}' is not available. Please ensure the key is imported and accessible."
   exit 1
 fi
+echo "✅ GPG signing key (${GPG_KEY}) is configured and available."
 
 # Verify that the git working directory is clean (except for untracked files)
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "Error: Git working directory is not clean. Please commit or stash your changes before running this script."
   exit 1
 fi
+echo "✅ Git working directory is clean."
 
 # Verify that the current branch is main
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -104,6 +111,7 @@ if [[ "${CURRENT_BRANCH}" != "main" ]]; then
   echo "Error: Current branch is ${CURRENT_BRANCH}. Please switch to main branch before running this script."
   exit 1
 fi
+echo "✅ Current branch is main."
 
 # Verify that the local main branch is up to date (or ahead without diverging) with origin/main
 git fetch -q origin main
@@ -120,6 +128,7 @@ if [[ "${LOCAL_COMMIT}" != "${REMOTE_COMMIT}" ]]; then
     exit 1
   fi
 fi
+echo "✅ Local main branch is up to date with origin/main."
 
 # Verify that the current POM version is the SNAPSHOT of the release version
 CURRENT_POM_VERSION=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version)
@@ -127,12 +136,14 @@ if [[ "${CURRENT_POM_VERSION}" != "${RELEASE_VERSION}-SNAPSHOT" ]]; then
   echo "Error: Current POM version is ${CURRENT_POM_VERSION}, expected ${RELEASE_VERSION}-SNAPSHOT"
   exit 1
 fi
+echo "✅ Current POM version (${CURRENT_POM_VERSION}) matches expected SNAPSHOT version."
 
 # Verify that the tag for the release version does not already exist
 if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
   echo "Error: Tag v${RELEASE_VERSION} already exists. Please choose a different release version or delete the existing tag before running this script."
   exit 1
 fi
+echo "✅ Tag v${RELEASE_VERSION} does not already exist."
 
 # Verify that the release version is not already in use in the pom.xml files
 for pom in pom.xml api/pom.xml cli/pom.xml maven-plugin/pom.xml; do
@@ -146,18 +157,21 @@ for pom in pom.xml api/pom.xml cli/pom.xml maven-plugin/pom.xml; do
     exit 1
   fi
 done
+echo "✅ Release and development versions are not already in use in pom.xml files."
 
 # Verify that the release version is not set in the CHANGELOG.md file
 if grep -q "## \[${RELEASE_VERSION}\]" CHANGELOG.md || grep -q "## \[v${RELEASE_VERSION}\]" CHANGELOG.md; then
   echo "Error: Release version ${RELEASE_VERSION} is already in use in the CHANGELOG.md file. Please choose a different release version or update the CHANGELOG.md file before running this script."
   exit 1
 fi
+echo "✅ Release version ${RELEASE_VERSION} is not already in CHANGELOG.md."
 
 # Verify that there is an unreleased section in the CHANGELOG.md file
 if ! grep -q "## \[Unreleased\]" CHANGELOG.md; then
   echo "Error: No unreleased section found in CHANGELOG.md file. Please add an unreleased section before running this script."
   exit 1
 fi
+echo "✅ CHANGELOG.md has an [Unreleased] section."
 
 # Verify that the unreleased section has content
 UNRELEASED_CONTENT=$(sed -n '/## \[Unreleased\]/,/## \[/{/## \[/!p;}' CHANGELOG.md | grep -v '^[[:space:]]*$' || true)
@@ -165,6 +179,7 @@ if [[ -z "${UNRELEASED_CONTENT}" ]]; then
   echo "Error: The [Unreleased] section in CHANGELOG.md has no content. Please add changelog entries before releasing."
   exit 1
 fi
+echo "✅ [Unreleased] section in CHANGELOG.md has content."
 
 # Confirm before proceeding (unless dry-run)
 if ! "${DRY_RUN}"; then
