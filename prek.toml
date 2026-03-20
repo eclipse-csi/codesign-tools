@@ -2,7 +2,7 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.4"
+minimum_prek_version = "0.3.5"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
@@ -34,7 +34,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "4924b0e01e032fea073ad04a1c5cfa7e4add0afb" # frozen: v0.15.6
+rev = "e05c5c0818279e5ac248ac9e954431ba58865e61" # frozen: v0.15.7
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -77,7 +77,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/trufflesecurity/trufflehog"
-rev = "6c05c4a00b91aa542267d8e32a8254774799d68d" # frozen: v3.93.8
+rev = "6c64db94d5b2e09d7e0948fb6bd3166cc6fffbc7" # frozen: v3.94.0
 hooks = [
   { id = "trufflehog", stages = ["manual"] },
 ]
