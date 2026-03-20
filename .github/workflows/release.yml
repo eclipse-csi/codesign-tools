@@ -170,43 +170,43 @@ jobs:
       # validates the native-image version even though no native compilation
       # happens in this job.
       - name: Set up GraalVM
-        uses: graalvm/setup-graalvm@54b4f5a65c1a84b2fdfdc2078fe43df32819e4b1 # v1.4.5
+        uses: graalvm/setup-graalvm@f744c72a42b1995d7b0cbc314bde4bace7ac1fe1 # v1.5.0
         with:
           java-version: '21'
           distribution: 'graalvm-community'
 
       - name: Download native binary (linux-x86_64)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: csi-codesign-linux-x86_64
           path: out/linux-x86_64
 
       - name: Download native binary (linux-aarch_64)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: csi-codesign-linux-aarch_64
           path: out/linux-aarch_64
 
       - name: Download native binary (osx-aarch_64)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: csi-codesign-osx-aarch_64
           path: out/osx-aarch_64
 
       - name: Download native binary (osx-x86_64)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: csi-codesign-osx-x86_64
           path: out/osx-x86_64
 
       - name: Download native binary (windows-x86_64)
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: csi-codesign-windows-x86_64
           path: out/windows-x86_64
 
       - name: Download CLI fat JAR
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: cli-fatjar
           path: out/cli-fatjar
