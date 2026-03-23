@@ -71,6 +71,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           gh auth setup-git
 
+          # Fetch the remote branch (if it exists) so --force-with-lease
+          # has a valid baseline on this fresh checkout.
+          git fetch origin "refs/heads/${BRANCH}:refs/remotes/origin/${BRANCH}" 2>/dev/null || true
+
           git checkout -B "${BRANCH}"
           git add -A
           git commit -m "${TITLE}"
