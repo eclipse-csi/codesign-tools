@@ -50,6 +50,7 @@ tracked_files=(
 # Resolve latest external tool versions and the canonical Python dependency pin.
 cyclonedx_latest="$(gh api repos/CycloneDX/cyclonedx-cli/releases/latest --jq .tag_name)"
 opengrep_latest="$(gh api repos/opengrep/opengrep/releases/latest --jq .tag_name)"
+poutine_latest="$(gh api repos/boostsecurityio/poutine/releases/latest --jq .tag_name | sed 's/^v//')"
 trufflehog_latest="$(gh api repos/trufflesecurity/trufflehog/releases/latest --jq .tag_name | sed 's/^v//')"
 defusedxml_version="$(get_pyproject_pin defusedxml)"
 prek_version="$(get_pyproject_pin prek)"
@@ -60,8 +61,9 @@ trap 'rm -f "${tmpfile}"' EXIT
 jq \
   --arg cyclonedx "${cyclonedx_latest}" \
   --arg opengrep "${opengrep_latest}" \
+  --arg poutine "${poutine_latest}" \
   --arg trufflehog "${trufflehog_latest}" \
-  '.cyclonedx_cli = $cyclonedx | .opengrep = $opengrep | .trufflehog = $trufflehog' \
+  '.cyclonedx_cli = $cyclonedx | .opengrep = $opengrep | .poutine = $poutine | .trufflehog = $trufflehog' \
   .github/tools/versions.json > "${tmpfile}"
 mv "${tmpfile}" .github/tools/versions.json
 trap - EXIT
