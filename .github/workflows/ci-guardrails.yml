@@ -77,21 +77,13 @@ jobs:
           curl -sSfL "https://github.com/boostsecurityio/poutine/releases/download/v${VERSION}/poutine_Linux_x86_64.tar.gz" \
             | tar -xzf - -C /usr/local/bin poutine
 
-      - name: Run poutine
-        id: poutine
-        continue-on-error: true
+      - name: Generate poutine SARIF
         run: |
-          # Capture exit code separately so the SARIF file is fully written
-          # before the step fails (pipefail would truncate the jq output).
-          poutine analyze_local "${GITHUB_WORKSPACE}" -f sarif --fail-on-violation \
-            > poutine_raw.sarif || poutine_exit=$?
-
           # poutine emits an all-zero GUID that fails GitHub's UUID validation;
           # replace it with a valid RFC-4122 nil-equivalent.
-          jq '(.runs[].tool.driver.supportedTaxonomies[] | select(.guid == "00000000-0000-0000-0000-000000000000")).guid = "00000000-0000-1000-8000-000000000000"' \
-            poutine_raw.sarif > poutine_results.sarif
-
-          exit "${poutine_exit:-0}"
+          poutine analyze_local "${GITHUB_WORKSPACE}" -f sarif \
+            | jq '(.runs[].tool.driver.supportedTaxonomies[] | select(.guid == "00000000-0000-0000-0000-000000000000")).guid = "00000000-0000-1000-8000-000000000000"' \
+            > poutine_results.sarif
 
       - name: Upload poutine SARIF file
         uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
@@ -99,7 +91,6 @@ jobs:
           sarif_file: poutine_results.sarif
 
       - name: Fail if poutine reported findings
-        if: steps.poutine.outcome == 'failure'
         run: poutine analyze_local "${GITHUB_WORKSPACE}" --fail-on-violation
 
   trufflehog:
