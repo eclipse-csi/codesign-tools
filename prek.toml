@@ -108,7 +108,7 @@ hooks = [
     name = "Analyze workflows (Poutine)",
     language = "system",
     entry = "poutine",
-    args = ["analyze_local", ".", "--format", "pretty"],
+    args = ["analyze_local", ".", "--format", "pretty", "--fail-on-violation"],
     files = '^\.github/workflows/.*\.ya?ml$|^\.github/actions/.*\.ya?ml$',
     pass_filenames = false,
   },

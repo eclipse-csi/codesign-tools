@@ -83,7 +83,7 @@ jobs:
         run: |
           # poutine emits an all-zero GUID that fails GitHub's UUID validation;
           # pipe through jq to replace it with a valid RFC-4122 nil-equivalent.
-          poutine analyze_local "${GITHUB_WORKSPACE}" -f sarif \
+          poutine analyze_local "${GITHUB_WORKSPACE}" -f sarif --fail-on-violation \
             | jq '(.runs[].tool.driver.supportedTaxonomies[] | select(.guid == "00000000-0000-0000-0000-000000000000")).guid = "00000000-0000-1000-8000-000000000000"' \
             > poutine_results.sarif
 
@@ -94,7 +94,7 @@ jobs:
 
       - name: Fail if poutine reported findings
         if: steps.poutine.outcome == 'failure'
-        run: poutine analyze_local "${GITHUB_WORKSPACE}"
+        run: poutine analyze_local "${GITHUB_WORKSPACE}" --fail-on-violation
 
   trufflehog:
     name: Analyze (TruffleHog)
