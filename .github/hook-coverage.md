@@ -10,7 +10,7 @@ local-vs-CI drift.
 - `check-added-large-files`
 - `detect-private-key`
 - `detect-secrets`
-- `gitleaks`
+- `betterleaks`
 - `end-of-file-fixer`
 - `trailing-whitespace`
 - `mixed-line-ending`

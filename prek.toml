@@ -69,10 +69,10 @@ hooks = [
 ]
 
 [[repos]]
-repo = "https://github.com/gitleaks/gitleaks"
-rev = "8d1f98c7967eb1e79cb44ac6241a124e145d2165" # frozen: v8.30.1
+repo = "https://github.com/betterleaks/betterleaks"
+rev = "df7dbcb43c51b3cfe258607c2d7941a87cc98672" # frozen: v1.1.1
 hooks = [
-  { id = "gitleaks" },
+  { id = "betterleaks" },
 ]
 
 [[repos]]
