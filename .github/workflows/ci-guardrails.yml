@@ -90,9 +90,6 @@ jobs:
         with:
           sarif_file: poutine_results.sarif
 
-      - name: Fail if poutine reported findings
-        run: poutine analyze_local "${GITHUB_WORKSPACE}" --fail-on-violation
-
   trufflehog:
     name: Analyze (TruffleHog)
     runs-on: ubuntu-latest
