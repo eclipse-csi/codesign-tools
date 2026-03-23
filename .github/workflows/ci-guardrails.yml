@@ -81,11 +81,17 @@ jobs:
         id: poutine
         continue-on-error: true
         run: |
-          # poutine emits an all-zero GUID that fails GitHub's UUID validation;
-          # pipe through jq to replace it with a valid RFC-4122 nil-equivalent.
+          # Capture exit code separately so the SARIF file is fully written
+          # before the step fails (pipefail would truncate the jq output).
           poutine analyze_local "${GITHUB_WORKSPACE}" -f sarif --fail-on-violation \
-            | jq '(.runs[].tool.driver.supportedTaxonomies[] | select(.guid == "00000000-0000-0000-0000-000000000000")).guid = "00000000-0000-1000-8000-000000000000"' \
-            > poutine_results.sarif
+            > poutine_raw.sarif || poutine_exit=$?
+
+          # poutine emits an all-zero GUID that fails GitHub's UUID validation;
+          # replace it with a valid RFC-4122 nil-equivalent.
+          jq '(.runs[].tool.driver.supportedTaxonomies[] | select(.guid == "00000000-0000-0000-0000-000000000000")).guid = "00000000-0000-1000-8000-000000000000"' \
+            poutine_raw.sarif > poutine_results.sarif
+
+          exit "${poutine_exit:-0}"
 
       - name: Upload poutine SARIF file
         uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
