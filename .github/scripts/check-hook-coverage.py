@@ -10,7 +10,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PREK_CONFIG = ROOT / "prek.toml"
-REVIEWDOG_WORKFLOW = ROOT / ".github" / "workflows" / "reviewdog.yml"
+REVIEWDOG_WORKFLOW = ROOT / ".github" / "workflows" / "prs-review.yml"
 COVERAGE_DOC = ROOT / ".github" / "hook-coverage.md"
 
 
@@ -28,7 +28,7 @@ def parse_hook_ids(config_text: str) -> set[str]:
 def parse_skip_ids(reviewdog_text: str) -> set[str]:
     match = re.search(r"^\s*SKIP:\s*(.+)$", reviewdog_text, re.MULTILINE)
     if not match:
-        raise ValueError("Could not find SKIP value in .github/workflows/reviewdog.yml")
+        raise ValueError("Could not find SKIP value in .github/workflows/prs-review.yml")
     return {item.strip() for item in match.group(1).split(",") if item.strip()}
 
 
@@ -39,7 +39,7 @@ def parse_doc_ids(coverage_text: str) -> tuple[set[str], set[str], set[str]]:
     manual_ids: set[str] = set()
 
     for line in coverage_text.splitlines():
-        if line.startswith("## Hooks Covered by `reviewdog.yml` prek job"):
+        if line.startswith("## Hooks Covered by `prs-review.yml` prek job"):
             section = "reviewdog"
             continue
         if line.startswith("## Hooks Covered by Dedicated CI Jobs"):
