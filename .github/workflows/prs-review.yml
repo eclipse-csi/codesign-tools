@@ -142,9 +142,6 @@ jobs:
             files.pythonhosted.org:443
             pypi.org:443
             go.dev:443
-            motd.ubuntu.com:443
-            packages.microsoft.com:443
-            releases.astral.sh:443
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
