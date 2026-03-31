@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+* Switch from gitleaks to betterleaks for secret scanning in CI.
+* Add `dependency-review-action` for license and vulnerability vetting of dependencies introduced in PRs.
+
+### Added
+
+* Integrate poutine into CI guardrail: violations are reported as code scanning alerts. Trusted actions from 'unverified' creators are excluded from poutine checks.
+* Include poutine in the pinned-tool-versions update check.
+
+### Changed
+
+* Rename `reviewdog` workflow to `prs-review`.
+* Extend allowed network endpoints in CI workflows to include `raw.githubusercontent.com` and `api.deps.dev`.
+* Update pinned tool versions and CI/build dependencies (python-workflow-tools, setup-uv, kotlin-stdlib, prek).
+
+### Fixed
+
+* Fix hook-coverage script and documentation following the rename of the reviewdog workflow to prs-review.
+* Fix fetch of `ci/update-pinned-tool-versions` script in workflow.
+* Fix README lint issue.
+
 ## [v0.6.2] - 2026-03-20
 
 ### Changed
