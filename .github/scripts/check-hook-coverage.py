@@ -28,7 +28,9 @@ def parse_hook_ids(config_text: str) -> set[str]:
 def parse_skip_ids(reviewdog_text: str) -> set[str]:
     match = re.search(r"^\s*SKIP:\s*(.+)$", reviewdog_text, re.MULTILINE)
     if not match:
-        raise ValueError("Could not find SKIP value in .github/workflows/prs-review.yml")
+        raise ValueError(
+            "Could not find SKIP value in .github/workflows/prs-review.yml"
+        )
     return {item.strip() for item in match.group(1).split(",") if item.strip()}
 
 
