@@ -7,4 +7,9 @@ skip:
   # skip findings of a rule about a list of packages
   - rule: github_action_from_unverified_creator_used
     purl:
+      - pkg:githubactions/astral-sh/setup-uv
+      - pkg:githubactions/reviewdog/action-actionlint
+      - pkg:githubactions/reviewdog/action-markdownlint
+      - pkg:githubactions/reviewdog/action-setup
+      - pkg:githubactions/reviewdog/action-suggester
       - pkg:githubactions/zizmorcore/zizmor-action
