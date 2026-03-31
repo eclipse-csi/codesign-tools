@@ -3,7 +3,7 @@
 This document tracks how hooks in `prek.toml` are enforced in CI to avoid
 local-vs-CI drift.
 
-## Hooks Covered by `reviewdog.yml` prek job
+## Hooks Covered by `prs-review.yml` prek job
 
 - `check-merge-conflict`
 - `check-yaml`
@@ -28,13 +28,13 @@ local-vs-CI drift.
 - `check-hook-revisions-frozen`:
   - `.github/workflows/ci-guardrails.yml` (`Validate Hook Revisions Are Frozen`)
 - `actionlint`:
-  - `.github/workflows/reviewdog.yml` (`reviewdog (actionlint)`)
+  - `.github/workflows/prs-review.yml` (`reviewdog (actionlint)`)
 - `ruff`:
-  - `.github/workflows/reviewdog.yml` (`reviewdog (ruff)`)
+  - `.github/workflows/prs-review.yml` (`reviewdog (ruff)`)
 - `shellcheck`:
-  - `.github/workflows/reviewdog.yml` (`reviewdog (shellcheck)`)
+  - `.github/workflows/prs-review.yml` (`reviewdog (shellcheck)`)
 - `markdownlint`:
-  - `.github/workflows/reviewdog.yml` (`reviewdog (markdownlint)`)
+  - `.github/workflows/prs-review.yml` (`reviewdog (markdownlint)`)
 - `unit-tests`:
   - `.github/workflows/ci.yml` (`All Tests`)
 - `integration-tests`:
@@ -48,4 +48,4 @@ local-vs-CI drift.
   - run manually with `prek run trufflehog --all-files --stage manual`
 
 When adding/removing hooks, update this mapping and the `SKIP` list in
-`.github/workflows/reviewdog.yml` together.
+`.github/workflows/prs-review.yml` together.
