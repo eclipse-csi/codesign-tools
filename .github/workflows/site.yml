@@ -58,7 +58,7 @@ jobs:
           java-version: '21'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
         with:
           # Disable caching in this publish/deploy workflow to avoid cache-poisoning risk.
           enable-cache: false
@@ -152,7 +152,7 @@ jobs:
 
       - name: Configure Pages
         if: steps.content.outputs.changed == 'true'
-        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
       - name: Upload Pages artifact
         if: steps.content.outputs.changed == 'true'
@@ -163,7 +163,7 @@ jobs:
       - name: Deploy to GitHub Pages
         if: steps.content.outputs.changed == 'true'
         id: deploy
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
 
       # Push the updated tree back so the next run can check it out.
       - name: Commit and push gh-pages storage branch
