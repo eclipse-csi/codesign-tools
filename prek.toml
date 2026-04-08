@@ -2,7 +2,7 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.6"
+minimum_prek_version = "0.3.8"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
@@ -27,14 +27,14 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/rhysd/actionlint"
-rev = "393031adb9afb225ee52ae2ccd7a5af5525e03e8" # frozen: v1.7.11
+rev = "914e7df21a07ef503a81201c76d2b11c789d3fca" # frozen: v1.7.12
 hooks = [
   { id = "actionlint", files = '^\.github/workflows/.*\.(yml|yaml)$' },
 ]
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "e05c5c0818279e5ac248ac9e954431ba58865e61" # frozen: v0.15.7
+rev = "c60c980e561ed3e73101667fe8365c609d19a438" # frozen: v0.15.9
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -70,14 +70,14 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/betterleaks/betterleaks"
-rev = "df7dbcb43c51b3cfe258607c2d7941a87cc98672" # frozen: v1.1.1
+rev = "31746c9420b19a592848b21d6d8977d53cc6da0e" # frozen: v1.1.2
 hooks = [
   { id = "betterleaks" },
 ]
 
 [[repos]]
 repo = "https://github.com/trufflesecurity/trufflehog"
-rev = "6c64db94d5b2e09d7e0948fb6bd3166cc6fffbc7" # frozen: v3.94.0
+rev = "47e7b7cd74f578e1e3145d48f669f22fd1330ca6" # frozen: v3.94.3
 hooks = [
   { id = "trufflehog", stages = ["manual"] },
 ]
