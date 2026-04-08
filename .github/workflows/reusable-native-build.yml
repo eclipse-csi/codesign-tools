@@ -30,10 +30,6 @@ jobs:
             platform: macos-aarch64
             jreleaser-platform: osx-aarch_64
             binary: csi-codesign
-          - os: macos-15-intel
-            platform: macos-x86_64
-            jreleaser-platform: osx-x86_64
-            binary: csi-codesign
           - os: windows-latest
             platform: windows-x86_64
             jreleaser-platform: windows-x86_64
