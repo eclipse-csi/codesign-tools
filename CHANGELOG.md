@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.7.2] - 2026-05-03
+## [Unreleased]
 
 ### Security
 
@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fix hook-coverage script and documentation following the rename of the reviewdog workflow to prs-review.
 * Fix fetch of `ci/update-pinned-tool-versions` script in workflow.
 * Fix README lint issue.
+
+## [v0.7.2] - 2026-05-03
+
+* Sacrificed to the CI/CD gods.
 
 ## [v0.7.1] - 2026-05-03
 
