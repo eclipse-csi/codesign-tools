@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
 ### Security
 
 * Switch from gitleaks to betterleaks for secret scanning in CI.
 * Add `dependency-review-action` for license and vulnerability vetting of dependencies introduced in PRs.
+* Check for high and critical vulnerabilities in the release script.
 
 ### Added
 
@@ -19,9 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Drop macOS Intel (`osx-x86_64`) builds — no longer supported by GraalVM.
+* Remove `osx-x86_64` from JReleaser configuration (the binary is no longer built).
+* Upgrade GraalVM distribution to 25 and `graalvm/setup-graalvm` action to v1.5.2.
 * Rename `reviewdog` workflow to `prs-review`.
 * Extend allowed network endpoints in CI workflows to include `raw.githubusercontent.com` and `api.deps.dev`.
-* Update pinned tool versions and CI/build dependencies (python-workflow-tools, setup-uv, kotlin-stdlib, prek).
+* Move `.poutine.yml` to `.github/poutine.yml`.
+* Switch Dependabot update interval from weekly to daily.
+* Update pinned tool versions and CI/build dependencies (python-workflow-tools, setup-uv, kotlin-stdlib, prek, native-maven-plugin, gson, cdxgen, harden-runner, trufflehog).
 
 ### Fixed
 
