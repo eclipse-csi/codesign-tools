@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.7.1] - 2026-05-03
-
-### Changed
-
 ### Security
 
 * Switch from gitleaks to betterleaks for secret scanning in CI.
@@ -33,11 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Switch Dependabot update interval from weekly to daily.
 * Update pinned tool versions and CI/build dependencies (python-workflow-tools, setup-uv, kotlin-stdlib, prek, native-maven-plugin, gson, cdxgen, harden-runner, trufflehog).
 
-### Fixed
+### Fixed./
 
 * Fix hook-coverage script and documentation following the rename of the reviewdog workflow to prs-review.
 * Fix fetch of `ci/update-pinned-tool-versions` script in workflow.
 * Fix README lint issue.
+
+## [v0.7.1] - 2026-05-03
+
+* Sacrificed to the CI/CD gods.
 
 ## [v0.7.0] - 2026-05-03
 
