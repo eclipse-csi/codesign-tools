@@ -480,10 +480,6 @@
                     <platform>linux-aarch_64</platform>
                   </artifact>
                   <artifact>
-                    <path>out/archives/csi-codesign-{{projectVersion}}-osx-x86_64.tar.gz</path>
-                    <platform>osx-x86_64</platform>
-                  </artifact>
-                  <artifact>
                     <path>out/archives/csi-codesign-{{projectVersion}}-osx-aarch_64.tar.gz</path>
                     <platform>osx-aarch_64</platform>
                   </artifact>

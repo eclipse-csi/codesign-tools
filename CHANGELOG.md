@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.7.0] - 2026-05-03
-
 ### Security
 
 * Switch from gitleaks to betterleaks for secret scanning in CI.
@@ -31,9 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fix fetch of `ci/update-pinned-tool-versions` script in workflow.
 * Fix README lint issue.
 
+## [v0.7.0] - 2026-05-03
+
+* Sacrificed to the CI/CD gods.
+
 ## [v0.6.3] - 2026-03-31
 
-* Never released officially
+* Never released officially.
 
 ## [v0.6.2] - 2026-03-20
 
