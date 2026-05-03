@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Switch Dependabot update interval from weekly to daily.
 * Update pinned tool versions and CI/build dependencies (python-workflow-tools, setup-uv, kotlin-stdlib, prek, native-maven-plugin, gson, cdxgen, harden-runner, trufflehog).
 
-### Fixed./
+### Fixed
 
 * Fix hook-coverage script and documentation following the rename of the reviewdog workflow to prs-review.
 * Fix fetch of `ci/update-pinned-tool-versions` script in workflow.

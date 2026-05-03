@@ -206,13 +206,13 @@ jobs:
           path: out/cli-fatjar
 
       - name: Restore executable permissions on Linux and macOS binaries
-        run: chmod +x out/linux-x86_64/csi-codesign out/linux-aarch_64/csi-codesign out/osx-aarch_64/csi-codesign out/osx-x86_64/csi-codesign
+        run: chmod +x out/linux-x86_64/csi-codesign out/linux-aarch_64/csi-codesign out/osx-aarch_64/csi-codesign
 
       - name: Create platform archives
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p out/archives
-          for platform in linux-x86_64 linux-aarch_64 osx-x86_64 osx-aarch_64; do
+          for platform in linux-x86_64 linux-aarch_64 osx-aarch_64; do
             tar -czf "out/archives/csi-codesign-${VERSION}-${platform}.tar.gz" -C "out/${platform}" csi-codesign
           done
           (cd out/windows-x86_64 && zip "../../out/archives/csi-codesign-${VERSION}-windows-x86_64.zip" csi-codesign.exe)
