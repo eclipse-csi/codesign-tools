@@ -181,6 +181,28 @@ if [[ -z "${UNRELEASED_CONTENT}" ]]; then
 fi
 echo "✅ [Unreleased] section in CHANGELOG.md has content."
 
+# Verify that the SBOM scanning tools are available (matches release.yml)
+for cmd in trivy cdxgen cyclonedx; do
+  if ! command -v "$cmd" &>/dev/null; then
+    echo "Error: Required command '$cmd' is not installed (needed for the SBOM vulnerability scan)."
+    exit 1
+  fi
+done
+echo "✅ SBOM scanning tools (trivy, cdxgen, cyclonedx) are available."
+
+# Generate the aggregate SBOM and scan it for known HIGH/CRITICAL vulnerabilities,
+# mirroring the "Scan SBOM for vulnerabilities" step in .github/workflows/release.yml
+# so issues surface here instead of failing the release pipeline.
+echo "Generating aggregate SBOM (this may take a few minutes)..."
+./mvnw -ntp -P generate-sbom -DskipTests package
+if [[ ! -f target/bom_all.json ]]; then
+  echo "Error: Aggregate SBOM (target/bom_all.json) was not generated."
+  exit 1
+fi
+echo "Scanning aggregate SBOM for HIGH/CRITICAL vulnerabilities with Trivy..."
+trivy sbom --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --format table target/bom_all.json
+echo "✅ No HIGH/CRITICAL vulnerabilities found in aggregate SBOM."
+
 # Confirm before proceeding (unless dry-run)
 if ! "${DRY_RUN}"; then
   echo "About to release ${RELEASE_VERSION} and start development of ${NEXT_DEV_VERSION}."
