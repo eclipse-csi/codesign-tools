@@ -1,5 +1,5 @@
 {
-  "cyclonedx_cli": "v0.30.0",
+  "cyclonedx_cli": "v0.31.0",
   "opengrep": "v1.20.0",
   "poutine": "1.1.4",
   "trufflehog": "3.95.2"
