@@ -2,12 +2,12 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.9"
+minimum_prek_version = "0.3.11"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
 repo = "https://github.com/zizmorcore/zizmor-pre-commit"
-rev = "a4727cbbcd26d7098e96b9cb738169b59711ae51" # frozen: v1.24.1
+rev = "9257c6050c0261b8c57e712f632dc4a8010109a9" # frozen: v1.25.2
 hooks = [
   { id = "zizmor" },
 ]
@@ -34,7 +34,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "6fec9b7edb08fd9989088709d864a7826dc74e80" # frozen: v0.15.12
+rev = "5e2fb545eba1ea9dc051f6f962d52fe8f76a9794" # frozen: v0.15.13
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -77,7 +77,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/trufflesecurity/trufflehog"
-rev = "17456f8c7d042d8c82c9a8ca9e937231f9f42e26" # frozen: v3.95.2
+rev = "37b77001d0174ebec2fcca2bd83ff83a6d45a3ab" # frozen: v3.95.3
 hooks = [
   { id = "trufflehog", stages = ["manual"] },
 ]
