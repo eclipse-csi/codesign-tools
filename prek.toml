@@ -2,7 +2,7 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.11"
+minimum_prek_version = "0.3.13"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
@@ -34,7 +34,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "5e2fb545eba1ea9dc051f6f962d52fe8f76a9794" # frozen: v0.15.13
+rev = "0671d8ab202c4ac093b78433ae5baf74f3fc7246" # frozen: v0.15.15
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -70,7 +70,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/betterleaks/betterleaks"
-rev = "296fee33358904c47d094fa6716347b223b2c13f" # frozen: v1.2.0
+rev = "ea102f10e2255c28a2e45cd58db643ee5864e05b" # frozen: v1.3.1
 hooks = [
   { id = "betterleaks" },
 ]
