@@ -67,7 +67,7 @@ jobs:
       - name: Load pinned tool versions
         id: versions
         run: |
-          poutine="$(jq -r '.poutine' .github/tools/versions.json)"
+          poutine="$(jq -r '.poutine' tools/github-workflow-tools/versions.json)"
           echo "poutine=${poutine}" >> "$GITHUB_OUTPUT"
 
       - name: Install poutine
@@ -113,7 +113,7 @@ jobs:
       - name: Load pinned tool versions
         id: versions
         run: |
-          trufflehog="$(jq -r '.trufflehog' .github/tools/versions.json)"
+          trufflehog="$(jq -r '.trufflehog' tools/github-workflow-tools/versions.json)"
           echo "trufflehog=${trufflehog}" >> "$GITHUB_OUTPUT"
 
       - name: Run TruffleHog
@@ -149,7 +149,7 @@ jobs:
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
 
       - name: Check plugin version consistency
-        run: uv run --project .github/tools --group python-common python3 .github/scripts/check-pom-consistency.py
+        run: uv run --project tools/github-workflow-tools --group python-common python3 .github/scripts/check-pom-consistency.py
 
   hook-coverage:
     name: Validate Hook Coverage Mapping

@@ -74,7 +74,7 @@ jobs:
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run --project .github/tools --group reviewdog-ruff ruff check .github/scripts --output-format=rdjson \
+          uv run --project tools/github-workflow-tools --group reviewdog-ruff ruff check .github/scripts --output-format=rdjson \
             | reviewdog -f=rdjson -name="ruff" -reporter=github-pr-review -filter-mode=added -fail-level=error
 
   reviewdog-shellcheck:
@@ -168,7 +168,7 @@ jobs:
           # check-pom-consistency/check-hook-revisions-frozen have dedicated jobs in ci-guardrails.yml.
           # markdownlint has a dedicated reviewdog job above.
           SKIP: poutine,unit-tests,integration-tests,actionlint,ruff,shellcheck,zizmor,check-pom-consistency,check-hook-revisions-frozen,markdownlint
-        run: uv run --project .github/tools --group prek prek run --all-files --show-diff-on-failure
+        run: uv run --project tools/github-workflow-tools --group prek prek run --all-files --show-diff-on-failure
 
       - name: Suggest fixes with reviewdog
         if: ${{ always() }}

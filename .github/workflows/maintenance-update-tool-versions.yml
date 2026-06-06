@@ -47,7 +47,7 @@ jobs:
         id: update
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uv run --project .github/tools --group prek ./.github/scripts/update-tool-versions.sh "${GITHUB_OUTPUT}"
+        run: uv run --project tools/github-workflow-tools --group prek ./.github/scripts/update-tool-versions.sh "${GITHUB_OUTPUT}"
 
       - name: Create or update pull request
         if: ${{ steps.update.outputs.changed == 'true' }}
@@ -59,9 +59,9 @@ jobs:
           BODY=$(cat <<'BODY_EOF'
           Automated update of pinned tool versions in:
 
-          - `.github/tools/versions.json`
-          - `prek.toml` (`minimum_prek_version` synced from `.github/tools/pyproject.toml`)
-          - `prek.toml` (`defusedxml` pin synced from `.github/tools/pyproject.toml`)
+          - `tools/github-workflow-tools/versions.json`
+          - `prek.toml` (`minimum_prek_version` synced from `tools/github-workflow-tools/pyproject.toml`)
+          - `prek.toml` (`defusedxml` pin synced from `tools/github-workflow-tools/pyproject.toml`)
           - `prek.toml` (via `prek auto-update --freeze`)
 
           This keeps workflow binaries and hook revisions current.

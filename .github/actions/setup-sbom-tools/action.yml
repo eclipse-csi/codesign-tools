@@ -11,17 +11,17 @@ runs:
       id: versions
       shell: bash
       run: |
-        cyclonedx_cli="$(jq -r '.cyclonedx_cli' .github/tools/versions.json)"
+        cyclonedx_cli="$(jq -r '.cyclonedx_cli' tools/github-workflow-tools/versions.json)"
         echo "cyclonedx_cli=${cyclonedx_cli}" >> "$GITHUB_OUTPUT"
 
     - name: Set up cdxgen
       shell: bash
       run: |
-        npm ci --prefix .github/tools --no-fund --no-audit
+        npm ci --prefix tools/github-workflow-tools --no-fund --no-audit
         cat > /usr/local/bin/cdxgen <<'EOF'
         #!/usr/bin/env bash
         set -euo pipefail
-        exec node "${GITHUB_WORKSPACE}/.github/tools/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js" "$@"
+        exec node "${GITHUB_WORKSPACE}/tools/github-workflow-tools/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js" "$@"
         EOF
         chmod +x /usr/local/bin/cdxgen
 

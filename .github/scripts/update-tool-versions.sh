@@ -19,10 +19,10 @@ get_pyproject_pin() {
   local package_name="${1}"
   local version
   version="$(
-    perl -ne 'if (/^\s*"'"${package_name}"'==([^"]+)"/) { print "$1\n"; exit }' .github/tools/pyproject.toml
+    perl -ne 'if (/^\s*"'"${package_name}"'==([^"]+)"/) { print "$1\n"; exit }' tools/github-workflow-tools/pyproject.toml
   )"
   if [ -z "${version}" ]; then
-    echo "::error::Could not resolve ${package_name} version from .github/tools/pyproject.toml"
+    echo "::error::Could not resolve ${package_name} version from tools/github-workflow-tools/pyproject.toml"
     exit 1
   fi
   printf '%s\n' "${version}"
@@ -43,7 +43,7 @@ for required_cmd in gh jq perl prek git mktemp; do
 done
 
 tracked_files=(
-  ".github/tools/versions.json"
+  "tools/github-workflow-tools/versions.json"
   "prek.toml"
 )
 
@@ -64,11 +64,11 @@ jq \
   --arg poutine "${poutine_latest}" \
   --arg trufflehog "${trufflehog_latest}" \
   '.cyclonedx_cli = $cyclonedx | .opengrep = $opengrep | .poutine = $poutine | .trufflehog = $trufflehog' \
-  .github/tools/versions.json > "${tmpfile}"
-mv "${tmpfile}" .github/tools/versions.json
+  tools/github-workflow-tools/versions.json > "${tmpfile}"
+mv "${tmpfile}" tools/github-workflow-tools/versions.json
 trap - EXIT
 
-# Keep the local hook dependency in sync with .github/tools/pyproject.toml.
+# Keep the local hook dependency in sync with tools/github-workflow-tools/pyproject.toml.
 perl -0pi -e 's/"defusedxml==[^"]+"/"defusedxml=='"${defusedxml_version}"'"/g' prek.toml
 perl -0pi -e 's/^minimum_prek_version = "[^"]+"/minimum_prek_version = "'"${prek_version}"'"/m' prek.toml
 

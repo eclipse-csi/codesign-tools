@@ -148,7 +148,7 @@ jobs:
 
       - name: Generate root index page
         if: steps.content.outputs.changed == 'true'
-        run: uv run --project .github/tools --group python-common python3 .github/scripts/generate-site-index.py
+        run: uv run --project tools/github-workflow-tools --group python-common python3 .github/scripts/generate-site-index.py
 
       - name: Configure Pages
         if: steps.content.outputs.changed == 'true'

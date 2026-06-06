@@ -86,7 +86,7 @@ jobs:
       - name: Load pinned tool versions
         id: versions
         run: |
-          opengrep="$(jq -r '.opengrep' .github/tools/versions.json)"
+          opengrep="$(jq -r '.opengrep' tools/github-workflow-tools/versions.json)"
           echo "opengrep=${opengrep}" >> "$GITHUB_OUTPUT"
 
       - name: Install Cosign
