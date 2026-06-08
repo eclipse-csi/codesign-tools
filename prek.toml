@@ -2,7 +2,7 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.13"
+minimum_prek_version = "0.4.3"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
@@ -34,7 +34,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "0671d8ab202c4ac093b78433ae5baf74f3fc7246" # frozen: v0.15.15
+rev = "22f0422809455ec89ffdcf5a00170ba816e42ddb" # frozen: v0.15.16
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -70,14 +70,14 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/betterleaks/betterleaks"
-rev = "ea102f10e2255c28a2e45cd58db643ee5864e05b" # frozen: v1.3.1
+rev = "40d5cafea2045d16a217c1b70a69d6bba6b892ec" # frozen: v1.4.1
 hooks = [
   { id = "betterleaks" },
 ]
 
 [[repos]]
 repo = "https://github.com/trufflesecurity/trufflehog"
-rev = "37b77001d0174ebec2fcca2bd83ff83a6d45a3ab" # frozen: v3.95.3
+rev = "d411fff7b8879a62509f3fa98c07f247ac089a51" # frozen: v3.95.5
 hooks = [
   { id = "trufflehog", stages = ["manual"] },
 ]
