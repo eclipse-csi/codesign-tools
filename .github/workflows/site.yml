@@ -47,7 +47,7 @@ jobs:
             www.eclipse.org:443
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
 
@@ -58,7 +58,7 @@ jobs:
           java-version: '21'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           # Disable caching in this publish/deploy workflow to avoid cache-poisoning risk.
           enable-cache: false
@@ -73,7 +73,7 @@ jobs:
       # and re-deploy the full site (native Pages has no keep_files equivalent).
       # continue-on-error handles the first run when the branch doesn't exist yet.
       - name: Checkout gh-pages storage branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: gh-pages
           path: target/gh-pages-store
