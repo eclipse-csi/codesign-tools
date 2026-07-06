@@ -181,6 +181,6 @@ jobs:
             git commit -m "chore: update site for ${GITHUB_REF_NAME}"
             git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git" 2>/dev/null \
               || git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-            auth_header=$(printf "x-access-token:%s" "${GITHUB_TOKEN}" | base64)
+            auth_header=$(printf "x-access-token:%s" "${GITHUB_TOKEN}" | base64 -w0)
             git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" push origin gh-pages
           fi
