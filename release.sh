@@ -48,13 +48,13 @@ if "${DRY_RUN}"; then
 fi
 
 # Verify that required tools are available
-for cmd in git sed gpg; do
+for cmd in git sed; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: Required command '$cmd' is not installed."
     exit 1
   fi
 done
-echo "✅ Required tools (git, sed, gpg) are available."
+echo "✅ Required tools (git, sed) are available."
 
 # Verify that the Maven wrapper is available and executable
 if [[ ! -x "./mvnw" ]]; then
@@ -86,17 +86,48 @@ if [[ "$(printf '%s\n' "${RELEASE_VERSION}" "${NEXT_DEV_BASE}" | sort -V | tail 
 fi
 echo "✅ Next development version (${NEXT_DEV_VERSION}) is greater than release version (${RELEASE_VERSION})."
 
-# Verify that GPG signing is properly configured
-GPG_KEY=$(git config --get user.signingkey 2>/dev/null || true)
-if [[ -z "${GPG_KEY}" ]]; then
-  echo "Error: No GPG signing key configured. Please set one with: git config --global user.signingkey <KEY_ID>"
+# Verify that commit/tag signing is properly configured.
+# The release commit and tag are signed (git commit -S / git tag -s), which
+# delegates to git's configured signing backend. Honor gpg.format so both
+# OpenPGP (default) and SSH signing (e.g. Secretive / 1Password) work.
+SIGNING_KEY=$(git config --get user.signingkey 2>/dev/null || true)
+if [[ -z "${SIGNING_KEY}" ]]; then
+  echo "Error: No signing key configured. Please set one with: git config --global user.signingkey <KEY>"
   exit 1
 fi
-if ! gpg --list-secret-keys "${GPG_KEY}" &>/dev/null; then
-  echo "Error: GPG secret key '${GPG_KEY}' is not available. Please ensure the key is imported and accessible."
-  exit 1
-fi
-echo "✅ GPG signing key (${GPG_KEY}) is configured and available."
+SIGNING_FORMAT=$(git config --get gpg.format 2>/dev/null || echo "openpgp")
+case "${SIGNING_FORMAT}" in
+  ssh)
+    # SSH signing delegates to gpg.ssh.program (defaults to ssh-keygen).
+    SSH_SIGN_PROGRAM=$(git config --get gpg.ssh.program 2>/dev/null || echo "ssh-keygen")
+    if ! command -v "${SSH_SIGN_PROGRAM%% *}" &>/dev/null; then
+      echo "Error: SSH signing program '${SSH_SIGN_PROGRAM}' is not installed (needed for gpg.format=ssh)."
+      exit 1
+    fi
+    # When user.signingkey is a key file path, make sure the file exists.
+    resolved_key="${SIGNING_KEY/#\~/${HOME}}"
+    if [[ "${resolved_key}" == /* || "${resolved_key}" == ./* ]] && [[ ! -f "${resolved_key}" ]]; then
+      echo "Error: SSH signing key file '${SIGNING_KEY}' does not exist."
+      exit 1
+    fi
+    echo "✅ SSH signing key (${SIGNING_KEY}) is configured."
+    ;;
+  openpgp|"")
+    if ! command -v gpg &>/dev/null; then
+      echo "Error: Required command 'gpg' is not installed (needed for OpenPGP signing)."
+      exit 1
+    fi
+    if ! gpg --list-secret-keys "${SIGNING_KEY}" &>/dev/null; then
+      echo "Error: GPG secret key '${SIGNING_KEY}' is not available. Please ensure the key is imported and accessible."
+      exit 1
+    fi
+    echo "✅ GPG signing key (${SIGNING_KEY}) is configured and available."
+    ;;
+  *)
+    echo "Error: Unsupported gpg.format '${SIGNING_FORMAT}'. Supported values: openpgp, ssh."
+    exit 1
+    ;;
+esac
 
 # Verify that the git working directory is clean (except for untracked files)
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
