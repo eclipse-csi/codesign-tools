@@ -2,12 +2,12 @@
 # See https://prek.j178.dev for more information.
 #:schema https://www.schemastore.org/prek.json
 
-minimum_prek_version = "0.3.13"
+minimum_prek_version = "0.4.3"
 default_install_hook_types = ["pre-commit", "pre-push"]
 
 [[repos]]
 repo = "https://github.com/zizmorcore/zizmor-pre-commit"
-rev = "9257c6050c0261b8c57e712f632dc4a8010109a9" # frozen: v1.25.2
+rev = "e3eebf65325ccc992422292cb7a4baee967cf815" # frozen: v1.26.1
 hooks = [
   { id = "zizmor" },
 ]
@@ -34,7 +34,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/astral-sh/ruff-pre-commit"
-rev = "0671d8ab202c4ac093b78433ae5baf74f3fc7246" # frozen: v0.15.15
+rev = "c59bba8fb259db0fec2bbb77ad8ba51ea7341b56" # frozen: v0.15.20
 hooks = [
   { id = "ruff", args = ["--fix"], files = '^\.github/scripts/.*\.py$' },
   { id = "ruff-format", files = '^\.github/scripts/.*\.py$' },
@@ -42,7 +42,7 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/igorshubovych/markdownlint-cli"
-rev = "e72a3ca1632f0b11a07d171449fe447a7ff6795e" # frozen: v0.48.0
+rev = "a4d5d37e66ebcd6b3705204a1d6dbb56dea66338" # frozen: v0.49.0
 hooks = [
   { id = "markdownlint", args = ["--fix"] },
 ]
@@ -70,14 +70,14 @@ hooks = [
 
 [[repos]]
 repo = "https://github.com/betterleaks/betterleaks"
-rev = "ea102f10e2255c28a2e45cd58db643ee5864e05b" # frozen: v1.3.1
+rev = "28f08b4c8c4420a601f67ee9887c201697ff4568" # frozen: v1.6.1
 hooks = [
   { id = "betterleaks" },
 ]
 
 [[repos]]
 repo = "https://github.com/trufflesecurity/trufflehog"
-rev = "37b77001d0174ebec2fcca2bd83ff83a6d45a3ab" # frozen: v3.95.3
+rev = "00155c9dc586f34d189adc83d3ac2698c2ec551f" # frozen: v3.95.8
 hooks = [
   { id = "trufflehog", stages = ["manual"] },
 ]
