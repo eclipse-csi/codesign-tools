@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* Move workflow tooling manifests from `.github/tools` to `tools/github-workflow-tools` so Dependabot can manage them.
+* Restrict Dependabot updates for the workflow tools npm ecosystem to direct dependencies.
+* Update pinned GitHub Actions (checkout v7, dependency-review-action v5, codeql-action, harden-runner, setup-java, trivy-action, setup-uv, setup-graalvm, cosign-installer, trufflehog, zizmor-action, reviewdog actions, attest-build-provenance).
+* Update Maven build dependencies (Maven 3.9.16, okhttp 5.4.0, JUnit Jupiter 6.1.1, Kotlin 2.4.0, and the maven-plugins group).
+* Update pinned tool versions (cdxgen, cyclonedx-cli, opengrep, poutine, trufflehog, prek, ruff).
+
+### Fixed
+
+* Disable base64 line-wrapping when building the gh-pages push auth header in the site workflow.
+
 ## [v0.7.3] - 2026-05-03
 
 ### Security
