@@ -45,7 +45,7 @@ updates:
           - "*"
 
   - package-ecosystem: uv
-    directory: "/.github/tools"
+    directory: "/tools/github-workflow-tools"
     schedule:
       interval: weekly
     cooldown:
@@ -62,7 +62,7 @@ updates:
           - "*"
 
   - package-ecosystem: npm
-    directory: "/.github/tools"
+    directory: "/tools/github-workflow-tools"
     schedule:
       interval: weekly
     cooldown:
@@ -73,6 +73,8 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    allow:
+      - dependency-type: direct
     groups:
       node-workflow-tools:
         patterns:

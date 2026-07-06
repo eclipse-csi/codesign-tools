@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -36,18 +36,18 @@ jobs:
             releases.astral.sh:443
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
 
       - name: Update versions manifest and hooks
         id: update
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uv run --project .github/tools --group prek ./.github/scripts/update-tool-versions.sh "${GITHUB_OUTPUT}"
+        run: uv run --project tools/github-workflow-tools --group prek ./.github/scripts/update-tool-versions.sh "${GITHUB_OUTPUT}"
 
       - name: Create or update pull request
         if: ${{ steps.update.outputs.changed == 'true' }}
@@ -59,9 +59,9 @@ jobs:
           BODY=$(cat <<'BODY_EOF'
           Automated update of pinned tool versions in:
 
-          - `.github/tools/versions.json`
-          - `prek.toml` (`minimum_prek_version` synced from `.github/tools/pyproject.toml`)
-          - `prek.toml` (`defusedxml` pin synced from `.github/tools/pyproject.toml`)
+          - `tools/github-workflow-tools/versions.json`
+          - `prek.toml` (`minimum_prek_version` synced from `tools/github-workflow-tools/pyproject.toml`)
+          - `prek.toml` (`defusedxml` pin synced from `tools/github-workflow-tools/pyproject.toml`)
           - `prek.toml` (via `prek auto-update --freeze`)
 
           This keeps workflow binaries and hook revisions current.

@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ab7a9404c0f3da075243ca237b5fac12c98deaa5 # v2.19.3
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -47,18 +47,18 @@ jobs:
             www.eclipse.org:443
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Set up Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        uses: actions/setup-java@1bcf9fb12cf4aa7d266a90ae39939e61372fe520 # v5.4.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           # Disable caching in this publish/deploy workflow to avoid cache-poisoning risk.
           enable-cache: false
@@ -73,7 +73,7 @@ jobs:
       # and re-deploy the full site (native Pages has no keep_files equivalent).
       # continue-on-error handles the first run when the branch doesn't exist yet.
       - name: Checkout gh-pages storage branch
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: gh-pages
           path: target/gh-pages-store
@@ -148,7 +148,7 @@ jobs:
 
       - name: Generate root index page
         if: steps.content.outputs.changed == 'true'
-        run: uv run --project .github/tools --group python-common python3 .github/scripts/generate-site-index.py
+        run: uv run --project tools/github-workflow-tools --group python-common python3 .github/scripts/generate-site-index.py
 
       - name: Configure Pages
         if: steps.content.outputs.changed == 'true'
