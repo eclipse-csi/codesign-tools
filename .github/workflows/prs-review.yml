@@ -18,7 +18,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: false # actionlint needs to run in a container
           egress-policy: block
@@ -47,7 +47,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -84,7 +84,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: false # require sudo to install shellcheck
           egress-policy: block
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -192,7 +192,7 @@ jobs:
       pull-requests: write # Required to post comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -207,7 +207,7 @@ jobs:
           persist-credentials: false
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5
         with:
           config-file: ./.github/dependency-review-config.yml
 
@@ -218,7 +218,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # rc
         with:
           disable-sudo-and-containers: false # markdownlint needs to run in a container
           egress-policy: block
