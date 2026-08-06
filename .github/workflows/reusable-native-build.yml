@@ -14,8 +14,6 @@ permissions: {}
 jobs:
   native:
     name: Build native (${{ matrix.platform }})
-    permissions:
-      contents: read
     strategy:
       fail-fast: false
       matrix:
