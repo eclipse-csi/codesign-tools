@@ -14,6 +14,8 @@ permissions: {}
 jobs:
   native:
     name: Build native (${{ matrix.platform }})
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -44,11 +46,26 @@ jobs:
         with:
           disable-sudo-and-containers: true
           egress-policy: block
+          # The *.c.lencr.org entries are CRL distribution points for
+          # repo.maven.apache.org's Let's Encrypt chain (leaf CN=YE2 -> Root YE
+          # -> X2 -> X1). Windows TLS hard-fails the handshake when it cannot
+          # check certificate revocation, which broke the windows-x86_64 leg
+          # once harden-runner v2.20.0 started enforcing block mode on Windows.
+          # Re-derive from the StepSecurity run insights if Let's Encrypt
+          # rotates intermediates.
           allowed-endpoints: >
             api.github.com:443
             github.com:443
             release-assets.githubusercontent.com:443
             repo.maven.apache.org:443
+            ye2.c.lencr.org:80
+            ye2.c.lencr.org:443
+            ye.c.lencr.org:80
+            ye.c.lencr.org:443
+            x2.c.lencr.org:80
+            x2.c.lencr.org:443
+            x1.c.lencr.org:80
+            x1.c.lencr.org:443
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,10 +78,41 @@ jobs:
           java-version: '25'
           distribution: 'graalvm-community'
           native-image-job-reports: 'true'
+          github-token: ${{ github.token }}
 
+      # MVNW_VERBOSE drops the --silent that the wrapper otherwise passes to
+      # curl, so a failed distribution download reports the real curl error
+      # instead of a bare "curl: Failed to fetch".
+      #
+      # The two Windows branches below both avoid CRL revocation checking, so a
+      # rotated Let's Encrypt intermediate cannot break this job again even
+      # though the allowed-endpoints above pin today's CRL hosts:
+      #   1. Git ships an OpenSSL-based curl that performs no CRL lookup, unlike
+      #      Windows' own Schannel curl.exe which hard-fails the handshake when
+      #      the CRL host is unreachable. Putting Git's bin dir first makes the
+      #      wrapper pick it up.
+      #   2. Should that curl ever be absent from the runner image, mvnw.cmd
+      #      downloads via System.Net.WebClient instead, and .NET does not check
+      #      CRLs by default. It has to run the whole build rather than just the
+      #      download, because mvnw.cmd hashes the distribution URL with SHA-256
+      #      (mvnw.cmd:99) while mvnw uses a 32-bit string hash (mvnw:82-90), so
+      #      the two resolve to different ~/.m2/wrapper/dists directories.
       - name: Build native binary
         shell: bash
-        run: ./mvnw -B -ntp -Pnative -pl cli --also-make -DskipTests package
+        env:
+          MVNW_VERBOSE: 'true'
+        run: |
+          set -- -B -ntp -Pnative -pl cli --also-make -DskipTests package
+          if [ "$RUNNER_OS" = Windows ] && [ ! -x /mingw64/bin/curl.exe ]; then
+            echo "Git's OpenSSL curl not found, building via mvnw.cmd (.NET downloader)"
+            cmd //c "mvnw.cmd $*"
+          else
+            if [ "$RUNNER_OS" = Windows ]; then
+              export PATH="/mingw64/bin:$PATH"
+            fi
+            command -v curl && curl --version | head -1
+            ./mvnw "$@"
+          fi
 
       - name: Upload native binary artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
