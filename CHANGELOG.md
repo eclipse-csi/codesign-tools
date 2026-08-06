@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+* Bump `native-maven-plugin` to 1.1.7 to fix the native build failing with a missing
+  `org.apache.maven.shared.utils.logging.MessageUtils` class (upstream regression in 1.1.6).
+
 ## [v0.8.1] - 2026-07-06
 
 ### Changed
