@@ -267,10 +267,6 @@ run ./mvnw versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=f
 run git add CHANGELOG.md api/pom.xml cli/pom.xml maven-plugin/pom.xml pom.xml
 run git commit -s -S -m "Release version ${RELEASE_VERSION}"
 run git tag -s "v${RELEASE_VERSION}" -m "Release version ${RELEASE_VERSION}"
-run git push origin "v${RELEASE_VERSION}"
-run git push origin main
-
-echo "Release ${RELEASE_VERSION} created and pushed to origin."
 
 # Add unreleased section in the CHANGELOG.md file as the first h2 in the file.
 # There is always a h1 at the top of the file, so it needs to be added after the first h1 and its content.
@@ -280,4 +276,12 @@ run sed_inplace "0,/## /s/## /## [Unreleased]\n\n## /" CHANGELOG.md
 run ./mvnw versions:set -DnewVersion="${NEXT_DEV_VERSION}" -DgenerateBackupPoms=false -f pom.xml
 run git add CHANGELOG.md api/pom.xml cli/pom.xml maven-plugin/pom.xml pom.xml
 run git commit -s -S -m "Start development of version ${NEXT_DEV_VERSION}"
+
+# Push everything at the end: main once, carrying both commits, so CI sees a single
+# push instead of two (the release commit alone is a non-SNAPSHOT no-op for the site).
+# The tag goes last so the Release workflow only starts once main already describes the
+# next development version.
 run git push origin main
+run git push origin "v${RELEASE_VERSION}"
+
+echo "Release ${RELEASE_VERSION} created and pushed to origin."
