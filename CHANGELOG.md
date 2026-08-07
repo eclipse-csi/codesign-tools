@@ -11,25 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-* Bump `native-maven-plugin` to 1.1.7 to fix the native build failing with a missing
-  `org.apache.maven.shared.utils.logging.MessageUtils` class (upstream regression in 1.1.6).
-* Unblock the `windows-x86_64` native build, broken since harden-runner v2.20.0 began enforcing
-  `egress-policy: block` on Windows runners: allow the Let's Encrypt CRL distribution points
-  (`*.c.lencr.org`) that the Windows TLS stack needs to reach Maven Central, and prefer Git's
-  OpenSSL `curl` (with an `mvnw.cmd` fallback) so a future intermediate rotation cannot stale
-  that allowlist.
+* Bump `native-maven-plugin` to 1.1.7 to fix the native build failing with a missing `org.apache.maven.shared.utils.logging.MessageUtils` class (upstream regression in 1.1.6).
+* Unblock the `windows-x86_64` native build, broken since harden-runner v2.20.0 began enforcing `egress-policy: block` on Windows runners: allow the Let's Encrypt CRL distribution points (`*.c.lencr.org`) that the Windows TLS stack needs to reach Maven Central, and prefer Git's OpenSSL `curl` (with an `mvnw.cmd` fallback) so a future intermediate rotation cannot stale that allowlist.
 
 ### Changed
 
-* Pass `github-token` to `setup-graalvm` in the native build to avoid unauthenticated
-  `api.github.com` rate limits.
-* Update pinned GitHub Actions (checkout v7.0.1, setup-java v5.6.0, setup-uv v9.0.0,
-  codeql-action v4.37.3, setup-graalvm v1.6.3, harden-runner v2.20.0, trufflehog v3.96.0,
-  zizmor-action v0.6.1, reviewdog action-actionlint v1.73.0, action-markdownlint v0.28.0).
+* Pass `github-token` to `setup-graalvm` in the native build to avoid unauthenticated `api.github.com` rate limits.
+* Update pinned GitHub Actions (checkout v7.0.1, setup-java v5.6.0, setup-uv v9.0.0, codeql-action v4.37.3, setup-graalvm v1.6.3, harden-runner v2.20.0, trufflehog v3.96.0, zizmor-action v0.6.1, reviewdog action-actionlint v1.73.0, action-markdownlint v0.28.0).
 * Update Maven build dependencies (JUnit Jupiter 6.1.2, Kotlin 2.4.10, flatten-maven-plugin 1.8.0).
-* Update pinned tool versions (cdxgen 12.8.2, cyclonedx-cli 0.33.1, opengrep 1.26.0,
-  trufflehog 3.96.0, prek 0.4.11, ruff 0.16.0) and prek hook revisions (zizmor v1.29.0,
-  ruff v0.16.1, markdownlint-cli v0.49.1, betterleaks v1.7.3, trufflehog v3.96.0).
+* Update pinned tool versions (cdxgen 12.8.2, cyclonedx-cli 0.33.1, opengrep 1.26.0, trufflehog 3.96.0, prek 0.4.11, ruff 0.16.0) and prek hook revisions (zizmor v1.29.0, ruff v0.16.1, markdownlint-cli v0.49.1, betterleaks v1.7.3, trufflehog v3.96.0).
 
 ## [v0.8.1] - 2026-07-06
 
