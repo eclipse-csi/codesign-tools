@@ -151,7 +151,7 @@ jobs:
     permissions:
       contents: write # needed to create GitHub release and upload artifacts
       id-token: write # needed for OIDC-based Sigstore keyless signing
-      attestations: write # needed to create GitHub attestations via JReleaser catalog
+      attestations: write # needed by attest-build-provenance and by JReleaser catalog
       issues: write # needed by JReleaser to apply the 'released' label to issues
 
     steps:
@@ -219,6 +219,16 @@ jobs:
             tar -czf "out/archives/csi-codesign-${VERSION}-${platform}.tar.gz" -C "out/${platform}" csi-codesign
           done
           (cd out/windows-x86_64 && zip "../../out/archives/csi-codesign-${VERSION}-windows-x86_64.zip" csi-codesign.exe)
+
+      # The archives are assembled here, so the maven-central job's attestation step cannot
+      # cover them -- it only sees the staging-deploy Maven artifacts. Attest them here, or
+      # `gh attestation verify` on a downloaded archive answers 404.
+      - name: Attest build provenance of the platform archives
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            out/archives/*.tar.gz
+            out/archives/*.zip
 
       - name: Import GPG key
         env:
