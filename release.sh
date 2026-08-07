@@ -48,13 +48,13 @@ if "${DRY_RUN}"; then
 fi
 
 # Verify that required tools are available
-for cmd in git sed; do
+for cmd in git sed python3; do
   if ! command -v "$cmd" &>/dev/null; then
     echo "Error: Required command '$cmd' is not installed."
     exit 1
   fi
 done
-echo "✅ Required tools (git, sed) are available."
+echo "✅ Required tools (git, sed, python3) are available."
 
 # Verify that the Maven wrapper is available and executable
 if [[ ! -x "./mvnw" ]]; then
@@ -211,6 +211,21 @@ if [[ -z "${UNRELEASED_CONTENT}" ]]; then
   exit 1
 fi
 echo "✅ [Unreleased] section in CHANGELOG.md has content."
+
+# Verify that the [Unreleased] section renders as release notes. The GitHub release body is
+# produced from it by .github/scripts/render-release-notes.py, so a problem here would
+# otherwise only surface in CI, after the tag has already been pushed. GPG_KEY_ID must match
+# the repository secret of the same name: it is the artifact signing key advertised to users
+# in the notes, which is not necessarily the key git signs commits with.
+if [[ -z "${GPG_KEY_ID:-}" ]]; then
+  echo "Error: GPG_KEY_ID is not set. Export the OpenPGP key that signs the release artifacts (same value as the GPG_KEY_ID repository secret) before running this script."
+  exit 1
+fi
+if ! python3 .github/scripts/render-release-notes.py --unreleased --check; then
+  echo "Error: Could not render release notes from the [Unreleased] section of CHANGELOG.md."
+  exit 1
+fi
+echo "✅ Release notes render from the [Unreleased] section."
 
 # Verify that the SBOM scanning tools are available (matches release.yml)
 for cmd in trivy cdxgen cyclonedx; do

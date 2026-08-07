@@ -51,6 +51,10 @@ Commit messages shall use [convential commits format](https://www.conventionalco
 
 A changelog should be kept following recommendations from [keepachangelog](https://keepachangelog.com/en/1.1.0/).
 
+The `## [Unreleased]` section of `CHANGELOG.md` is published verbatim as the GitHub release
+body (see `.github/scripts/render-release-notes.py`), so entries should read as user-facing
+release notes, not as a summary of the diff.
+
 ## Architecture
 
 Three-module Maven aggregator (`codesign-parent`):

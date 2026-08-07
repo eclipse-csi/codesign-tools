@@ -175,14 +175,57 @@ This project publishes to Maven Central via JReleaser.
 
 Configure these repository/environment secrets before running the release workflow:
 
-- `JRELEASER_MAVENCENTRAL_USERNAME`
-- `JRELEASER_MAVENCENTRAL_PASSWORD`
-- `JRELEASER_GPG_PUBLIC_KEY` (ASCII-armored)
-- `JRELEASER_GPG_SECRET_KEY` (ASCII-armored)
-- `JRELEASER_GPG_PASSPHRASE`
+- `CENTRAL_SONATYPE_TOKEN_USERNAME`
+- `CENTRAL_SONATYPE_TOKEN_PASSWORD`
+- `GPG_PRIVATE_KEY` (ASCII-armored)
+- `GPG_KEY_ID`
+- `GPG_PASSPHRASE`
 
 Use the `mode=dry-run` option on the manual trigger to validate release configuration
 without publishing.
+
+### Release Notes
+
+The GitHub release body is **not** generated from commit messages. It is rendered by
+`.github/scripts/render-release-notes.py` from the `CHANGELOG.md` section for the release,
+plus a collapsed commit list, the contributor list, and artifact verification instructions.
+The workflow writes it to `target/release-notes.md`, which JReleaser publishes verbatim via
+`<changelog><external>` in `pom.xml`.
+
+Practical consequence: whatever you write under `## [Unreleased]` is what users read on the
+releases page, so write it for them rather than for the repository. `release.sh` refuses to
+release if that section is missing, empty, or fails to render.
+
+Rendering requires `GPG_KEY_ID` in the environment — the key users are told to import to
+check the signatures. It must be the same value as the `GPG_KEY_ID` repository secret (which
+the workflow passes automatically), so that the notes cannot advertise a key other than the
+one that signed the assets. It is *not* your `user.signingkey`, which signs commits and tags.
+
+Preview before tagging, or re-render a past release:
+
+```shell
+export GPG_KEY_ID=<artifact signing key>
+python3 .github/scripts/render-release-notes.py --unreleased
+python3 .github/scripts/render-release-notes.py --tag v0.8.2
+```
+
+To repair the notes of an already-published release, `--dry-run` diffs against the live body
+and `--publish` replaces it (both require `gh` authentication):
+
+```shell
+python3 .github/scripts/render-release-notes.py --tag v0.8.2 --dry-run
+python3 .github/scripts/render-release-notes.py --tag v0.8.2 --publish
+```
+
+The commit range is auto-detected as the previous version documented in `CHANGELOG.md`. That
+is correct for every release from v0.8.2 onwards, but several older tags (`v0.6.3`, `v0.7.0`,
+`v0.7.1`, `v0.7.2`, `v0.8.0`) were tagged and never published, so backfilling across them
+needs `--previous` to name the last version that actually shipped:
+
+```shell
+python3 .github/scripts/render-release-notes.py --tag v0.7.3 --previous v0.6.2 --dry-run
+python3 .github/scripts/render-release-notes.py --tag v0.8.1 --previous v0.7.3 --dry-run
+```
 
 ### Local Dry Run
 
@@ -190,14 +233,25 @@ without publishing.
 # Step 1: build + deploy to local staging directories
 ./mvnw -B -ntp -P'!integration-tests',release -Dsigstore.skip=true -DskipTests clean deploy
 
-# Step 2: JReleaser dry run (mocked credentials are OK for SNAPSHOT)
+# Step 2: render the release notes. This must come after step 1, which deletes target/.
+# jreleaser:full-release fails if target/release-notes.md is missing.
+python3 .github/scripts/render-release-notes.py --unreleased --output target/release-notes.md
+
+# Step 3: JReleaser dry run (mocked credentials are OK for SNAPSHOT)
 JRELEASER_GITHUB_TOKEN=dry_run_token \
   JRELEASER_MAVENCENTRAL_USERNAME=dry_run_user \
   JRELEASER_MAVENCENTRAL_PASSWORD=dry_run_pass \
   JRELEASER_NEXUS2_USERNAME=dry_run_user \
   JRELEASER_NEXUS2_PASSWORD=dry_run_pass \
   ./mvnw -B -ntp -DskipTests jreleaser:full-release -Djreleaser.dry.run=true
+
+# Step 4: confirm JReleaser published the rendered file verbatim
+diff target/release-notes.md target/jreleaser/release/CHANGELOG.md
 ```
+
+A SNAPSHOT dry run cannot exercise everything: JReleaser forces `overwrite = true` and
+disables `release.github.issues` for snapshots, so neither the `BODY` update path nor issue
+labelling is covered by it.
 
 ## Contact
 

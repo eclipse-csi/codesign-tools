@@ -165,6 +165,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Full history and tags: the release notes list every commit since the previous
+          # tag. A shallow clone silently reduced them to the single release commit.
+          fetch-depth: 0
 
       # GraalVM is required here (instead of plain Temurin) because JReleaser
       # validates the native-image version even though no native compilation
@@ -227,6 +230,15 @@ jobs:
 
       - name: Create staging directories required by JReleaser validation
         run: mkdir -p api/target/staging-deploy maven-plugin/target/staging-deploy cli/target/staging-deploy
+
+      # jreleaser:release reads this file. Rendering it before the signing step means a
+      # changelog problem fails the job before anything is signed or published.
+      - name: Render release notes
+        env:
+          TAG: ${{ github.ref_name }}
+          # Same key JReleaser signs with, so the notes cannot advertise a stale one.
+          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+        run: python3 .github/scripts/render-release-notes.py --tag "${TAG}" --output target/release-notes.md
 
       - name: Sign archives
         env:
