@@ -299,14 +299,19 @@ def publish(tag, body, dry_run):
     if current.returncode != 0:
         sys.exit(f"error: could not read release {tag}: {current.stderr.strip()}")
 
-    if current.stdout.strip() == body.strip():
+    # GitHub returns bodies with bare LF today, but normalise anyway so that a future switch
+    # to CRLF on write cannot make every re-run report a whole-file difference.
+    published = current.stdout.replace("\r\n", "\n").strip()
+    rendered = body.replace("\r\n", "\n").strip()
+
+    if published == rendered:
         print(f"{tag}: already up to date", file=sys.stderr)
         return
 
     if dry_run:
         diff = difflib.unified_diff(
-            current.stdout.splitlines(keepends=True),
-            body.splitlines(keepends=True),
+            (published + "\n").splitlines(keepends=True),
+            (rendered + "\n").splitlines(keepends=True),
             fromfile=f"{tag} (published)",
             tofile=f"{tag} (rendered)",
         )
