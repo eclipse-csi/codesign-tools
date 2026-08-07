@@ -1,186 +1,29 @@
 name: Site
 
+# Publishes the snapshot documentation for main.
+#
+# Release documentation is NOT published from here: it is published by the `publish-site`
+# job of the Release workflow, once the release itself has actually succeeded. Tag pushes
+# used to trigger this workflow directly, which lost release deploys to concurrency
+# eviction and published documentation for tags whose release had failed. See
+# reusable-site.yml for the details.
+#
+# To re-publish the documentation of an existing release, dispatch this workflow on that
+# release's tag: `gh workflow run site.yml --ref vX.Y.Z`.
+
 on:
   push:
     branches:
       - 'main'
-    tags: ['v*']
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: false
 
 permissions: {}
 
 jobs:
-  deploy-site:
-    name: Build and publish documentation site
-    runs-on: ubuntu-latest
-    # Run on main (SNAPSHOT site) and version tags (release site) only
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
-    timeout-minutes: 30
-
+  site:
+    name: Publish documentation site
+    uses: ./.github/workflows/reusable-site.yml
     permissions:
       contents: write  # to maintain the gh-pages storage branch
       pages: write     # to deploy to GitHub Pages
       id-token: write  # OIDC token required by actions/deploy-pages
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-
-    steps:
-      - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            files.pythonhosted.org:443
-            github.com:443
-            pypi.org:443
-            release-assets.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            repo.maven.apache.org:443
-            www.eclipse.org:443
-
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Java
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          # Disable caching in this publish/deploy workflow to avoid cache-poisoning risk.
-          enable-cache: false
-
-      - name: Build Maven site, API Javadoc, and CLI man page
-        run: |
-          ./mvnw -B -ntp -DskipTests -pl maven-plugin --also-make package site
-          ./mvnw -B -ntp -DskipTests -pl api javadoc:javadoc
-          ./mvnw -B -ntp -DskipTests -pl cli --also-make package
-
-      # Check out the accumulated gh-pages content so we can overlay new files
-      # and re-deploy the full site (native Pages has no keep_files equivalent).
-      # continue-on-error handles the first run when the branch doesn't exist yet.
-      - name: Checkout gh-pages storage branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: gh-pages
-          path: target/gh-pages-store
-          persist-credentials: false
-        continue-on-error: true
-
-      - name: Initialize gh-pages store if branch does not exist yet
-        run: |
-          if [ ! -d target/gh-pages-store/.git ]; then
-            git init target/gh-pages-store
-            git -C target/gh-pages-store checkout -b gh-pages
-          fi
-
-      - name: Update snapshot content
-        if: github.ref == 'refs/heads/main'
-        id: snapshot
-        run: |
-          version=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version)
-          if [[ "${version}" != *-SNAPSHOT ]]; then
-            echo "Version '${version}' is not a SNAPSHOT — skipping snapshot site update"
-            echo "updated=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "updated=true" >> "$GITHUB_OUTPUT"
-          rm -rf target/gh-pages-store/snapshot
-          mkdir -p target/gh-pages-store/snapshot/maven-plugin target/gh-pages-store/snapshot/api-javadoc \
-                   target/gh-pages-store/snapshot/cli-manpage
-          cp -r maven-plugin/target/site/. target/gh-pages-store/snapshot/maven-plugin/
-          cp -r api/target/reports/apidocs/. target/gh-pages-store/snapshot/api-javadoc/
-          cp -r cli/target/generated-docs/. target/gh-pages-store/snapshot/cli-manpage/
-          echo "${version}" > target/gh-pages-store/snapshot/.version
-
-      - name: Update release content
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          version="${GITHUB_REF_NAME#v}"
-          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.\-][a-zA-Z0-9]+)*$ ]]; then
-            echo "::error::Invalid version format: '${version}'"
-            exit 1
-          fi
-          rm -rf "target/gh-pages-store/${version}" target/gh-pages-store/latest
-          mkdir -p "target/gh-pages-store/${version}/maven-plugin" "target/gh-pages-store/${version}/api-javadoc" \
-                   "target/gh-pages-store/${version}/cli-manpage" \
-                   target/gh-pages-store/latest/maven-plugin target/gh-pages-store/latest/api-javadoc \
-                   target/gh-pages-store/latest/cli-manpage
-          cp -r maven-plugin/target/site/. "target/gh-pages-store/${version}/maven-plugin/"
-          cp -r maven-plugin/target/site/. target/gh-pages-store/latest/maven-plugin/
-          cp -r api/target/reports/apidocs/. "target/gh-pages-store/${version}/api-javadoc/"
-          cp -r api/target/reports/apidocs/. target/gh-pages-store/latest/api-javadoc/
-          cp -r cli/target/generated-docs/. "target/gh-pages-store/${version}/cli-manpage/"
-          cp -r cli/target/generated-docs/. target/gh-pages-store/latest/cli-manpage/
-          echo "${version}" > "target/gh-pages-store/${version}/.version"
-          echo "${version}" > target/gh-pages-store/latest/.version
-
-      # Skip index generation, deployment, and push when nothing was updated.
-      # This prevents a main-branch push (e.g. "prepare for vX.Y.Z" with a
-      # non-SNAPSHOT version) from re-deploying a stale site that overwrites
-      # a tag-push deployment.
-      - name: Check if site content was updated
-        id: content
-        env:
-          SNAPSHOT_UPDATED: ${{ steps.snapshot.outputs.updated }}
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          elif [[ "${SNAPSHOT_UPDATED}" == "true" ]]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No site content was updated — skipping deployment"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Generate root index page
-        if: steps.content.outputs.changed == 'true'
-        run: uv run --project tools/github-workflow-tools --group python-common python3 .github/scripts/generate-site-index.py
-
-      - name: Configure Pages
-        if: steps.content.outputs.changed == 'true'
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-
-      - name: Upload Pages artifact
-        if: steps.content.outputs.changed == 'true'
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: target/gh-pages-store
-
-      - name: Deploy to GitHub Pages
-        if: steps.content.outputs.changed == 'true'
-        id: deploy
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
-
-      # Push the updated tree back so the next run can check it out.
-      - name: Commit and push gh-pages storage branch
-        if: steps.content.outputs.changed == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cd target/gh-pages-store
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: update site for ${GITHUB_REF_NAME}"
-            git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git" 2>/dev/null \
-              || git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-            auth_header=$(printf "x-access-token:%s" "${GITHUB_TOKEN}" | base64 -w0)
-            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" push origin gh-pages
-          fi

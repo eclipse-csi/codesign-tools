@@ -264,3 +264,18 @@ jobs:
           JRELEASER_NEXUS2_USERNAME: ${{ secrets.CENTRAL_SONATYPE_TOKEN_USERNAME }}
           JRELEASER_NEXUS2_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
         run: ./mvnw -B -ntp -N -DskipTests jreleaser:release
+
+  # Publishing the documentation is the last stage of the release, not a reaction to the
+  # tag push. Driving it from the tag meant the site could be published for a release
+  # that had failed (v0.7.0 and v0.8.0 reached the site that way), and meant the deploy
+  # competed with release.sh's main pushes for a single concurrency slot, which silently
+  # discarded it (v0.6.3, v0.7.1, v0.7.2 and v0.8.2 were all lost that way).
+  publish-site:
+    name: Publish documentation site
+    needs: [assemble-and-release]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
+    uses: ./.github/workflows/reusable-site.yml
+    permissions:
+      contents: write  # to maintain the gh-pages storage branch
+      pages: write     # to deploy to GitHub Pages
+      id-token: write  # OIDC token required by actions/deploy-pages
