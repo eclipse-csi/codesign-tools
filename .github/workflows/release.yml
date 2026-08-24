@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           disable-sudo-and-containers: true
           egress-policy: audit
@@ -122,7 +122,7 @@ jobs:
           if-no-files-found: error
 
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
         with:
           subject-path: |
@@ -156,7 +156,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           disable-sudo-and-containers: true
           egress-policy: audit
@@ -173,7 +173,7 @@ jobs:
       # validates the native-image version even though no native compilation
       # happens in this job.
       - name: Set up GraalVM
-        uses: graalvm/setup-graalvm@0def53c0fd8534bc13416c9469f5be45265824fd # v1.6.3
+        uses: graalvm/setup-graalvm@5298d94fb55a4f185c602eeac5de1b553882abe2 # v1.6.4
         with:
           java-version: '25'
           distribution: 'graalvm-community'
@@ -224,7 +224,7 @@ jobs:
       # cover them -- it only sees the staging-deploy Maven artifacts. Attest them here, or
       # `gh attestation verify` on a downloaded archive answers 404.
       - name: Attest build provenance of the platform archives
-        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             out/archives/*.tar.gz
