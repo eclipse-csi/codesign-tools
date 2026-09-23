@@ -41,43 +41,43 @@ class TokenResolverTest {
   @Test
   void envVarTakesPriorityOverConfigFile() {
     Path config = createConfig(tempDir, "file-token");
-    assertEquals("env-token", TokenResolver.resolve("env-token", config));
+    assertEquals("env-token", TokenResolver.resolve("env-token", config, ignored -> {}));
   }
 
   @Test
   void configFileIsLastResort() {
     Path config = createConfig(tempDir, "file-token");
-    assertEquals("file-token", TokenResolver.resolve(null, config));
+    assertEquals("file-token", TokenResolver.resolve(null, config, ignored -> {}));
   }
 
   @Test
   void returnsNullWhenNothingConfigured() {
     Path noConfig = tempDir.resolve("nonexistent.properties");
-    assertNull(TokenResolver.resolve(null, noConfig));
+    assertNull(TokenResolver.resolve(null, noConfig, ignored -> {}));
   }
 
   @Test
   void ignoresBlankEnvToken() {
     Path config = createConfig(tempDir, "file-token");
-    assertEquals("file-token", TokenResolver.resolve("  ", config));
+    assertEquals("file-token", TokenResolver.resolve("  ", config, ignored -> {}));
   }
 
   @Test
   void ignoresBlankConfigFileToken() {
     Path config = createConfig(tempDir, "   ");
-    assertNull(TokenResolver.resolve(null, config));
+    assertNull(TokenResolver.resolve(null, config, ignored -> {}));
   }
 
   @Test
   void handlesNonExistentConfigFileGracefully() {
-    assertNull(TokenResolver.resolve(null, tempDir.resolve("missing.properties")));
+    assertNull(TokenResolver.resolve(null, tempDir.resolve("missing.properties"), ignored -> {}));
   }
 
   @Test
   void parsesConfigFileWithComments() throws IOException {
     Path config = tempDir.resolve("config.properties");
     Files.writeString(config, "# This is a comment\napi.token=my-secret-token\n");
-    assertEquals("my-secret-token", TokenResolver.resolve(null, config));
+    assertEquals("my-secret-token", TokenResolver.resolve(null, config, ignored -> {}));
   }
 
   @Test

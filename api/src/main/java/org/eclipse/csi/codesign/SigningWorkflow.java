@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -96,14 +97,10 @@ public class SigningWorkflow {
 
   private static String sha256Hex(Path path) throws IOException {
     try {
-      MessageDigest md = MessageDigest.getInstance("SHA-256");
-      byte[] bytes = Files.readAllBytes(path);
-      byte[] digest = md.digest(bytes);
-      StringBuilder sb = new StringBuilder(digest.length * 2);
-      for (byte b : digest) sb.append(String.format("%02x", b));
-      return sb.toString();
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
+      return HexFormat.of().formatHex(digest);
     } catch (NoSuchAlgorithmException e) {
-      return "(unavailable)"; // SHA-256 is guaranteed by JDK spec
+      throw new IllegalStateException("SHA-256 is guaranteed by the JDK spec", e);
     }
   }
 

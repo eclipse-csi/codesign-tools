@@ -48,17 +48,6 @@ class TokenResolver {
    *
    * @param envToken value from the environment variable; may be {@code null}
    * @param configFile path to the properties config file; need not exist
-   * @return the resolved token, or {@code null} when no source provides a non-blank value
-   */
-  static String resolve(String envToken, Path configFile) {
-    return resolve(envToken, configFile, ignored -> {});
-  }
-
-  /**
-   * Resolves the API token from the provided sources (visible for testing).
-   *
-   * @param envToken value from the environment variable; may be {@code null}
-   * @param configFile path to the properties config file; need not exist
    * @param warnLogger consumer for warning messages; called when insecure file permissions detected
    * @return the resolved token, or {@code null} when no source provides a non-blank value
    */

@@ -17,7 +17,7 @@ import picocli.CommandLine.Command;
  * Root command for the {@code codesign} CLI.
  *
  * <p>Dispatches to subcommands. When called with no subcommand, prints usage to stderr and exits
- * with code 2.
+ * with code 0.
  */
 @Command(
     name = "codesign",
@@ -46,8 +46,5 @@ public class CodesignCli implements Runnable {
   public void run() {
     // Print usage when called without a subcommand
     new CommandLine(this).usage(System.err);
-    // picocli exits with 0 by default when the root command's run() returns normally;
-    // returning here causes exit code 0. We could override with a non-zero code, but
-    // showing usage without error is conventional for many CLI tools.
   }
 }

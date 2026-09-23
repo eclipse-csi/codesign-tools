@@ -11,7 +11,6 @@
 package org.eclipse.csi.codesign;
 
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -31,7 +30,7 @@ import okhttp3.ResponseBody;
 /** HTTP client for all SignPath API operations: submit, poll status, and download. */
 public class CodesignClient implements AutoCloseable {
 
-  private static final Gson GSON = new GsonBuilder().create();
+  private static final Gson GSON = new Gson();
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String BEARER_PREFIX = "Bearer ";

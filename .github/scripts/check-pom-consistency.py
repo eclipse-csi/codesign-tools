@@ -19,8 +19,9 @@ In a multi-module project, checks are performed on the root POM plus all submodu
 import fnmatch
 import re
 import sys
-import defusedxml.ElementTree as ET
 from pathlib import Path
+
+import defusedxml.ElementTree as ET
 
 NS = "http://maven.apache.org/POM/4.0.0"
 ROOT_POM = Path("pom.xml")
@@ -74,10 +75,6 @@ def artifact_coords(element):
         gid.text.strip() if gid is not None and gid.text else "unknown",
         aid.text.strip() if aid is not None and aid.text else "unknown",
     )
-
-
-# Keep the old name as an alias used below
-plugin_coords = artifact_coords
 
 
 def pm_coords(root):
@@ -196,7 +193,7 @@ def main():
                 continue
             version = plugin.find(f"{{{NS}}}version")
             if version is not None and version.text:
-                g, a = plugin_coords(plugin)
+                g, a = artifact_coords(plugin)
                 errors.append(
                     f"{pom_label}: {g}:{a} has <version>{version.text.strip()}</version>"
                     " defined outside <pluginManagement>"
