@@ -28,6 +28,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -272,14 +273,6 @@ public class CodesignMojo extends AbstractMojo {
   private boolean skip;
 
   /**
-   * Alias for skipping plugin execution.
-   *
-   * <p>Optional. Mapped to {@code -Dcsi.codesign.skipSigning}. Default is {@code false}.
-   */
-  @Parameter(property = "csi.codesign.skipSigning", defaultValue = "false")
-  private boolean skipSigning;
-
-  /**
    * Creates the mojo with an injected Maven settings decrypter.
    *
    * @param settingsDecrypter component used to decrypt server credentials from {@code settings.xml}
@@ -298,7 +291,7 @@ public class CodesignMojo extends AbstractMojo {
    */
   @Override
   public void execute() throws MojoExecutionException, MojoFailureException {
-    if (skip || skipSigning || isSkipSigningFromEnvironment()) {
+    if (skip || isSkipSigningFromEnvironment()) {
       getLog().info("Signing is skipped");
       return;
     }
@@ -674,14 +667,10 @@ public class CodesignMojo extends AbstractMojo {
 
   private static String sha256Hex(Path path) throws IOException {
     try {
-      MessageDigest md = MessageDigest.getInstance("SHA-256");
-      byte[] bytes = Files.readAllBytes(path);
-      byte[] digest = md.digest(bytes);
-      StringBuilder sb = new StringBuilder(digest.length * 2);
-      for (byte b : digest) sb.append(String.format("%02x", b));
-      return sb.toString();
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
+      return HexFormat.of().formatHex(digest);
     } catch (NoSuchAlgorithmException e) {
-      return "(unavailable)"; // SHA-256 is guaranteed by JDK spec
+      throw new IllegalStateException("SHA-256 is guaranteed by the JDK spec", e);
     }
   }
 
@@ -712,7 +701,7 @@ public class CodesignMojo extends AbstractMojo {
    *   <li>{@link #FALSE} never includes the project artifact.
    * </ul>
    */
-  private static enum SignProjectArtifact {
+  private enum SignProjectArtifact {
     AUTO,
     TRUE,
     FALSE

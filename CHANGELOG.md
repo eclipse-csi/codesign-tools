@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+* Remove the undocumented `skipSigning` plugin parameter (`csi.codesign.skipSigning`), a duplicate of `skip`. Use `skip` (`-Dcsi.codesign.skip`) or the `CSI_CODESIGN_SKIP_SIGNING` environment variable instead.
+
 ## [v0.8.2] - 2026-08-06
 
 ### Fixed

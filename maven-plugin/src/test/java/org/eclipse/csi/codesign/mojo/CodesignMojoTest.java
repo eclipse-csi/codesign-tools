@@ -186,14 +186,6 @@ class CodesignMojoTest {
   }
 
   @Test
-  void skipExecutionViaSkipSigningParameter() throws Exception {
-    CodesignMojo mojo = createMojo();
-    setField(mojo, "skipSigning", true);
-    assertDoesNotThrow(() -> mojo.execute());
-    assertEquals(0, server.getRequestCount());
-  }
-
-  @Test
   void skipExecutionViaSkipSigningEnvironmentVariable() {
     CodesignMojo mojo =
         new CodesignMojo(null) {
