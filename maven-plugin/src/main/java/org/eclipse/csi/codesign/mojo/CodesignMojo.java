@@ -12,6 +12,8 @@ package org.eclipse.csi.codesign.mojo;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
@@ -24,6 +26,7 @@ import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.UserPrincipal;
+import java.security.DigestInputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -666,12 +669,16 @@ public class CodesignMojo extends AbstractMojo {
   }
 
   private static String sha256Hex(Path path) throws IOException {
+    MessageDigest digest;
     try {
-      byte[] digest = MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path));
-      return HexFormat.of().formatHex(digest);
+      digest = MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is guaranteed by the JDK spec", e);
     }
+    try (InputStream in = new DigestInputStream(Files.newInputStream(path), digest)) {
+      in.transferTo(OutputStream.nullOutputStream());
+    }
+    return HexFormat.of().formatHex(digest.digest());
   }
 
   /**

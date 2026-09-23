@@ -97,8 +97,8 @@ class SigningWorkflowTest {
 
     String sha256Line = logLines.get(sha256Index);
     String hash = sha256Line.substring("Artifact SHA-256 (pre-upload): ".length());
-    assertTrue(
-        hash.matches("[0-9a-f]{64}"), "Expected 64-character hex SHA-256 hash, got: " + hash);
+    // sha256("test-artifact-content")
+    assertEquals("4b944cb918f80d35ac2a8aff5b7ccea356f018a697b73d7ffbd2cbe66adbc547", hash);
   }
 
   @Test
