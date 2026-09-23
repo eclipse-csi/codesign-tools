@@ -15,11 +15,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
+import mockwebserver3.SocketEffect;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class RetryInterceptorTest {
 
   @AfterEach
   void tearDown() throws IOException {
-    server.shutdown();
+    server.close();
   }
 
   private OkHttpClient clientWithRetry(Duration timeout, Duration interval, int maxRetries) {
@@ -52,7 +53,7 @@ class RetryInterceptorTest {
 
   @Test
   void successOnFirstAttempt() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -66,8 +67,8 @@ class RetryInterceptorTest {
 
   @Test
   void retriesOn503ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(503));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().code(503).build());
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -80,8 +81,8 @@ class RetryInterceptorTest {
 
   @Test
   void retriesOn429ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(429));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().code(429).build());
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -94,8 +95,8 @@ class RetryInterceptorTest {
 
   @Test
   void retriesOn502ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(502));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().code(502).build());
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -108,8 +109,8 @@ class RetryInterceptorTest {
 
   @Test
   void retriesOn504ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(504));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().code(504).build());
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -122,7 +123,7 @@ class RetryInterceptorTest {
 
   @Test
   void doesNotRetryOnNonRetryableStatus() throws IOException {
-    server.enqueue(new MockResponse().setResponseCode(400).setBody("bad request"));
+    server.enqueue(new MockResponse.Builder().code(400).body("bad request").build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -137,7 +138,7 @@ class RetryInterceptorTest {
   void stopsRetryingAfterTimeout() throws IOException {
     // Enqueue enough 503s to exceed the very short timeout
     for (int i = 0; i < 10; i++) {
-      server.enqueue(new MockResponse().setResponseCode(503));
+      server.enqueue(new MockResponse.Builder().code(503).build());
     }
 
     OkHttpClient client = clientWithRetry(Duration.ofMillis(100), Duration.ofMillis(60), 10);
@@ -154,9 +155,8 @@ class RetryInterceptorTest {
   @Test
   void retriesOnIOExceptionThenSucceeds() throws IOException {
     // First request will fail with a socket timeout, second will succeed
-    server.enqueue(
-        new MockResponse().setSocketPolicy(okhttp3.mockwebserver.SocketPolicy.NO_RESPONSE));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(OK_BODY));
+    server.enqueue(new MockResponse.Builder().onResponseStart(SocketEffect.Stall.INSTANCE).build());
+    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
     Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
@@ -170,7 +170,7 @@ class RetryInterceptorTest {
   @Test
   void stopsRetryingAfterMaxRetries() throws IOException {
     for (int i = 0; i < 10; i++) {
-      server.enqueue(new MockResponse().setResponseCode(503));
+      server.enqueue(new MockResponse.Builder().code(503).build());
     }
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(30), Duration.ofMillis(10), 2);

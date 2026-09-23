@@ -20,9 +20,9 @@ import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
 import okhttp3.OkHttpClient;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
 import org.eclipse.csi.codesign.CodesignClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +51,7 @@ class SignCommandIntegrationTest {
 
   @AfterEach
   void tearDown() throws IOException {
-    server.shutdown();
+    server.close();
   }
 
   /**
@@ -121,13 +121,14 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/req-001").toString();
     String downloadUrl = server.url("/download/signed.jar").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(downloadUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-content"));
+            .body(statusResponse(downloadUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-content").build());
 
     int exit =
         cli()
@@ -165,24 +166,26 @@ class SignCommandIntegrationTest {
     // Responses for first file
     String status1 = server.url("/v1/org/SigningRequests/r1").toString();
     String dl1 = server.url("/dl/app.jar").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", status1));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", status1).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(dl1)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-jar"));
+            .body(statusResponse(dl1))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-jar").build());
 
     // Responses for second file
     String status2 = server.url("/v1/org/SigningRequests/r2").toString();
     String dl2 = server.url("/dl/installer.exe").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", status2));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", status2).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(dl2)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-exe"));
+            .body(statusResponse(dl2))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-exe").build());
 
     int exit =
         cli()
@@ -215,13 +218,14 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(downloadUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-in-place"));
+            .body(statusResponse(downloadUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-in-place").build());
 
     int exit =
         cli()
@@ -251,23 +255,25 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     // First poll: in progress
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {"status":"InProgress","workflowStatus":"Processing","isFinalStatus":false}
-                """));
+                """)
+            .build());
     // Second poll: completed
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(downloadUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-after-wait"));
+            .body(statusResponse(downloadUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-after-wait").build());
 
     int exit =
         cli()
@@ -298,15 +304,16 @@ class SignCommandIntegrationTest {
     Files.writeString(input, "unsigned");
 
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {"status":"Denied","workflowStatus":"PolicyDenied","isFinalStatus":true}
-                """));
+                """)
+            .build());
 
     int exit =
         cli()
@@ -333,7 +340,7 @@ class SignCommandIntegrationTest {
     Path input = tempDir.resolve("app.jar");
     Files.writeString(input, "unsigned");
 
-    server.enqueue(new MockResponse().setResponseCode(403).setBody("Forbidden"));
+    server.enqueue(new MockResponse.Builder().code(403).body("Forbidden").build());
 
     int exit =
         cli()
@@ -362,13 +369,14 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(statusResponse(downloadUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed"));
+            .body(statusResponse(downloadUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed").build());
 
     int exit =
         cli()
@@ -395,7 +403,7 @@ class SignCommandIntegrationTest {
     assertEquals(0, exit);
     // Verify the submit request body contained our params
     var submitRequest = server.takeRequest();
-    String body = submitRequest.getBody().readUtf8();
+    String body = submitRequest.getBody().utf8();
     assertTrue(body.contains("buildNumber"), "Custom param 'buildNumber' should be in request");
     assertTrue(body.contains("42"), "Custom param value '42' should be in request");
     assertEquals("signed", Files.readString(output));

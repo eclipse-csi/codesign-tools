@@ -19,11 +19,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import mockwebserver3.Dispatcher;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
+import mockwebserver3.RecordedRequest;
 import okhttp3.OkHttpClient;
-import okhttp3.mockwebserver.Dispatcher;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -49,18 +49,18 @@ class SigningWorkflowTest {
   @AfterEach
   void tearDown() throws Exception {
     client.close();
-    server.shutdown();
+    server.close();
   }
 
   @Test
   void preUploadSha256IsLoggedBeforeSubmit() throws Exception {
     String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/42").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader("Content-Type", "application/json")
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Completed",
@@ -68,7 +68,8 @@ class SigningWorkflowTest {
                   "isFinalStatus": true,
                   "signedArtifactLink": null
                 }
-                """));
+                """)
+            .build());
 
     Path artifact = tempDir.resolve("artifact.jar");
     Files.writeString(artifact, "test-artifact-content");
@@ -135,7 +136,7 @@ class SigningWorkflowTest {
           @Override
           public MockResponse dispatch(RecordedRequest request) {
             if ("POST".equals(request.getMethod())) {
-              return new MockResponse().setResponseCode(201).setHeader("Location", statusUrl);
+              return new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build();
             }
             return statusResponse("InProgress", "Running", false);
           }
@@ -158,15 +159,15 @@ class SigningWorkflowTest {
 
   private void enqueueSubmit(int requestId) {
     String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/" + requestId).toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
   }
 
   private static MockResponse statusResponse(
       String status, String workflowStatus, boolean isFinalStatus) {
-    return new MockResponse()
-        .setResponseCode(200)
+    return new MockResponse.Builder()
+        .code(200)
         .setHeader("Content-Type", "application/json")
-        .setBody(
+        .body(
             """
             {
               "status": "%s",
@@ -175,6 +176,7 @@ class SigningWorkflowTest {
               "signedArtifactLink": null
             }
             """
-                .formatted(status, workflowStatus, isFinalStatus));
+                .formatted(status, workflowStatus, isFinalStatus))
+        .build();
   }
 }

@@ -22,9 +22,9 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
 import okhttp3.OkHttpClient;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
@@ -108,7 +108,7 @@ class CodesignMojoTest {
 
   @AfterEach
   void tearDown() throws IOException {
-    server.shutdown();
+    server.close();
   }
 
   /**
@@ -231,12 +231,13 @@ class CodesignMojoTest {
     String attachedStatusUrl = server.url("/Api/v1/test-org/SigningRequests/attached").toString();
     String attachedSignedUrl = server.url("/Api/signed-attached").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", mainStatusUrl));
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder().code(201).setHeader("Location", mainStatusUrl).build());
+    server.enqueue(
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Completed",
@@ -245,16 +246,17 @@ class CodesignMojoTest {
                   "signedArtifactLink": "%s"
                 }
                 """
-                    .formatted(mainSignedUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-main"));
+                    .formatted(mainSignedUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-main").build());
 
     server.enqueue(
-        new MockResponse().setResponseCode(201).setHeader("Location", attachedStatusUrl));
+        new MockResponse.Builder().code(201).setHeader("Location", attachedStatusUrl).build());
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Completed",
@@ -263,8 +265,9 @@ class CodesignMojoTest {
                   "signedArtifactLink": "%s"
                 }
                 """
-                    .formatted(attachedSignedUrl)));
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-attached"));
+                    .formatted(attachedSignedUrl))
+            .build());
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-attached").build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"*.nonexistent"});
@@ -307,12 +310,12 @@ class CodesignMojoTest {
 
       String statusUrl = server.url("/Api/v1/test-org/SigningRequests/" + packaging).toString();
       String signedUrl = server.url("/Api/signed-" + packaging).toString();
-      server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+      server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
       server.enqueue(
-          new MockResponse()
-              .setResponseCode(200)
+          new MockResponse.Builder()
+              .code(200)
               .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-              .setBody(
+              .body(
                   """
                   {
                     "status": "Completed",
@@ -321,8 +324,9 @@ class CodesignMojoTest {
                     "signedArtifactLink": "%s"
                   }
                   """
-                      .formatted(signedUrl)));
-      server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-" + packaging));
+                      .formatted(signedUrl))
+              .build());
+      server.enqueue(new MockResponse.Builder().code(200).body("signed-" + packaging).build());
 
       CodesignMojo mojo = createMojo();
       setField(mojo, "signProjectArtifact", "auto");
@@ -381,12 +385,12 @@ class CodesignMojoTest {
 
     for (String value : new String[] {"true", "TRUE", "True"}) {
       Files.writeString(artifact, "unsigned");
-      server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+      server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
       server.enqueue(
-          new MockResponse()
-              .setResponseCode(200)
+          new MockResponse.Builder()
+              .code(200)
               .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-              .setBody(
+              .body(
                   """
                   {
                     "status": "Completed",
@@ -395,8 +399,9 @@ class CodesignMojoTest {
                     "signedArtifactLink": "%s"
                   }
                   """
-                      .formatted(signedUrl)));
-      server.enqueue(new MockResponse().setResponseCode(200).setBody("signed"));
+                      .formatted(signedUrl))
+              .build());
+      server.enqueue(new MockResponse.Builder().code(200).body("signed").build());
 
       CodesignMojo mojo = createMojo();
       setField(mojo, "signProjectArtifact", value);
@@ -425,29 +430,30 @@ class CodesignMojoTest {
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/123").toString();
 
     // Submit response
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
 
     // Status poll - in progress
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "InProgress",
                   "workflowStatus": "Processing",
                   "isFinalStatus": false
                 }
-                """));
+                """)
+            .build());
 
     // Status poll - completed
     String signedUrl = server.url("/Api/signed-artifact").toString();
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Completed",
@@ -456,10 +462,11 @@ class CodesignMojoTest {
                   "signedArtifactLink": "%s"
                 }
                 """
-                    .formatted(signedUrl)));
+                    .formatted(signedUrl))
+            .build());
 
     // Download signed artifact
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-content"));
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-content").build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"app.exe"});
@@ -481,13 +488,13 @@ class CodesignMojoTest {
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/789").toString();
     String signedUrl = server.url("/Api/signed-artifact").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
 
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Completed",
@@ -496,9 +503,10 @@ class CodesignMojoTest {
                   "signedArtifactLink": "%s"
                 }
                 """
-                    .formatted(signedUrl)));
+                    .formatted(signedUrl))
+            .build());
 
-    server.enqueue(new MockResponse().setResponseCode(200).setBody("signed-jar-content"));
+    server.enqueue(new MockResponse.Builder().code(200).body("signed-jar-content").build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"app.jar"});
@@ -521,20 +529,21 @@ class CodesignMojoTest {
 
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/denied").toString();
 
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
 
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .setBody(
+            .body(
                 """
                 {
                   "status": "Denied",
                   "workflowStatus": "PolicyDenied",
                   "isFinalStatus": true
                 }
-                """));
+                """)
+            .build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"denied.exe"});
@@ -547,7 +556,7 @@ class CodesignMojoTest {
     Path artifact = tempDir.resolve("error.exe");
     Files.writeString(artifact, "content");
 
-    server.enqueue(new MockResponse().setResponseCode(403).setBody("Forbidden"));
+    server.enqueue(new MockResponse.Builder().code(403).body("Forbidden").build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"error.exe"});

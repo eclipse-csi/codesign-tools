@@ -20,10 +20,10 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import mockwebserver3.MockResponse;
+import mockwebserver3.MockWebServer;
+import mockwebserver3.RecordedRequest;
 import okhttp3.OkHttpClient;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,13 +53,13 @@ class CodesignClientTest {
   @AfterEach
   void tearDown() throws IOException {
     client.close();
-    server.shutdown();
+    server.close();
   }
 
   @Test
   void submitReturnsSigningRequestWithLocationHeader() throws Exception {
     String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/123").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
 
     Path artifact = tempDir.resolve("test.jar");
     Files.writeString(artifact, "fake-jar-content");
@@ -72,9 +72,9 @@ class CodesignClientTest {
 
     RecordedRequest recorded = server.takeRequest();
     assertEquals("POST", recorded.getMethod());
-    assertTrue(recorded.getPath().contains("/SigningRequests"));
-    assertEquals(BEARER_TOKEN, recorded.getHeader(AUTHORIZATION_HEADER));
-    String body = recorded.getBody().readUtf8();
+    assertTrue(recorded.getTarget().contains("/SigningRequests"));
+    assertEquals(BEARER_TOKEN, recorded.getHeaders().get(AUTHORIZATION_HEADER));
+    String body = recorded.getBody().utf8();
     assertTrue(body.contains("my-project"));
     assertTrue(body.contains("release-signing"));
   }
@@ -82,7 +82,7 @@ class CodesignClientTest {
   @Test
   void submitWithOptionalParameters() throws Exception {
     String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/456").toString();
-    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
 
     Path artifact = tempDir.resolve("test.exe");
     Files.writeString(artifact, "fake-exe-content");
@@ -99,7 +99,7 @@ class CodesignClientTest {
     assertNotNull(result);
 
     RecordedRequest recorded = server.takeRequest();
-    String body = recorded.getBody().readUtf8();
+    String body = recorded.getBody().utf8();
     assertTrue(body.contains("my-config"));
     assertTrue(body.contains("Build 42"));
     assertTrue(body.contains("Parameters[version]"));
@@ -108,7 +108,7 @@ class CodesignClientTest {
 
   @Test
   void submitThrowsOnNon201() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(400).setBody("Bad Request"));
+    server.enqueue(new MockResponse.Builder().code(400).body("Bad Request").build());
 
     Path artifact = tempDir.resolve("test.jar");
     Files.writeString(artifact, "fake-jar-content");
@@ -123,7 +123,7 @@ class CodesignClientTest {
 
   @Test
   void submitThrowsOnMissingLocationHeader() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(201));
+    server.enqueue(new MockResponse.Builder().code(201).build());
 
     Path artifact = tempDir.resolve("test.jar");
     Files.writeString(artifact, "fake-jar-content");
@@ -148,10 +148,11 @@ class CodesignClientTest {
         }
         """;
     server.enqueue(
-        new MockResponse()
-            .setResponseCode(200)
+        new MockResponse.Builder()
+            .code(200)
             .setHeader("Content-Type", "application/json")
-            .setBody(json));
+            .body(json)
+            .build());
 
     URI statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/123").uri();
     SigningRequest signingRequest = new SigningRequest(statusUrl);
@@ -166,12 +167,12 @@ class CodesignClientTest {
 
     RecordedRequest recorded = server.takeRequest();
     assertEquals("GET", recorded.getMethod());
-    assertEquals(BEARER_TOKEN, recorded.getHeader(AUTHORIZATION_HEADER));
+    assertEquals(BEARER_TOKEN, recorded.getHeaders().get(AUTHORIZATION_HEADER));
   }
 
   @Test
   void getStatusThrowsOnError() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(404).setBody("Not Found"));
+    server.enqueue(new MockResponse.Builder().code(404).body("Not Found").build());
 
     URI statusUrl = server.url("/test").uri();
     SigningRequest signingRequest = new SigningRequest(statusUrl);
@@ -184,7 +185,7 @@ class CodesignClientTest {
   @Test
   void downloadSignedArtifactWritesToFile() throws Exception {
     String content = "signed-content-bytes";
-    server.enqueue(new MockResponse().setResponseCode(200).setBody(content));
+    server.enqueue(new MockResponse.Builder().code(200).body(content).build());
 
     URI signedLink = server.url("/signed-artifact").uri();
     SigningRequestStatus status =
@@ -198,7 +199,7 @@ class CodesignClientTest {
 
     RecordedRequest recorded = server.takeRequest();
     assertEquals("GET", recorded.getMethod());
-    assertEquals(BEARER_TOKEN, recorded.getHeader(AUTHORIZATION_HEADER));
+    assertEquals(BEARER_TOKEN, recorded.getHeaders().get(AUTHORIZATION_HEADER));
   }
 
   @Test
@@ -227,7 +228,7 @@ class CodesignClientTest {
 
   @Test
   void downloadThrowsOnHttpError() throws Exception {
-    server.enqueue(new MockResponse().setResponseCode(500).setBody("Internal Server Error"));
+    server.enqueue(new MockResponse.Builder().code(500).body("Internal Server Error").build());
 
     URI signedLink = server.url("/signed-artifact").uri();
     SigningRequestStatus status =
