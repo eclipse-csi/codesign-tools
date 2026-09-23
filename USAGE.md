@@ -282,7 +282,8 @@ unsupported, the CLI falls back to a non-atomic copy.
 | `httpTimeout` | 300 s | HTTP read/write timeout |
 | `connectTimeout` | 30 s | HTTP connect timeout |
 
-**CLI** — all derived from `--wait-for-completion-timeout` (default: 600 s):
+**CLI** — all derived from `--wait-for-completion-timeout` (default: 600 s), which applies to
+each file separately, starting when its signing request is submitted:
 
 | Parameter | Formula | Example (600 s) |
 | --- | --- | --- |
@@ -373,8 +374,9 @@ environment. Also check `<skip>true</skip>` in the POM or `-Dcsi.codesign.skip` 
 command line.
 
 **Timeout waiting for signing completion (CLI)**
-Signing took longer than `--wait-for-completion-timeout`. Increase it, and check the SignPath
-portal — the request may be waiting for manual approval. The Maven plugin has no completion
+Signing a file took longer than `--wait-for-completion-timeout` (measured separately for each
+file). Increase it, and check the SignPath portal — the request may be waiting for manual
+approval. The Maven plugin has no completion
 timeout: it polls until SignPath reports a final status (`<retryTimeout>` only bounds retries
 of transient HTTP failures).
 

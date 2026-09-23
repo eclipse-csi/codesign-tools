@@ -32,7 +32,7 @@ public class SigningWorkflow {
 
   private final CodesignClient client;
   private final Duration pollInterval;
-  private final Instant deadline; // null = no deadline
+  private final Duration completionTimeout; // null = no limit
   private final Consumer<String> logger;
 
   /**
@@ -51,7 +51,8 @@ public class SigningWorkflow {
    *
    * @param client the SignPath API client
    * @param pollInterval how often to check signing status
-   * @param completionTimeout maximum time to wait for a final status; {@code null} = no limit
+   * @param completionTimeout maximum time to wait for each signing request to reach a final status,
+   *     measured from its submission; {@code null} = no limit
    * @param logger consumer for informational progress messages; {@code null} = silent
    */
   public SigningWorkflow(
@@ -61,7 +62,7 @@ public class SigningWorkflow {
       Consumer<String> logger) {
     this.client = client;
     this.pollInterval = pollInterval;
-    this.deadline = completionTimeout != null ? Instant.now().plus(completionTimeout) : null;
+    this.completionTimeout = completionTimeout;
     this.logger = logger != null ? logger : ignored -> {};
   }
 
@@ -75,8 +76,8 @@ public class SigningWorkflow {
    * @param parameters optional custom key/value parameters; may be {@code null}
    * @param artifactPath path to the artifact to sign
    * @return the final (terminal) signing request status
-   * @throws CodesignException if the API fails or the deadline is exceeded before a final status is
-   *     reached
+   * @throws CodesignException if the API fails or the completion timeout elapses after submission
+   *     before a final status is reached
    * @throws IOException on transport or thread-interruption errors
    */
   public SigningRequestStatus submitAndWait(
@@ -106,6 +107,7 @@ public class SigningWorkflow {
 
   private SigningRequestStatus pollUntilFinal(SigningRequest request)
       throws CodesignException, IOException {
+    Instant deadline = completionTimeout != null ? Instant.now().plus(completionTimeout) : null;
     while (true) {
       SigningRequestStatus status = client.getStatus(request);
       logger.accept(

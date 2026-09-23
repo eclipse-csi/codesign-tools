@@ -10,6 +10,8 @@
 
 package org.eclipse.csi.codesign;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -18,8 +20,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import okhttp3.OkHttpClient;
+import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -95,5 +99,82 @@ class SigningWorkflowTest {
     String hash = sha256Line.substring("Artifact SHA-256 (pre-upload): ".length());
     assertTrue(
         hash.matches("[0-9a-f]{64}"), "Expected 64-character hex SHA-256 hash, got: " + hash);
+  }
+
+  @Test
+  void completionTimeoutAppliesPerRequest() throws Exception {
+    Path first = tempDir.resolve("first.jar");
+    Path second = tempDir.resolve("second.jar");
+    Files.writeString(first, "first");
+    Files.writeString(second, "second");
+
+    SigningWorkflow workflow =
+        new SigningWorkflow(client, Duration.ofMillis(10), Duration.ofMillis(300), null);
+
+    enqueueSubmit(1);
+    server.enqueue(statusResponse("Completed", "Done", true));
+    workflow.submitAndWait("proj", "policy", null, null, null, first);
+
+    // Outlast the timeout between requests: a shared deadline would already be expired
+    Thread.sleep(400);
+
+    enqueueSubmit(2);
+    server.enqueue(statusResponse("InProgress", "Running", false));
+    server.enqueue(statusResponse("Completed", "Done", true));
+    SigningRequestStatus status =
+        workflow.submitAndWait("proj", "policy", null, null, null, second);
+
+    assertEquals("Completed", status.status());
+  }
+
+  @Test
+  void completionTimeoutStillEnforcedWithinRequest() throws Exception {
+    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/1").toString();
+    server.setDispatcher(
+        new Dispatcher() {
+          @Override
+          public MockResponse dispatch(RecordedRequest request) {
+            if ("POST".equals(request.getMethod())) {
+              return new MockResponse().setResponseCode(201).setHeader("Location", statusUrl);
+            }
+            return statusResponse("InProgress", "Running", false);
+          }
+        });
+
+    Path artifact = tempDir.resolve("artifact.jar");
+    Files.writeString(artifact, "test-artifact-content");
+
+    SigningWorkflow workflow =
+        new SigningWorkflow(client, Duration.ofMillis(20), Duration.ofMillis(50), null);
+
+    CodesignException e =
+        assertThrows(
+            CodesignException.class,
+            () -> workflow.submitAndWait("proj", "policy", null, null, null, artifact));
+    assertTrue(
+        e.getMessage().contains("Timeout waiting for signing request to complete"),
+        "Unexpected message: " + e.getMessage());
+  }
+
+  private void enqueueSubmit(int requestId) {
+    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/" + requestId).toString();
+    server.enqueue(new MockResponse().setResponseCode(201).setHeader("Location", statusUrl));
+  }
+
+  private static MockResponse statusResponse(
+      String status, String workflowStatus, boolean isFinalStatus) {
+    return new MockResponse()
+        .setResponseCode(200)
+        .setHeader("Content-Type", "application/json")
+        .setBody(
+            """
+            {
+              "status": "%s",
+              "workflowStatus": "%s",
+              "isFinalStatus": %s,
+              "signedArtifactLink": null
+            }
+            """
+                .formatted(status, workflowStatus, isFinalStatus));
   }
 }

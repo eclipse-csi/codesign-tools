@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* The CLI's `--wait-for-completion-timeout` now applies to each file separately instead of to the whole run, so later files no longer time out early when you sign several files at once.
 * Correct the CLI installation instructions: native binaries ship as `csi-codesign-<version>-<platform>` archives (no macOS Intel build), and the fat JAR is `codesign-cli-<version>-bin.jar`.
 * Clarify that the Maven plugin has no signing-completion timeout; `retryTimeout` only bounds retries of transient HTTP failures.
 

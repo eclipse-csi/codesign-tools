@@ -166,7 +166,7 @@ class SignCommand implements Callable<Integer> {
       paramLabel = "<seconds>",
       defaultValue = "600",
       description =
-          "Maximum seconds to wait for signing to complete (default: ${DEFAULT-VALUE})."
+          "Maximum seconds to wait for each file's signing to complete (default: ${DEFAULT-VALUE})."
               + " Poll interval, HTTP timeouts, and retry limits are derived automatically from"
               + " this value.")
   int waitForCompletionTimeout;
