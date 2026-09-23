@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -600,11 +601,17 @@ public class CodesignMojo extends AbstractMojo {
       try {
         getLog().info("Downloading signed artifact to: " + outputPath);
         client.downloadSignedArtifact(status, tmpPath);
-        Files.move(
-            tmpPath,
-            outputPath,
-            StandardCopyOption.REPLACE_EXISTING,
-            StandardCopyOption.ATOMIC_MOVE);
+        try {
+          Files.move(
+              tmpPath,
+              outputPath,
+              StandardCopyOption.REPLACE_EXISTING,
+              StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+          // Fallback for filesystems or platforms that don't support atomic rename
+          getLog().debug("Atomic move not supported, falling back to regular move: " + e);
+          Files.move(tmpPath, outputPath, StandardCopyOption.REPLACE_EXISTING);
+        }
         getLog().info("Signed artifact SHA-256: " + sha256Hex(outputPath));
       } finally {
         Files.deleteIfExists(tmpPath);
