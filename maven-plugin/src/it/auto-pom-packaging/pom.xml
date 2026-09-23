@@ -32,7 +32,6 @@
           <organizationId>auto-pom-org</organizationId>
           <projectId>test-project</projectId>
           <signingPolicy>test-policy</signingPolicy>
-          <apiToken>test-token</apiToken>
           <baseUrl>http://localhost:@mockserver.port@/Api</baseUrl>
         </configuration>
       </plugin>
