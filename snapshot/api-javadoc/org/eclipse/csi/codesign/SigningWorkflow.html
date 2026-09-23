@@ -188,7 +188,8 @@ loadScripts(document, 'script');</script>
 <dt>Parameters:</dt>
 <dd><code>client</code> - the SignPath API client</dd>
 <dd><code>pollInterval</code> - how often to check signing status</dd>
-<dd><code>completionTimeout</code> - maximum time to wait for a final status; <code>null</code> = no limit</dd>
+<dd><code>completionTimeout</code> - maximum time to wait for each signing request to reach a final status,
+     measured from its submission; <code>null</code> = no limit</dd>
 <dd><code>logger</code> - consumer for informational progress messages; <code>null</code> = silent</dd>
 </dl>
 </section>
@@ -224,8 +225,8 @@ loadScripts(document, 'script');</script>
 <dt>Returns:</dt>
 <dd>the final (terminal) signing request status</dd>
 <dt>Throws:</dt>
-<dd><code><a href="CodesignException.html" title="class in org.eclipse.csi.codesign">CodesignException</a></code> - if the API fails or the deadline is exceeded before a final status is
-     reached</dd>
+<dd><code><a href="CodesignException.html" title="class in org.eclipse.csi.codesign">CodesignException</a></code> - if the API fails or the completion timeout elapses after submission
+     before a final status is reached</dd>
 <dd><code><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - on transport or thread-interruption errors</dd>
 </dl>
 </section>
