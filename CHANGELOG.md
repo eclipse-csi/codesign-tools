@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Remove the undocumented `skipSigning` plugin parameter (`csi.codesign.skipSigning`), a duplicate of `skip`. Use `skip` (`-Dcsi.codesign.skip`) or the `CSI_CODESIGN_SKIP_SIGNING` environment variable instead.
 
+### Fixed
+
+* Correct the CLI installation instructions: native binaries ship as `csi-codesign-<version>-<platform>` archives (no macOS Intel build), and the fat JAR is `codesign-cli-<version>-bin.jar`.
+* Clarify that the Maven plugin has no signing-completion timeout; `retryTimeout` only bounds retries of transient HTTP failures.
+
 ## [v0.8.2] - 2026-08-06
 
 ### Fixed

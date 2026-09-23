@@ -142,11 +142,10 @@ For the complete risk matrix, see [`RISK_ASSESSMENT.md`](./RISK_ASSESSMENT.md) Â
 
 | Platform | Binary archive name |
 | --- | --- |
-| Linux x86\_64 | `csi-codesign-linux-x86_64.tar.gz` |
-| Linux aarch64 | `csi-codesign-linux-aarch_64.tar.gz` |
-| macOS Apple Silicon (aarch64) | `csi-codesign-osx-aarch_64.tar.gz` |
-| macOS Intel (x86\_64) | `csi-codesign-osx-x86_64.tar.gz` |
-| Windows x86\_64 | `csi-codesign-windows-x86_64.zip` |
+| Linux x86\_64 | `csi-codesign-<version>-linux-x86_64.tar.gz` |
+| Linux aarch64 | `csi-codesign-<version>-linux-aarch_64.tar.gz` |
+| macOS Apple Silicon (aarch64) | `csi-codesign-<version>-osx-aarch_64.tar.gz` |
+| Windows x86\_64 | `csi-codesign-<version>-windows-x86_64.zip` |
 
 No Java installation is required for the native binary. Outbound HTTPS access to the
 configured signing endpoint is required.
@@ -179,7 +178,7 @@ share the same version number in any given release.
 | --- | --- |
 | Maven plugin | `<version>` element in `pom.xml`; or `mvn help:effective-pom` |
 | CLI native binary | `csi-codesign --version` |
-| CLI fat JAR | `java -jar csi-codesign-cli-<version>-bin.jar --version` |
+| CLI fat JAR | `java -jar codesign-cli-<version>-bin.jar --version` |
 | API library | Maven artifact version in `pom.xml` / `build.gradle` |
 
 The full version history is documented in [`CHANGELOG.md`](../../CHANGELOG.md) and on

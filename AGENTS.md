@@ -13,11 +13,11 @@ Eclipse CSI Codesign Maven Plugin — a Maven plugin that signs build artifacts 
 ./mvnw test                                              # Unit tests only (stops before integration-test phase)
 ./mvnw -Pintegration-tests verify                        # Verify with integration tests
 ./mvnw test -Dtest=CodesignMojoTest                      # Run a single test class
-./mvnw test -Dtest=CodesignMojoTest#testSignFiles        # Run a single test method
+./mvnw test -Dtest=CodesignMojoTest#skipExecution        # Run a single test method
 ./mvnw verify -pl maven-plugin --also-make               # Plugin module (+ its api dependency)
 ./mvnw verify -pl api                                    # API module only
 ./mvnw package -pl cli --also-make                       # CLI fat JAR only
-./mvnw -Pnative package -pl cli --also-make -DskipTests  # Native CLI binary (requires GraalVM 21)
+./mvnw -Pnative package -pl cli --also-make -DskipTests  # Native CLI binary (requires GraalVM 25)
 ./mvnw -Prelease -DskipTests clean verify                # Build with release profile
 ```
 
@@ -77,7 +77,7 @@ Three-module Maven aggregator (`codesign-parent`):
 
 **`codesign-maven-plugin`** (`org.eclipse.csi.codesign.mojo`):
 
-- **CodesignMojo** — Maven plugin entry point (goal: `codesign`, phase: `package`). Scans for files via glob patterns, resolves API token (parameter → `settings.xml` → env var `CSI_CODESIGN_API_TOKEN`), delegates to `SigningWorkflow`.
+- **CodesignMojo** — Maven plugin entry point (goal: `codesign`, phase: `package`). Scans for files via glob patterns, resolves API token (`settings.xml` server password → env var `CSI_CODESIGN_API_TOKEN` → `api.token` in config file), delegates to `SigningWorkflow`.
 - **CodesignMojo.SignProjectArtifact** — internal enum for Mojo config parsing (private nested enum).
 
 **`codesign-cli`** (`org.eclipse.csi.codesign.cli`):
@@ -85,19 +85,19 @@ Three-module Maven aggregator (`codesign-parent`):
 - **CodesignCli** — picocli root `@Command`; main entry point for both the fat JAR and the native binary.
 - **SignCommand** — picocli `sign` subcommand; delegates to `SigningWorkflow` (package-private).
 - **TokenResolver** — CLI-internal token resolution (package-private).
-- **VersionProvider** — reads version from `META-INF/version.properties` (Maven-filtered at build time).
+- **VersionProvider** — reads version from the `/version.properties` classpath resource (Maven-filtered at build time).
 
 ### Key Dependencies
 
-- **OkHttp 5** (5.3.2) for HTTP with interceptor-based retry
+- **OkHttp 5** for HTTP with interceptor-based retry
 - **Gson** for JSON serialisation
-- **picocli** (4.7.7) for CLI argument parsing
+- **picocli** for CLI argument parsing
 - **JUnit 5** + **MockWebServer** (OkHttp) for unit tests
 - **WireMock** (standalone JAR, downloaded by Maven) for integration tests
-- **ArchUnit** (1.3.0) for architecture constraint tests
+- **ArchUnit** for architecture constraint tests
 
 ### Testing Patterns
 
 - **Unit tests** (`./mvnw test`): `MockWebServer` simulates the SignPath API. `CodesignMojoTest` uses reflection-based field injection to set Mojo parameters (no DI framework). All tests use `@TempDir`.
-- **Integration tests** (`integration-tests` profile, active by default): maven-invoker plugin runs projects under `maven-plugin/src/it/` against a WireMock stub on a reserved random port. Check `maven-plugin/target/wiremock.log` on failures.
+- **Integration tests** (`integration-tests` profile, opt-in via `-Pintegration-tests`): maven-invoker plugin runs projects under `maven-plugin/src/it/` against a WireMock stub on a reserved random port. Check `maven-plugin/target/wiremock.log` on failures.
 - **Architecture tests**: `CodesignApiArchTest`, `MavenPluginArchTest`, `CliArchTest` (ArchUnit) enforce visibility rules — e.g. only `@Mojo`-annotated classes may be `public` in the plugin module; only `CodesignCli` may be `public` in the CLI module.

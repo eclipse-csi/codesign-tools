@@ -35,29 +35,29 @@ Replace `VERSION` with the latest release from
 
 ### CLI
 
-Download the pre-built native binary for your platform from the
+Download the pre-built native binary archive for your platform from the
 [GitHub Releases](https://github.com/eclipse-csi/codesign-tools/releases) page.
+Each archive contains a single `csi-codesign` executable (`csi-codesign.exe` on Windows).
 
-| Platform | Binary name |
+| Platform | Archive name |
 | --- | --- |
-| Linux x86\_64 | `csi-codesign-linux-x86_64` |
-| Linux aarch64 | `csi-codesign-linux-aarch_64` |
-| macOS Apple Silicon | `csi-codesign-osx-aarch_64` |
-| macOS Intel | `csi-codesign-osx-x86_64` |
-| Windows x86\_64 | `csi-codesign-windows-x86_64.exe` |
+| Linux x86\_64 | `csi-codesign-<version>-linux-x86_64.tar.gz` |
+| Linux aarch64 | `csi-codesign-<version>-linux-aarch_64.tar.gz` |
+| macOS Apple Silicon | `csi-codesign-<version>-osx-aarch_64.tar.gz` |
+| Windows x86\_64 | `csi-codesign-<version>-windows-x86_64.zip` |
 
 ```bash
-# Linux / macOS: make executable and place on PATH
-chmod +x csi-codesign-linux-x86_64
-sudo mv csi-codesign-linux-x86_64 /usr/local/bin/csi-codesign
-# Adapt the binary name for your platform (see table above)
+# Linux / macOS: extract and place on PATH
+tar -xzf csi-codesign-<version>-linux-x86_64.tar.gz
+sudo mv csi-codesign /usr/local/bin/csi-codesign
+# Adapt the archive name for your platform (see table above)
 ```
 
 **JVM alternative:** if you prefer running on the JVM, the `-bin` fat JAR is published to Maven
 Central alongside the native binaries:
 
 ```bash
-java -jar csi-codesign-cli-<version>-bin.jar sign --help
+java -jar codesign-cli-<version>-bin.jar sign --help
 ```
 
 ---
@@ -372,10 +372,11 @@ Check whether `CSI_CODESIGN_SKIP_SIGNING` is set to `1`, `true`, or `yes` in the
 environment. Also check `<skip>true</skip>` in the POM or `-Dcsi.codesign.skip` on the
 command line.
 
-**Timeout waiting for signing completion**
-Signing took longer than the configured timeout. Increase `--wait-for-completion-timeout`
-(CLI) or `<retryTimeout>` (plugin). Also check the SignPath portal — the request may be
-waiting for manual approval.
+**Timeout waiting for signing completion (CLI)**
+Signing took longer than `--wait-for-completion-timeout`. Increase it, and check the SignPath
+portal — the request may be waiting for manual approval. The Maven plugin has no completion
+timeout: it polls until SignPath reports a final status (`<retryTimeout>` only bounds retries
+of transient HTTP failures).
 
 **"File(s) not found or not regular files" (CLI)**
 The files passed as positional arguments do not exist at the given paths. Check paths and

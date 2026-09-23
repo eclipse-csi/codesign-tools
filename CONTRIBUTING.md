@@ -136,7 +136,7 @@ reviewdog posts granular inline comments/suggestions for workflow, Python,
 and Markdown lint findings.
 
 Hook/tool revisions are updated automatically by
-`.github/workflows/update-tool-versions.yml`, which also runs
+`.github/workflows/maintenance-update-tool-versions.yml`, which also runs
 `prek auto-update --freeze` to keep hook revisions immutable.
 
 ## Building
@@ -231,7 +231,7 @@ python3 .github/scripts/render-release-notes.py --tag v0.8.1 --previous v0.7.3 -
 
 ```shell
 # Step 1: build + deploy to local staging directories
-./mvnw -B -ntp -P'!integration-tests',release -Dsigstore.skip=true -DskipTests clean deploy
+./mvnw -B -ntp -Prelease -Dsigstore.skip=true -DskipTests clean deploy
 
 # Step 2: render the release notes. This must come after step 1, which deletes target/.
 # jreleaser:full-release fails if target/release-notes.md is missing.
