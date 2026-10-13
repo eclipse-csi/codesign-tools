@@ -18,7 +18,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: false # actionlint needs to run in a container
           egress-policy: block
@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
 
       - name: actionlint with reviewdog
-        uses: reviewdog/action-actionlint@2085657ab2c7f48c58edcc767fba576f63bea76b # v1.77.0
+        uses: reviewdog/action-actionlint@1758727be30241166609dad4c97588b6ad411f32 # v1.79.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
@@ -47,7 +47,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -84,7 +84,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: false # require sudo to install shellcheck
           egress-policy: block
@@ -127,7 +127,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -192,7 +192,7 @@ jobs:
       pull-requests: write # Required to post comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: true
           egress-policy: block
@@ -218,7 +218,7 @@ jobs:
       pull-requests: write # Required to post review comments
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        uses: step-security/harden-runner@351661ca32ac09a36dc5ee2d536e3128f2a3c8ed # v2.22.0
         with:
           disable-sudo-and-containers: false # markdownlint needs to run in a container
           egress-policy: block
@@ -232,7 +232,7 @@ jobs:
           persist-credentials: false
 
       - name: markdownlint with reviewdog
-        uses: reviewdog/action-markdownlint@a223028b797326efe9d3c9b55e24d740480c3352 # v0.31.2
+        uses: reviewdog/action-markdownlint@34762a7b2dddebf3eb82f7e3a63b9d0242d0a42a # v0.31.4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
