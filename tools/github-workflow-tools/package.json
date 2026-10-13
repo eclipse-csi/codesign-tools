@@ -2,6 +2,6 @@
   "name": "github-workflow-tools",
   "private": true,
   "dependencies": {
-    "@cyclonedx/cdxgen": "12.8.4"
+    "@cyclonedx/cdxgen": "12.8.5"
   }
 }
