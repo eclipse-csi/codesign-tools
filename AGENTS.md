@@ -21,7 +21,7 @@ Eclipse CSI Codesign Maven Plugin — a Maven plugin that signs build artifacts 
 ./mvnw -Prelease -DskipTests clean verify                # Build with release profile
 ```
 
-Requires **Java 21+** and **Maven 3.9+** (enforced by `maven-enforcer-plugin`).
+Requires **Java 21+** and **Maven 3.10+** (enforced by `maven-enforcer-plugin`).
 The Maven wrapper (`./mvnw`) downloads Maven automatically; a JDK must already be on `PATH`.
 
 > **Integration tests are opt-in.** Running `./mvnw verify` does not run them.

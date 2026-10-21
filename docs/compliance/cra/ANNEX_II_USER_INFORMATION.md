@@ -134,9 +134,9 @@ For the complete risk matrix, see [`RISK_ASSESSMENT.md`](./RISK_ASSESSMENT.md) Â
 | Requirement | Minimum version |
 | --- | --- |
 | Java runtime | 21 (LTS) |
-| Apache Maven | 3.9 |
+| Apache Maven | 3.10 |
 | Network | Outbound HTTPS to `app.signpath.io` (or configured `baseUrl`) |
-| Operating system | Linux, macOS, Windows (any OS with Java 21 and Maven 3.9) |
+| Operating system | Linux, macOS, Windows (any OS with Java 21 and Maven 3.10) |
 
 ### CLI â€” Native Binary
 

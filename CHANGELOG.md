@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* **Breaking:** The Maven plugin is now built against the Maven 3.10.0 API (`maven-plugin-api` and `maven-core`), so its plugin descriptor requires Maven 3.10.0 or later; builds on Maven 3.9.x will refuse to run the plugin. The documented minimum and the build's enforcer rule are raised to Maven 3.10, and the Maven wrapper is updated to 3.10.0.
+
 ## [v0.8.3] - 2026-09-25
 
 ### Removed

@@ -16,7 +16,7 @@ This guide covers both tools in the Eclipse CSI Codesign project:
 Add the plugin to your `pom.xml`. No additional installation is required — Maven resolves it
 from Maven Central.
 
-**Minimum requirements:** Java 21, Maven 3.9.
+**Minimum requirements:** Java 21, Maven 3.10.
 
 ```xml
 <build>
