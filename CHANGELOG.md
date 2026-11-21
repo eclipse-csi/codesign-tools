@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.10.0] - 2026-11-21
+
 ### Added
 
 * Signing with SignPath's **GitHub trusted build system**, which signing policies with trusted build system verification require (as all Eclipse Foundation policies do). With `--submission-mode github-actions` (CLI) or `<submissionMode>github-actions</submissionMode>` (Maven plugin), the files are stored as an artifact of the running GitHub Actions job and submitted in one signing request through the SignPath GitHub connector. A single file is uploaded as is, so the same artifact configuration as with direct uploads applies. Several files are zipped together, so the artifact configuration must expect a zip. SignPath can then verify the repository, workflow and branch that built them. Policy violations are reported with SignPath's hints on how to fix them. The `expose-actions-runtime` action in this repository hands the job's artifact credentials to the signing step. See "GitHub Actions: Trusted Build System" in USAGE.md. For Java API users: `SigningWorkflow.signViaGitHubActions` and `GitHubActionsContext`.
