@@ -17,6 +17,6 @@ permissions: {}
 
 jobs:
   native:
-    uses: ./.github/workflows/reusable-native-build.yml
+    uses: $/.github/workflows/reusable-native-build.yml
     with:
       artifact-retention-days: 7

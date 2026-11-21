@@ -51,7 +51,7 @@ jobs:
           java-version: '21'
 
       - name: Set up SBOM tools
-        uses: ./.github/actions/setup-sbom-tools
+        uses: $/.github/actions/setup-sbom-tools
         with:
           github-token: ${{ github.token }}
 
@@ -136,7 +136,7 @@ jobs:
   native-build:
     name: Native binaries
     if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
-    uses: ./.github/workflows/reusable-native-build.yml
+    uses: $/.github/workflows/reusable-native-build.yml
     with:
       artifact-retention-days: 1
 
@@ -296,7 +296,7 @@ jobs:
     name: Publish documentation site
     needs: [assemble-and-release]
     if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
-    uses: ./.github/workflows/reusable-site.yml
+    uses: $/.github/workflows/reusable-site.yml
     permissions:
       contents: write  # to maintain the gh-pages storage branch
       pages: write     # to deploy to GitHub Pages

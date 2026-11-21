@@ -51,7 +51,7 @@ jobs:
           java-version: '21'
 
       - name: Set up SBOM tools
-        uses: ./.github/actions/setup-sbom-tools
+        uses: $/.github/actions/setup-sbom-tools
         with:
           github-token: ${{ github.token }}
 

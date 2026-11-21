@@ -22,7 +22,7 @@ permissions: {}
 jobs:
   site:
     name: Publish documentation site
-    uses: ./.github/workflows/reusable-site.yml
+    uses: $/.github/workflows/reusable-site.yml
     permissions:
       contents: write  # to maintain the gh-pages storage branch
       pages: write     # to deploy to GitHub Pages
