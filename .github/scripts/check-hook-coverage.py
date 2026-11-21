@@ -7,7 +7,6 @@ import pathlib
 import re
 import sys
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PREK_CONFIG = ROOT / "prek.toml"
 REVIEWDOG_WORKFLOW = ROOT / ".github" / "workflows" / "prs-review.yml"

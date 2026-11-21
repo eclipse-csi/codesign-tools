@@ -3,8 +3,9 @@
 
 import os
 import re
-import defusedxml.ElementTree as ET
 from string import Template
+
+import defusedxml.ElementTree as ET
 
 STORE = "target/gh-pages-store"
 
@@ -130,4 +131,4 @@ html = template.substitute(
 with open(os.path.join(STORE, "index.html"), "w") as f:
     f.write(html)
 
-print("Generated index.html with %d release(s)" % len(version_dirs))
+print(f"Generated index.html with {len(version_dirs)} release(s)")
