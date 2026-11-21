@@ -82,7 +82,11 @@ assert_equals "${actual_defusedxml_dep}" "defusedxml==${defusedxml_version}" "Co
 assert_equals "${actual_minimum_prek_version}" "${prek_version}" "Could not update minimum_prek_version in prek.toml"
 
 # Freeze hook revisions to immutable SHAs.
-prek auto-update --freeze
+prek update --freeze
+# astral-sh/actionlint publishes no tags, so the tag-based update above always
+# reports it as up to date. Track its default branch instead; drop this once the
+# fork starts tagging releases.
+prek update --freeze --bleeding-edge --repo https://github.com/astral-sh/actionlint
 
 # Expose whether changes were produced for downstream workflow steps.
 if git diff --quiet -- "${tracked_files[@]}"; then

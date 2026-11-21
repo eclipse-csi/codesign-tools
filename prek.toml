@@ -25,9 +25,12 @@ hooks = [
   { id = "mixed-line-ending" },
 ]
 
+# Astral's maintained fork of rhysd/actionlint. It publishes no tags, so this rev
+# tracks its default branch (see .github/scripts/update-tool-versions.sh), and the
+# reviewdog (actionlint) job in prs-review.yml builds this same revision.
 [[repos]]
-repo = "https://github.com/rhysd/actionlint"
-rev = "914e7df21a07ef503a81201c76d2b11c789d3fca" # frozen: v1.7.12
+repo = "https://github.com/astral-sh/actionlint"
+rev = "b524c8e879bd35356822b4506f62b6feab792eaf"
 hooks = [
   { id = "actionlint", files = '^\.github/workflows/.*\.(yml|yaml)$' },
 ]

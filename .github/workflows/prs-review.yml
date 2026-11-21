@@ -20,25 +20,60 @@ jobs:
       - name: Harden Runner
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          disable-sudo-and-containers: false # actionlint needs to run in a container
+          disable-sudo-and-containers: true
           egress-policy: block
           allowed-endpoints: >
             api.github.com:443
             github.com:443
+            raw.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            go.dev:443
+            dl.google.com:443
+            storage.googleapis.com:443
+            proxy.golang.org:443
+            sum.golang.org:443
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: actionlint with reviewdog
-        uses: reviewdog/action-actionlint@a8ac3eea598697a830f7d8e701fc9fcbfde88974 # v1.80.0
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          filter_mode: added
-          fail_level: error
-          level: warning
+          go-version: stable
+          cache: false
+
+      # astral-sh/actionlint publishes no releases: build the exact revision
+      # pinned in prek.toml so CI and the local hook always agree.
+      - name: Install actionlint
+        shell: bash
+        run: |
+          rev="$(python3 -I -c 'import tomllib; repos = tomllib.load(open("prek.toml", "rb"))["repos"]; print(next(r["rev"] for r in repos if r["repo"] == "https://github.com/astral-sh/actionlint"))')"
+          go install "github.com/astral-sh/actionlint/cmd/actionlint@${rev}"
+          actionlint -version
+
+      - name: Setup reviewdog
+        uses: reviewdog/action-setup@d8a7baabd7f3e8544ee4dbde3ee41d0011c3a93f # v1.5.0
+
+      - name: actionlint with reviewdog
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          out="${RUNNER_TEMP}/actionlint.out"
+          set +e
+          actionlint -oneline > "${out}"
+          status=$?
+          set -e
+          # 0 = clean, 1 = findings; 2 and 3 are actionlint failures, not findings.
+          if [[ "${status}" -ge 2 ]]; then
+            cat "${out}"
+            exit "${status}"
+          fi
+          # Tag each finding with a reviewdog severity: ShellCheck's own level when present, error otherwise.
+          sed -E 's/^(.*shellcheck reported issue in this script: SC[0-9]+:([ewin]).*)$/\2:\1/; t; s/^/e:/' "${out}" \
+            | reviewdog -efm="%t:%f:%l:%c: %m" -name="actionlint" -reporter=github-pr-review -filter-mode=added -fail-level=error
 
   reviewdog-ruff:
     name: reviewdog (ruff)

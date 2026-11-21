@@ -7,7 +7,6 @@ import pathlib
 import re
 import sys
 
-
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 PREK_CONFIG = ROOT / "prek.toml"
 FROZEN_REV_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -56,7 +55,7 @@ def main() -> int:
         print("Found non-frozen hook revisions:")
         for error in errors:
             print(f"- {error}")
-        print("Run `prek auto-update --freeze` and commit the updated prek.toml.")
+        print("Run `prek update --freeze` and commit the updated prek.toml.")
         return 1
 
     print("All non-local hook revisions are frozen to commit SHAs.")

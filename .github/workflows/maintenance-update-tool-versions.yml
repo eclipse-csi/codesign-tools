@@ -62,7 +62,7 @@ jobs:
           - `tools/github-workflow-tools/versions.json`
           - `prek.toml` (`minimum_prek_version` synced from `tools/github-workflow-tools/pyproject.toml`)
           - `prek.toml` (`defusedxml` pin synced from `tools/github-workflow-tools/pyproject.toml`)
-          - `prek.toml` (via `prek auto-update --freeze`)
+          - `prek.toml` (via `prek update --freeze`)
 
           This keeps workflow binaries and hook revisions current.
           BODY_EOF
