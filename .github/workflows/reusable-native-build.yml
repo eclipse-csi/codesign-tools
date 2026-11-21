@@ -76,6 +76,9 @@ jobs:
           native-image-job-reports: 'true'
           github-token: ${{ github.token }}
 
+      - name: Install Maven wrapper distribution
+        uses: $/.github/actions/install-maven-wrapper
+
       # MVNW_VERBOSE drops the --silent that the wrapper otherwise passes to
       # curl, so a failed distribution download reports the real curl error
       # instead of a bare "curl: Failed to fetch".

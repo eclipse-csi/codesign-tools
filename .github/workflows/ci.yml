@@ -46,6 +46,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Install Maven wrapper distribution
+        uses: $/.github/actions/install-maven-wrapper
+
       - name: Set up SBOM tools
         uses: $/.github/actions/setup-sbom-tools
         with:

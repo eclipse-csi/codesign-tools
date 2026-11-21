@@ -107,6 +107,9 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Install Maven wrapper distribution
+        uses: $/.github/actions/install-maven-wrapper
+
       - name: Build Maven site, API Javadoc, and CLI man page
         run: |
           ./mvnw -B -ntp -DskipTests -pl maven-plugin --also-make package site

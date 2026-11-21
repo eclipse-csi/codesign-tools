@@ -1,0 +1,37 @@
+name: Install Maven wrapper distribution
+description: >-
+  Installs the Maven distribution pinned in .mvn/wrapper/maven-wrapper.properties,
+  retrying with backoff when the download fails, typically because Maven Central
+  rate-limits the runner (HTTP 429). The wrapper itself gives up on the first failure.
+runs:
+  using: composite
+  steps:
+    # `mvnw --version` downloads, checksum-verifies and installs the distribution
+    # into ~/.m2/wrapper/dists, then exits without resolving the build extensions,
+    # so later ./mvnw calls in the job find it already installed.
+    #
+    # On Windows the launcher mirrors the choice made in reusable-native-build.yml,
+    # because mvnw and mvnw.cmd install the distribution in different directories:
+    # mvnw with Git's OpenSSL curl when present, mvnw.cmd otherwise.
+    - name: Download Maven distribution
+      shell: bash
+      env:
+        # Drops the --silent/--quiet the wrapper passes to curl/wget, so a failed
+        # download reports the HTTP status.
+        MVNW_VERBOSE: 'true'
+      run: |
+        install() {
+          if [ "$RUNNER_OS" != Windows ]; then
+            ./mvnw --version
+          elif [ -x /mingw64/bin/curl.exe ]; then
+            PATH="/mingw64/bin:$PATH" ./mvnw --version
+          else
+            cmd //c "mvnw.cmd --version"
+          fi
+        }
+        for delay in 20 40 80 160; do
+          install && exit 0
+          echo "::warning::Maven distribution download failed, retrying in ${delay}s"
+          sleep "${delay}"
+        done
+        install || { echo "::error::Could not download the Maven distribution after 5 attempts"; exit 1; }
