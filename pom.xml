@@ -431,13 +431,13 @@
             <signing>
               <active>RELEASE</active>
               <pgp>
-                <mode>COMMAND</mode>
-                <command>
-                  <args>
-                    <arg>--pinentry-mode</arg>
-                    <arg>loopback</arg>
-                  </args>
-                </command>
+                <!--
+                  The release key is exported with gpg export-secret-subkeys: its primary key
+                  is a stub without key material. MEMORY mode signs with the subkey since
+                  JReleaser 1.24.0 (jreleaser/jreleaser#2086).
+                -->
+                <mode>MEMORY</mode>
+                <armored>true</armored>
               </pgp>
             </signing>
             <catalog>
