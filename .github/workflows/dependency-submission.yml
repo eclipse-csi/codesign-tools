@@ -1,0 +1,62 @@
+name: Dependency Submission
+
+# Submits the resolved Maven dependency tree (transitives included) to the GitHub dependency
+# graph, which Dependabot alerts and the dependency review in prs-review.yml rely on.
+#
+# This replaces GitHub's automatic dependency submission, which must stay disabled for this
+# repository (Settings > Advanced Security > Dependency graph): its managed workflow checks out
+# a shallow clone that cannot be configured, and the build fails without the git history
+# (.mvn/maven-git-versioning-extension.xml). Like the automatic submission, it runs on pushes
+# to any branch of this repository that change the build, so same-repository pull requests
+# (e.g. Dependabot's) get a snapshot for their head commit.
+
+on:
+  push:
+    branches:
+      - '**'
+    paths:
+      - '**/pom.xml'
+      - '.mvn/**'
+      - '.github/workflows/dependency-submission.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  submit-maven:
+    name: Submit Maven dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write # Required to submit the dependency snapshot.
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          disable-sudo-and-containers: true
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history and tags: the project version is derived from the closest vX.Y.Z
+          # tag (.mvn/maven-git-versioning-extension.xml), and a shallow clone fails the build.
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Submit dependency snapshot
+        uses: advanced-security/maven-dependency-submission-action@a64327a7329c9939cf675e458452febe1894a70c # v6.0.1
+        with:
+          maven-args: -ntp # The action already runs Maven in batch mode.
