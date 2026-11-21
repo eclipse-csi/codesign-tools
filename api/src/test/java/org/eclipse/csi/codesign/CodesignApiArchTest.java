@@ -45,6 +45,20 @@ class CodesignApiArchTest {
               "RetryInterceptor is an OkHttp implementation detail, not part of the public API");
 
   /**
+   * {@link GitHubArtifactUploader} talks to an undocumented GitHub service on behalf of {@link
+   * SigningWorkflow#signViaGitHubActions}. Keeping it package-private leaves room to follow changes
+   * of that service without breaking API callers.
+   */
+  @ArchTest
+  static final ArchRule gitHubArtifactUploaderIsPackagePrivate =
+      classes()
+          .that()
+          .haveSimpleName("GitHubArtifactUploader")
+          .should()
+          .notBePublic()
+          .because("the GitHub artifact upload protocol is an implementation detail");
+
+  /**
    * Fields of API classes must not be public. All state should be accessed through explicit,
    * intentionally designed accessors, preventing callers from depending on internal storage layout.
    *

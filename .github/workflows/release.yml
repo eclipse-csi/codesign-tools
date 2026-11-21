@@ -154,8 +154,14 @@ jobs:
     name: Native binaries
     if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
     uses: $/.github/workflows/reusable-native-build.yml
+    permissions:
+      actions: read # SignPath downloads the unsigned Windows binary, a workflow artifact
+      contents: read
     with:
       artifact-retention-days: 1
+      signing-policy: release-signing
+    secrets:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
   assemble-and-release:
     name: Assemble archives and publish GitHub release

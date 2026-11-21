@@ -8,6 +8,17 @@ on:
         required: false
         type: number
         default: 7
+      signing-policy:
+        description: >-
+          SignPath signing policy the Windows binary is signed with (test-signing or
+          release-signing). Empty leaves the binaries unsigned.
+        required: false
+        type: string
+        default: ''
+    secrets:
+      SIGNPATH_API_TOKEN:
+        description: SignPath API token of the CI user, required when signing-policy is set.
+        required: false
 
 permissions: {}
 
@@ -37,6 +48,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+
+    permissions:
+      actions: read # SignPath downloads the unsigned binary, a workflow artifact, with GITHUB_TOKEN
+      contents: read
 
     steps:
       - name: Harden Runner
@@ -94,6 +109,51 @@ jobs:
             command -v curl && curl --version | head -1
             ./mvnw "$@"
           fi
+
+      - name: Expose Actions runtime for signing
+        id: actions-runtime
+        if: runner.os == 'Windows' && inputs.signing-policy != ''
+        uses: $/.github/actions/expose-actions-runtime
+
+      # The binary signs itself: csi-codesign submits it through the SignPath GitHub connector,
+      # which the trusted build system verification of the Eclipse Foundation signing policies
+      # requires. It writes elsewhere because Windows locks a running executable.
+      - name: Sign Windows binary with SignPath
+        if: runner.os == 'Windows' && inputs.signing-policy != ''
+        shell: bash
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_RESULTS_URL: ${{ steps.actions-runtime.outputs.actions-results-url }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.actions-runtime.outputs.actions-runtime-token }}
+          SIGNING_POLICY: ${{ inputs.signing-policy }}
+        run: |
+          cli/target/csi-codesign.exe sign \
+            --submission-mode github-actions \
+            --organization-id 46624a66-6595-48fd-85c3-64bdee7fecc9 \
+            --project-id technology.csi \
+            --signing-policy "${SIGNING_POLICY}" \
+            --artifact-configuration pe-file \
+            --output cli/target/signed/csi-codesign.exe \
+            cli/target/csi-codesign.exe
+          mv -f cli/target/signed/csi-codesign.exe cli/target/csi-codesign.exe
+
+      # The test certificate is not trusted by Windows, so only release-signed binaries have to
+      # verify as Valid; any signature at all proves that the signing round trip worked.
+      - name: Verify Authenticode signature
+        if: runner.os == 'Windows' && inputs.signing-policy != ''
+        shell: pwsh
+        env:
+          SIGNING_POLICY: ${{ inputs.signing-policy }}
+        run: |
+          $signature = Get-AuthenticodeSignature -FilePath cli/target/csi-codesign.exe
+          $signature | Format-List Status, StatusMessage, SignerCertificate, TimeStamperCertificate
+          if ($null -eq $signature.SignerCertificate) {
+            throw 'csi-codesign.exe has no Authenticode signature'
+          }
+          if ($env:SIGNING_POLICY -eq 'release-signing' -and $signature.Status -ne 'Valid') {
+            throw "Release signature of csi-codesign.exe is not valid: $($signature.StatusMessage)"
+          }
 
       - name: Upload native binary artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

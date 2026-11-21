@@ -33,8 +33,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -55,6 +57,7 @@ import org.apache.maven.settings.crypto.SettingsDecrypter;
 import org.apache.maven.settings.crypto.SettingsDecryptionResult;
 import org.eclipse.csi.codesign.CodesignClient;
 import org.eclipse.csi.codesign.CodesignException;
+import org.eclipse.csi.codesign.GitHubActionsContext;
 import org.eclipse.csi.codesign.SigningRequestStatus;
 import org.eclipse.csi.codesign.SigningWorkflow;
 
@@ -73,6 +76,8 @@ public class CodesignMojo extends AbstractMojo {
 
   private static final String CSI_CODESIGN_API_TOKEN = "CSI_CODESIGN_API_TOKEN";
   private static final String CSI_CODESIGN_SKIP_SIGNING = "CSI_CODESIGN_SKIP_SIGNING";
+  private static final String SUBMISSION_MODE_DIRECT = "direct";
+  private static final String SUBMISSION_MODE_GITHUB_ACTIONS = "github-actions";
 
   /**
    * Maven native packaging types that produce a signable binary artifact. {@code pom} is
@@ -155,6 +160,42 @@ public class CodesignMojo extends AbstractMojo {
    */
   @Parameter(property = "csi.codesign.baseUrl", defaultValue = "https://app.signpath.io/Api")
   private String baseUrl;
+
+  /**
+   * How signing requests are submitted to SignPath.
+   *
+   * <p>Optional. Mapped to {@code -Dcsi.codesign.submissionMode}. Accepted values:
+   *
+   * <ul>
+   *   <li>{@code direct} (default): each file is uploaded to the SignPath REST API in its own
+   *       signing request.
+   *   <li>{@code github-actions}: the files of the execution are stored as an artifact of the
+   *       running GitHub Actions job and submitted in one signing request through the SignPath
+   *       GitHub connector. Signing policies with trusted build system verification require this
+   *       mode. A single file is uploaded as is (the artifact configuration is the same as in
+   *       {@code direct} mode), under an artifact named after it, which must be unique within the
+   *       workflow run. Several files are packed at the root of a zip file, so the artifact
+   *       configuration must have a {@code <zip-file>} root element matching files at the zip root,
+   *       and the files must have distinct names. The build needs the {@code ACTIONS_RESULTS_URL},
+   *       {@code ACTIONS_RUNTIME_TOKEN}, {@code GITHUB_RUN_ID}, {@code GITHUB_REPOSITORY} and
+   *       {@code GITHUB_TOKEN} environment variables; see the usage documentation. {@code
+   *       description} is ignored.
+   * </ul>
+   */
+  @Parameter(property = "csi.codesign.submissionMode", defaultValue = SUBMISSION_MODE_DIRECT)
+  private String submissionMode;
+
+  /**
+   * GitHub Actions endpoint of the SignPath pipeline connector, used when {@code submissionMode} is
+   * {@code github-actions}.
+   *
+   * <p>Optional. Mapped to {@code -Dcsi.codesign.gitHubConnectorUrl}. Default targets the hosted
+   * SignPath connector for github.com.
+   */
+  @Parameter(
+      property = "csi.codesign.gitHubConnectorUrl",
+      defaultValue = "https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom")
+  private String gitHubConnectorUrl;
 
   /**
    * Base directory scanned for input artifacts.
@@ -305,6 +346,7 @@ public class CodesignMojo extends AbstractMojo {
       return;
     }
 
+    boolean viaGitHubActions = isGitHubActionsSubmission();
     List<Path> filesToSign = collectFilesToSign();
     if (filesToSign.isEmpty()) {
       if (failOnNoFilesFound) {
@@ -314,6 +356,8 @@ public class CodesignMojo extends AbstractMojo {
       return;
     }
 
+    GitHubActionsContext gitHubActionsContext =
+        viaGitHubActions ? resolveGitHubActionsContext() : null;
     String resolvedApiToken = resolveApiToken();
 
     CodesignClient.Config config =
@@ -328,9 +372,90 @@ public class CodesignMojo extends AbstractMojo {
             maxRetries);
 
     try (CodesignClient client = buildClient(config)) {
-      for (Path filePath : filesToSign) {
-        signFile(client, filePath);
+      if (viaGitHubActions) {
+        signViaGitHubActions(client, filesToSign, gitHubActionsContext);
+      } else {
+        for (Path filePath : filesToSign) {
+          signFile(client, filePath);
+        }
       }
+    }
+  }
+
+  private boolean isGitHubActionsSubmission() throws MojoExecutionException {
+    String mode =
+        submissionMode == null
+            ? SUBMISSION_MODE_DIRECT
+            : submissionMode.strip().toLowerCase(Locale.ROOT);
+    return switch (mode) {
+      case SUBMISSION_MODE_DIRECT -> false;
+      case SUBMISSION_MODE_GITHUB_ACTIONS -> true;
+      default ->
+          throw new MojoExecutionException(
+              "Invalid submissionMode value: '"
+                  + submissionMode
+                  + "'. Expected one of: "
+                  + SUBMISSION_MODE_DIRECT
+                  + ", "
+                  + SUBMISSION_MODE_GITHUB_ACTIONS);
+    };
+  }
+
+  private GitHubActionsContext resolveGitHubActionsContext() throws MojoExecutionException {
+    try {
+      return GitHubActionsContext.fromEnvironment(this::getEnvironmentVariable);
+    } catch (CodesignException e) {
+      throw new MojoExecutionException(e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Signs the files in one request through the SignPath GitHub connector and writes the signed
+   * files to their output locations.
+   */
+  private void signViaGitHubActions(
+      CodesignClient client, List<Path> filesToSign, GitHubActionsContext context)
+      throws MojoExecutionException, MojoFailureException {
+    if (description != null) {
+      getLog()
+          .warn(
+              "description is ignored with submissionMode "
+                  + SUBMISSION_MODE_GITHUB_ACTIONS
+                  + ": the SignPath GitHub connector does not accept one");
+    }
+    Map<Path, Path> files = new LinkedHashMap<>();
+    for (Path filePath : filesToSign) {
+      files.put(filePath, resolveOutputPath(filePath));
+      getLog().info("Submitting for signing: " + filePath);
+    }
+
+    SigningWorkflow workflow =
+        new SigningWorkflow(client, Duration.ofSeconds(pollInterval), msg -> getLog().info(msg));
+    try {
+      SigningRequestStatus status =
+          workflow.signViaGitHubActions(
+              context,
+              gitHubConnectorUrl,
+              projectId,
+              signingPolicy,
+              artifactConfiguration,
+              parameters,
+              files);
+      if (!status.isCompleted()) {
+        throw new MojoFailureException(
+            "Signing request did not complete successfully. Status: "
+                + status.status()
+                + ", workflow status: "
+                + status.workflowStatus()
+                + (status.webLink() != null ? ". See " + status.webLink() : ""));
+      }
+    } catch (CodesignException e) {
+      throw new MojoExecutionException("SignPath error while signing " + files.keySet(), e);
+    } catch (IOException e) {
+      throw new MojoExecutionException("I/O error while signing " + files.keySet(), e);
+    }
+    for (Path output : files.values()) {
+      getLog().info("Successfully signed: " + output);
     }
   }
 

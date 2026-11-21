@@ -267,6 +267,28 @@ Configure these repository/environment secrets before running the release workfl
 - `GPG_PRIVATE_KEY` (ASCII-armored)
 - `GPG_KEY_ID`
 - `GPG_PASSPHRASE`
+- `SIGNPATH_API_TOKEN` (API token of the SignPath CI user, see "Code Signing in CI" below)
+
+### Code Signing in CI
+
+The project signs its own artifacts with SignPath (project `technology.csi`, configured in
+[sealform-configuration](https://github.com/EclipseFdn/sealform-configuration/blob/main/ef-projects/projects/technology.csi.yaml)).
+Both of its signing policies require trusted build system verification. The tools therefore
+submit through the SignPath GitHub connector (`--submission-mode github-actions`); a direct
+REST upload would be rejected. Each file is uploaded on its own (not zipped), with the `jar-file`
+and `pe-file` artifact configurations of the project.
+
+| Workflow | Event | Signed | Policy |
+| --- | --- | --- | --- |
+| `ci-native.yml` | push to `main`, dispatch | `csi-codesign.exe` (signed by itself, artifact configuration `pe-file`) | `test-signing` |
+| `ci.yml` | push to `main`, dispatch | the jars, one request each, as a smoke test (signed by the fat JAR just built, artifact configuration `jar-file`; not published) | `test-signing` |
+| `release.yml` | release tag | `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
+| any | pull request | nothing (forks and Dependabot cannot read the secret) | — |
+
+The jars published to Maven Central are not signed yet. To sign them before checksums, GPG
+and Sigstore signatures are computed, they have to be signed inside the Maven build, by
+`codesign-maven-plugin`. Maven cannot use a plugin built by the same reactor, so the build
+needs a released version with `github-actions` support.
 
 ### Release Notes
 

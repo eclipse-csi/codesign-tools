@@ -208,6 +208,76 @@ After `mvn package`, signed files are available in `target/signed/`.
 > rejects the request (HTTP 400) when a parameter declared with `required="true"` is missing.
 > See [User-defined parameters](https://docs.signpath.io/artifact-configuration/syntax#user-defined-parameters).
 
+### GitHub Actions: Trusted Build System
+
+A SignPath signing policy with **trusted build system verification** (as used by Eclipse
+Foundation projects) rejects files uploaded directly to the REST API. SignPath has to fetch
+the file from GitHub itself, so that it can verify which repository, workflow and branch
+built it. Select this flow with `--submission-mode github-actions` (CLI) or
+`<submissionMode>github-actions</submissionMode>` (plugin). Here is what it does:
+
+1. The files of one invocation (CLI) or one execution (plugin) are stored as an artifact of the
+   running GitHub Actions job, kept for one day:
+   - **A single file** is uploaded as is, like `actions/upload-artifact` with `archive: false`.
+   - **Several files** are packed at the root of a zip file, like `actions/upload-artifact` does
+     by default.
+2. The artifact is submitted in **one** signing request through the
+   [SignPath GitHub connector](https://docs.signpath.io/trusted-build-systems/github).
+3. The tool polls the request through the REST API. Once it completes, it downloads the signed
+   artifact and writes each signed file to its output location, as in direct mode.
+
+Requirements:
+
+- **Artifact configuration.** It depends on how many files are signed together:
+  - A single file reaches SignPath as is, exactly as in direct mode. Use the same artifact
+    configuration, e.g. one with a `<jar-file>` or `<pe-file>` root element. GitHub names such
+    an artifact after the file, and artifact names must be unique within a workflow run. So
+    within one run, a given file name can only be signed this way once, even across jobs (e.g.
+    a matrix that signs `app.exe` on several runners). Name the files differently, or sign them
+    together.
+  - Several files reach SignPath as one zip. The root element must be `<zip-file>`, with rules
+    that match files at the zip root, e.g. `<jar-file path="*.jar">`. The files must have
+    distinct file names. To sign files one by one instead, invoke the tool once per file.
+- **Environment.** The signing step needs these variables:
+  - `GITHUB_RUN_ID` and `GITHUB_REPOSITORY`, which GitHub sets for every step.
+  - `GITHUB_TOKEN`, passed explicitly. SignPath uses it to read the workflow run and download
+    the artifact, so the job needs the `actions: read` permission.
+  - `ACTIONS_RESULTS_URL` and `ACTIONS_RUNTIME_TOKEN`. GitHub only gives these to JavaScript
+    actions, never to `run:` steps. The `expose-actions-runtime` action of this repository
+    copies them to step outputs. Hand them only to the signing step, because the runtime token
+    can upload artifacts and caches for the job.
+- **Unsupported options.** `--description` / `<description>` is ignored, because the connector
+  does not accept it.
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read   # SignPath downloads the workflow artifact with GITHUB_TOKEN
+      contents: read
+    steps:
+      # ... check out and build ...
+      - id: actions-runtime
+        uses: eclipse-csi/codesign-tools/.github/actions/expose-actions-runtime@<commit-sha>
+      - name: Sign
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_RESULTS_URL: ${{ steps.actions-runtime.outputs.actions-results-url }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.actions-runtime.outputs.actions-runtime-token }}
+        run: |
+          csi-codesign sign --submission-mode github-actions \
+            --organization-id <ORG_ID> --project-id <PROJECT_SLUG> \
+            --signing-policy <POLICY_SLUG> --artifact-configuration <CONFIG_SLUG> \
+            --output-dir signed/ target/app.jar
+```
+
+With the Maven plugin, set `<submissionMode>github-actions</submissionMode>` and run Maven
+in a step that has the same `env:` block. If SignPath rejects the request, for example because
+the branch is not allowed by the policy's origin verification, the error lists each policy
+violation together with SignPath's hint on how to fix it.
+
 ---
 
 ## Configuration Reference
@@ -227,6 +297,7 @@ Reference documentation is published on the [project site](https://eclipse-csi.g
 | --- | --- | --- |
 | `CSI_CODESIGN_API_TOKEN` | Both | SignPath API token. Lower priority than `settings.xml` (plugin); higher priority than the config file. |
 | `CSI_CODESIGN_SKIP_SIGNING` | Plugin only | Set to `1`, `true`, or `yes` (case-insensitive) to skip signing unconditionally. |
+| `ACTIONS_RESULTS_URL`, `ACTIONS_RUNTIME_TOKEN`, `GITHUB_RUN_ID`, `GITHUB_REPOSITORY`, `GITHUB_TOKEN` | Both | Required by the `github-actions` submission mode; see [GitHub Actions: Trusted Build System](#github-actions-trusted-build-system). |
 
 ---
 
@@ -290,7 +361,8 @@ unsupported, the CLI falls back to a non-atomic copy.
 | `connectTimeout` | 30 s | HTTP connect timeout |
 
 **CLI** — all derived from `--wait-for-completion-timeout` (default: 600 s), which applies to
-each file separately, starting when its signing request is submitted:
+each signing request separately (one per file, or one for all files with
+`--submission-mode github-actions`), starting when it is submitted:
 
 | Parameter | Formula | Example (600 s) |
 | --- | --- | --- |

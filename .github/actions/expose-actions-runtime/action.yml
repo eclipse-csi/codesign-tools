@@ -1,0 +1,16 @@
+name: Expose Actions runtime
+description: >-
+  Exposes the Actions results service URL and runtime token as step outputs, so that a later run
+  step can upload workflow artifacts itself (csi-codesign --submission-mode github-actions).
+  The runner only gives these values to JavaScript and container actions.
+outputs:
+  actions-results-url:
+    description: Value of ACTIONS_RESULTS_URL; pass it to the signing step as ACTIONS_RESULTS_URL.
+  actions-runtime-token:
+    description: >-
+      Value of ACTIONS_RUNTIME_TOKEN (masked); pass it to the signing step as
+      ACTIONS_RUNTIME_TOKEN. It can upload artifacts and caches for the current job, so only hand
+      it to the step that needs it.
+runs:
+  using: node24
+  main: index.js

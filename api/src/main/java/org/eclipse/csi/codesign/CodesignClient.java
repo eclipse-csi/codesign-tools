@@ -11,14 +11,22 @@
 package org.eclipse.csi.codesign;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
@@ -32,6 +40,7 @@ public class CodesignClient implements AutoCloseable {
 
   private static final Gson GSON = new Gson();
   private static final MediaType OCTET_STREAM = MediaType.get("application/octet-stream");
+  private static final MediaType JSON = MediaType.get("application/json");
   private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String BEARER_PREFIX = "Bearer ";
 
@@ -68,13 +77,7 @@ public class CodesignClient implements AutoCloseable {
    * @param config the client configuration
    */
   public CodesignClient(Config config) {
-    // localhost/127.0.0.1 are exempted: traffic never leaves the machine, and this allows
-    // integration tests to connect to a local mock server over plain HTTP.
-    if (!config.baseUrl().startsWith("https://")
-        && !config.baseUrl().startsWith("http://localhost")
-        && !config.baseUrl().startsWith("http://127.0.0.1")) {
-      throw new IllegalArgumentException("baseUrl must use HTTPS. Got: " + config.baseUrl());
-    }
+    requireHttps("baseUrl", config.baseUrl());
     this.baseUrl = config.baseUrl();
     this.organizationId = config.organizationId();
     this.apiToken = config.apiToken();
@@ -164,6 +167,173 @@ public class CodesignClient implements AutoCloseable {
   }
 
   /**
+   * Submits a GitHub workflow artifact for signing through the SignPath GitHub connector.
+   *
+   * <p>This is the only way to satisfy signing policies with trusted build system verification:
+   * SignPath downloads the artifact from GitHub and verifies the origin of the build itself. The
+   * returned request is polled and downloaded through the regular API, like {@link #submit}.
+   *
+   * @param connectorUrl the GitHub Actions endpoint of the SignPath pipeline connector
+   * @param context the GitHub Actions job the artifact belongs to
+   * @param artifactId the ID of the workflow artifact to sign
+   * @param projectId the SignPath project slug
+   * @param signingPolicy the signing policy slug
+   * @param artifactConfiguration optional artifact configuration slug, may be {@code null}
+   * @param parameters optional user-defined parameters, may be {@code null}
+   * @param logger receives the log messages of the connector
+   * @return the submitted signing request
+   * @throws CodesignException if the connector rejects the request, including policy violations
+   * @throws IOException on transport-level failures
+   */
+  SigningRequest submitViaGitHubConnector(
+      String connectorUrl,
+      GitHubActionsContext context,
+      long artifactId,
+      String projectId,
+      String signingPolicy,
+      String artifactConfiguration,
+      Map<String, String> parameters,
+      Consumer<String> logger)
+      throws CodesignException, IOException {
+    requireHttps("connectorUrl", connectorUrl);
+    String url =
+        connectorUrl.replaceAll("/+$", "")
+            + "/"
+            + organizationId
+            + "/SigningRequests?api-version=1.0";
+
+    JsonObject payload = new JsonObject();
+    payload.addProperty("artifactId", Long.toString(artifactId));
+    payload.addProperty("gitHubWorkflowRunId", context.runId());
+    payload.addProperty("gitHubRepository", context.repository());
+    payload.addProperty("gitHubToken", context.gitHubToken());
+    payload.addProperty("signPathProjectSlug", projectId);
+    payload.addProperty("signPathSigningPolicySlug", signingPolicy);
+    if (artifactConfiguration != null) {
+      payload.addProperty("signPathArtifactConfigurationSlug", artifactConfiguration);
+    }
+    JsonArray parameterArray = new JsonArray();
+    if (parameters != null) {
+      for (Map.Entry<String, String> entry : parameters.entrySet()) {
+        JsonObject parameter = new JsonObject();
+        parameter.addProperty("name", entry.getKey());
+        parameter.addProperty("value", entry.getValue());
+        parameterArray.add(parameter);
+      }
+    }
+    payload.add("parameters", parameterArray);
+
+    Request request =
+        new Request.Builder()
+            .url(url)
+            .header(AUTHORIZATION_HEADER, BEARER_PREFIX + apiToken)
+            .post(RequestBody.create(payload.toString(), JSON))
+            .build();
+
+    try (Response response = httpClient.newCall(request).execute()) {
+      String body = readBody(response);
+      JsonObject json = parseObject(body);
+      boolean clientError = response.code() >= 400 && response.code() < 500;
+      if (!response.isSuccessful() && !(clientError && json != null)) {
+        throw new CodesignException(response.code(), body);
+      }
+      if (json == null) {
+        throw new CodesignException(
+            response.code(), "Unexpected response from the SignPath connector: " + body);
+      }
+
+      forwardConnectorLogs(json, logger);
+      List<String> problems = connectorProblems(json);
+      if (!problems.isEmpty()) {
+        throw new CodesignException(
+            "The SignPath connector rejected the signing request: " + String.join(" ", problems),
+            null);
+      }
+      if (!response.isSuccessful()) {
+        throw new CodesignException(response.code(), body);
+      }
+
+      String signingRequestId = stringMember(json, "signingRequestId");
+      if (signingRequestId == null) {
+        throw new CodesignException(
+            response.code(),
+            "SignPath connector response has no signingRequestId. Is the connector URL right? "
+                + body);
+      }
+      String webUrl = stringMember(json, "signingRequestUrl");
+      if (webUrl != null) {
+        logger.accept("Signing request: " + webUrl);
+      }
+      return new SigningRequest(
+          URI.create(baseUrl + "/v1/" + organizationId + "/SigningRequests/" + signingRequestId));
+    }
+  }
+
+  private static void forwardConnectorLogs(JsonObject json, Consumer<String> logger) {
+    if (!(json.get("logs") instanceof JsonArray logs)) {
+      return;
+    }
+    for (JsonElement log : logs) {
+      if (log instanceof JsonObject entry) {
+        String message = stringMember(entry, "message");
+        if (message != null) {
+          String level = stringMember(entry, "level");
+          logger.accept("[SignPath connector] " + (level != null ? level + ": " : "") + message);
+        }
+      }
+    }
+  }
+
+  /** Collects the connector error and policy violations (with their fix hints) of a response. */
+  private static List<String> connectorProblems(JsonObject json) {
+    List<String> problems = new ArrayList<>();
+    String error = stringMember(json, "error");
+    if (error != null) {
+      problems.add(sentence(error));
+    }
+    if (json.get("validationResult") instanceof JsonObject validation
+        && validation.get("errors") instanceof JsonArray errors) {
+      for (JsonElement element : errors) {
+        if (element instanceof JsonObject violation) {
+          String message = stringMember(violation, "error");
+          String howToFix = stringMember(violation, "howToFix");
+          if (message != null) {
+            problems.add(
+                "Policy violation: "
+                    + sentence(message)
+                    + (howToFix != null ? " How to fix: " + sentence(howToFix) : ""));
+          }
+        }
+      }
+    }
+    return problems;
+  }
+
+  private static String sentence(String text) {
+    String stripped = text.strip();
+    char last = stripped.charAt(stripped.length() - 1);
+    return last == '.' || last == '!' || last == '?' ? stripped : stripped + ".";
+  }
+
+  private static JsonObject parseObject(String body) {
+    try {
+      JsonElement element = JsonParser.parseString(body);
+      return element.isJsonObject() ? element.getAsJsonObject() : null;
+    } catch (JsonParseException e) {
+      return null;
+    }
+  }
+
+  private static String stringMember(JsonObject json, String name) {
+    JsonElement value = json.get(name);
+    if (value == null || !value.isJsonPrimitive()) {
+      return null;
+    }
+    String text = value.getAsString();
+    return text.isBlank() ? null : text;
+  }
+
+  /**
    * Polls the status of a signing request.
    *
    * @param signingRequest the signing request to poll
@@ -230,6 +400,22 @@ public class CodesignClient implements AutoCloseable {
   public void close() {
     httpClient.dispatcher().executorService().shutdown();
     httpClient.connectionPool().evictAll();
+  }
+
+  /** The underlying HTTP client, shared with {@link GitHubArtifactUploader}. */
+  OkHttpClient httpClient() {
+    return httpClient;
+  }
+
+  // localhost/127.0.0.1 are exempted: traffic never leaves the machine, and this allows
+  // integration tests to connect to a local mock server over plain HTTP.
+  private static void requireHttps(String name, String url) {
+    if (url == null
+        || !(url.startsWith("https://")
+            || url.startsWith("http://localhost")
+            || url.startsWith("http://127.0.0.1"))) {
+      throw new IllegalArgumentException(name + " must use HTTPS. Got: " + url);
+    }
   }
 
   private static String readBody(Response response) throws IOException {

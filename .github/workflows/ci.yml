@@ -22,6 +22,8 @@ jobs:
 
     permissions:
       security-events: write # Required to upload Trivy SARIF results to GitHub code scanning.
+      actions: read # SignPath downloads the jars to test-sign, a workflow artifact, with GITHUB_TOKEN
+      contents: read
 
     steps:
       - name: Harden Runner
@@ -51,6 +53,50 @@ jobs:
 
       - name: Build and run tests
         run: ./mvnw -B -ntp -P integration-tests,generate-sbom verify
+
+      - name: Expose Actions runtime for signing
+        id: actions-runtime
+        if: github.event_name != 'pull_request'
+        uses: $/.github/actions/expose-actions-runtime
+
+      # Smoke test of jar signing, until the build signs its own jars with the released Maven
+      # plugin: the CLI just built submits each jar, as is, through the SignPath GitHub connector,
+      # as the trusted build system verification of the Eclipse Foundation signing policies
+      # requires. One invocation per jar, since several files would be submitted as one zip. Pull requests are not signed: forks and Dependabot have no access to
+      # the secret. jarsigner exits 0 on unsigned jars and warns about the untrusted test
+      # certificate, so its output is checked rather than its exit code.
+      - name: Test-sign the jars with SignPath
+        if: github.event_name != 'pull_request'
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_RESULTS_URL: ${{ steps.actions-runtime.outputs.actions-results-url }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.actions-runtime.outputs.actions-runtime-token }}
+        run: |
+          shopt -s failglob
+          cli_jar=(cli/target/codesign-cli-*-bin.jar)
+          jars=(
+            api/target/codesign-api-*.jar
+            maven-plugin/target/codesign-maven-plugin-*.jar
+            cli/target/csi-codesign-cli-*.jar
+            "${cli_jar[@]}"
+          )
+          for jar in "${jars[@]}"; do
+            java -jar "${cli_jar[0]}" sign \
+              --submission-mode github-actions \
+              --organization-id 46624a66-6595-48fd-85c3-64bdee7fecc9 \
+              --project-id technology.csi \
+              --signing-policy test-signing \
+              --artifact-configuration jar-file \
+              --output-dir target/signed-jars \
+              "${jar}"
+            signed="target/signed-jars/$(basename "${jar}")"
+            echo "::group::jarsigner -verify ${signed}"
+            output="$(jarsigner -verify -verbose -certs "${signed}")"
+            echo "${output}"
+            echo "::endgroup::"
+            grep -q '^jar verified\.' <<< "${output}" || { echo "::error::${signed} is not signed"; exit 1; }
+          done
 
       - name: Show WireMock log on failure
         if: failure()

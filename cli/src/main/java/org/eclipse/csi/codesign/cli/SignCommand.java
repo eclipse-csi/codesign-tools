@@ -24,11 +24,14 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import org.eclipse.csi.codesign.CodesignClient;
 import org.eclipse.csi.codesign.CodesignException;
+import org.eclipse.csi.codesign.GitHubActionsContext;
 import org.eclipse.csi.codesign.SigningRequestStatus;
 import org.eclipse.csi.codesign.SigningWorkflow;
 import picocli.CommandLine.Command;
@@ -40,6 +43,18 @@ import picocli.CommandLine.Spec;
 
 /**
  * Signs one or more artifact files via the SignPath REST API.
+ *
+ * <h2>Submission modes</h2>
+ *
+ * <ul>
+ *   <li><b>{@code direct}</b> (default): each file is uploaded to the SignPath REST API in its own
+ *       signing request.
+ *   <li><b>{@code github-actions}</b>: the files are stored as an artifact of the running GitHub
+ *       Actions job and submitted in one signing request through the SignPath GitHub connector.
+ *       Signing policies with trusted build system verification require this mode. A single file is
+ *       uploaded as is; several files are packed at the root of a zip file, which the artifact
+ *       configuration must then expect.
+ * </ul>
  *
  * <h2>Output modes</h2>
  *
@@ -63,7 +78,7 @@ import picocli.CommandLine.Spec;
  */
 @Command(
     name = "sign",
-    description = "Sign one or more artifact files via the SignPath REST API.",
+    description = "Sign one or more artifact files with SignPath.",
     sortOptions = false,
     usageHelpAutoWidth = true,
     mixinStandardHelpOptions = true)
@@ -170,7 +185,8 @@ class SignCommand implements Callable<Integer> {
       paramLabel = "<seconds>",
       defaultValue = "600",
       description =
-          "Maximum seconds to wait for each file's signing to complete (default: ${DEFAULT-VALUE})."
+          "Maximum seconds to wait for each signing request to complete"
+              + " (default: ${DEFAULT-VALUE})."
               + " Poll interval, HTTP timeouts, and retry limits are derived automatically from"
               + " this value.")
   int waitForCompletionTimeout;
@@ -184,6 +200,36 @@ class SignCommand implements Callable<Integer> {
       description = "SignPath API base URL (default: ${DEFAULT-VALUE}).")
   String baseUrl;
 
+  // --- Submission ---
+
+  static final String SUBMISSION_MODE_DIRECT = "direct";
+  static final String SUBMISSION_MODE_GITHUB_ACTIONS = "github-actions";
+
+  @Option(
+      names = "--submission-mode",
+      paramLabel = "<mode>",
+      defaultValue = SUBMISSION_MODE_DIRECT,
+      description =
+          "How signing requests are submitted: '"
+              + SUBMISSION_MODE_DIRECT
+              + "' uploads each file to the SignPath REST API; '"
+              + SUBMISSION_MODE_GITHUB_ACTIONS
+              + "' submits the files in one request through the SignPath GitHub connector, as"
+              + " required by signing policies with trusted build system verification: a single"
+              + " file as is, several files at the root of a zip file (default: ${DEFAULT-VALUE}).")
+  String submissionMode;
+
+  @Option(
+      names = "--github-connector-url",
+      paramLabel = "<url>",
+      defaultValue = "https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom",
+      description =
+          "GitHub Actions endpoint of the SignPath pipeline connector, used with"
+              + " --submission-mode "
+              + SUBMISSION_MODE_GITHUB_ACTIONS
+              + " (default: ${DEFAULT-VALUE}).")
+  String gitHubConnectorUrl;
+
   // --- Verbosity ---
 
   @Option(
@@ -194,8 +240,11 @@ class SignCommand implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
+    boolean viaGitHubActions = isGitHubActionsSubmission();
     validateFiles();
     validateOutputOptions();
+    GitHubActionsContext gitHubActionsContext =
+        viaGitHubActions ? resolveGitHubActionsContext() : null;
 
     String resolvedToken = resolveToken();
     if (resolvedToken == null) {
@@ -248,12 +297,70 @@ class SignCommand implements Callable<Integer> {
               Duration.ofSeconds(timeout),
               msg -> spec.commandLine().getOut().println(msg));
 
-      for (Path inputFile : inputFiles) {
-        signFile(client, workflow, inputFile);
+      if (viaGitHubActions) {
+        signViaGitHubActions(workflow, gitHubActionsContext);
+      } else {
+        for (Path inputFile : inputFiles) {
+          signFile(client, workflow, inputFile);
+        }
       }
     }
 
     return 0;
+  }
+
+  private boolean isGitHubActionsSubmission() {
+    return switch (submissionMode.strip().toLowerCase(Locale.ROOT)) {
+      case SUBMISSION_MODE_DIRECT -> false;
+      case SUBMISSION_MODE_GITHUB_ACTIONS -> true;
+      default ->
+          throw new ParameterException(
+              spec.commandLine(),
+              "Invalid --submission-mode '"
+                  + submissionMode
+                  + "'. Expected one of: "
+                  + SUBMISSION_MODE_DIRECT
+                  + ", "
+                  + SUBMISSION_MODE_GITHUB_ACTIONS);
+    };
+  }
+
+  private void signViaGitHubActions(SigningWorkflow workflow, GitHubActionsContext context)
+      throws CodesignException, IOException {
+    if (description != null) {
+      spec.commandLine()
+          .getErr()
+          .println(
+              "[WARNING] --description is ignored with --submission-mode "
+                  + SUBMISSION_MODE_GITHUB_ACTIONS
+                  + ": the SignPath GitHub connector does not accept one");
+    }
+    Map<Path, Path> files = new LinkedHashMap<>();
+    for (Path inputFile : inputFiles) {
+      files.put(inputFile.toAbsolutePath().normalize(), resolveOutputPath(inputFile));
+    }
+
+    SigningRequestStatus status =
+        workflow.signViaGitHubActions(
+            context,
+            gitHubConnectorUrl,
+            projectId,
+            signingPolicy,
+            artifactConfiguration,
+            parameters,
+            files);
+
+    if (!status.isCompleted()) {
+      throw new RuntimeException(
+          "Signing did not complete successfully. Status: "
+              + status.status()
+              + ", workflow: "
+              + status.workflowStatus()
+              + (status.webLink() != null ? ". See " + status.webLink() : ""));
+    }
+    for (Path output : files.values()) {
+      spec.commandLine().getOut().println("Signed: " + output);
+    }
   }
 
   private void signFile(CodesignClient client, SigningWorkflow workflow, Path inputFile)
@@ -384,6 +491,14 @@ class SignCommand implements Callable<Integer> {
         System.getenv(TokenResolver.ENV_VAR),
         effectiveConfigFile,
         msg -> spec.commandLine().getErr().println("[WARNING] " + msg));
+  }
+
+  /**
+   * Reads the GitHub Actions job context from the environment. Visible for testing: subclasses may
+   * override to supply a fixed context.
+   */
+  GitHubActionsContext resolveGitHubActionsContext() throws CodesignException {
+    return GitHubActionsContext.fromEnvironment(System::getenv);
   }
 
   /**
