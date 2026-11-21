@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.10.0] - 2026-11-21
-
 ### Added
 
 * Signing with SignPath's **GitHub trusted build system**, which signing policies with trusted build system verification require (as all Eclipse Foundation policies do). With `--submission-mode github-actions` (CLI) or `<submissionMode>github-actions</submissionMode>` (Maven plugin), the files are stored as an artifact of the running GitHub Actions job and submitted in one signing request through the SignPath GitHub connector. A single file is uploaded as is, so the same artifact configuration as with direct uploads applies. Several files are zipped together, so the artifact configuration must expect a zip. SignPath can then verify the repository, workflow and branch that built them. Policy violations are reported with SignPath's hints on how to fix them. The `expose-actions-runtime` action in this repository hands the job's artifact credentials to the signing step. See "GitHub Actions: Trusted Build System" in USAGE.md. For Java API users: `SigningWorkflow.signViaGitHubActions` and `GitHubActionsContext`.
@@ -20,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * SignPath API errors are now readable. Instead of dumping SignPath's JSON error document, the message shows its title, detail and per-field validation errors, plus the trace ID to quote to SignPath support, e.g. `SignPath API error (HTTP 400): One or more validation errors occurred. SigningPolicySlug: There is no signing policy with slug 'release' in the project with slug 'my-project'. (trace ID: 00-…)`. Responses that aren't in that format are still shown as is, and `CodesignException.responseBody()` still returns the raw body.
 * The documentation now explains that SignPath silently ignores user-defined parameters (`--param`, `<parameters>`) that the artifact configuration doesn't declare, and the troubleshooting guide covers HTTP 400 validation errors and wrong organization IDs.
+
+## [v0.10.0] - 2026-11-21
+
+* This release has been sacrificed.
 
 ## [v0.9.0] - 2026-11-21
 
