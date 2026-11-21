@@ -2,6 +2,8 @@
 
 This Eclipse Foundation Project adheres to the [Eclipse Foundation Vulnerability Reporting Policy](https://www.eclipse.org/security/policy/).
 
+It also follows the [Eclipse Foundation Baseline Security Policy](https://www.eclipse.org/security/baseline/); the sections below extend or, where stated, override it.
+
 ## How To Report a Vulnerability
 
 **Please do not report security vulnerabilities through public issues, discussions, or change requests.**
@@ -10,7 +12,9 @@ Report it using one of the following channels:
 
 * Report a [vulnerability](https://github.com/eclipse-csi/codesign-tools/security/advisories/new) via private vulnerability reporting on GitHub
 * Contact the [Eclipse Foundation Security Team](mailto:security@eclipse-foundation.org) via email
-* Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/issues/new?issuable_template=new_vulnerability) in the Eclipse Foundation Vulnerability Reporting Tracker
+* Create a [confidential issue](https://gitlab.eclipse.org/security/vulnerability-reports/-/work_items/new?issue%5Bconfidential%5D=true) in the Eclipse Foundation Vulnerability Reporting Tracker
+
+Send your report as plain text and do not attach files; put logs and proof-of-concept code inline in the body of the report.
 
 You can find more information about reporting and disclosure at the [Eclipse Foundation Security page](https://www.eclipse.org/security/).
 
