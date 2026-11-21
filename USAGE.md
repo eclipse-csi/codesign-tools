@@ -168,8 +168,9 @@ Configure the plugin in `pom.xml` to sign files automatically during `package`:
             <organizationId>${env.SIGNPATH_ORG_ID}</organizationId>
             <projectId>my-product</projectId>
             <signingPolicy>release-signing</signingPolicy>
-            <!-- artifactConfiguration is optional -->
-            <artifactConfiguration>default-binary-config</artifactConfiguration>
+            <!-- artifactConfiguration is optional. Several files are signed as one zip,
+                 so this one must have a <zip-file> root element -->
+            <artifactConfiguration>binaries-in-zip</artifactConfiguration>
 
             <!-- Optional metadata -->
             <description>${project.artifactId} ${project.version}</description>
@@ -199,7 +200,9 @@ Configure the plugin in `pom.xml` to sign files automatically during `package`:
 </build>
 ```
 
-After `mvn package`, signed files are available in `target/signed/`.
+After `mvn package`, signed files are available in `target/signed/`. All the files of the
+execution are signed in one signing request, packed in a zip file when there are several; see
+[Signing Requests](#signing-requests).
 
 > **Parameters must be declared in the artifact configuration.** Values passed with
 > `<parameters>` (plugin) or `--param key=value` (CLI) are only kept by SignPath when the
@@ -228,16 +231,13 @@ built it. Select this flow with `--submission-mode github-actions` (CLI) or
 
 Requirements:
 
-- **Artifact configuration.** It depends on how many files are signed together:
-  - A single file reaches SignPath as is, exactly as in direct mode. Use the same artifact
-    configuration, e.g. one with a `<jar-file>` or `<pe-file>` root element. GitHub names such
-    an artifact after the file, and artifact names must be unique within a workflow run. So
-    within one run, a given file name can only be signed this way once, even across jobs (e.g.
-    a matrix that signs `app.exe` on several runners). Name the files differently, or sign them
-    together.
-  - Several files reach SignPath as one zip. The root element must be `<zip-file>`, with rules
-    that match files at the zip root, e.g. `<jar-file path="*.jar">`. The files must have
-    distinct file names. To sign files one by one instead, invoke the tool once per file.
+- **Artifact configuration.** SignPath receives the same thing as in direct mode, so the same
+  artifact configuration applies: the file itself, or a zip when several files are signed
+  together (see [Signing Requests](#signing-requests)).
+- **Unique file names within a workflow run.** GitHub names a single-file artifact after the
+  file, and artifact names must be unique within a workflow run. So within one run, a given
+  file name can only be signed on its own once, even across jobs (e.g. a matrix that signs
+  `app.exe` on several runners). Name the files differently, or sign them together.
 - **Environment.** The signing step needs these variables:
   - `GITHUB_RUN_ID` and `GITHUB_REPOSITORY`, which GitHub sets for every step.
   - `GITHUB_TOKEN`, passed explicitly. SignPath uses it to read the workflow run and download
@@ -326,14 +326,44 @@ When the combined result is empty, the plugin logs `[WARNING] No files selected 
 and exits without calling the SignPath API. Set `<failOnNoFilesFound>true</failOnNoFilesFound>`
 to turn this into a build failure instead.
 
+### Signing Requests
+
+The files of one invocation (CLI) or one execution (plugin) are signed in **one** signing
+request, whatever the submission mode:
+
+- **A single file** is sent as is. The artifact configuration describes the file itself, e.g.
+  with a `<jar-file>` or `<pe-file>` root element.
+- **Several files** are packed at the root of a zip file. The artifact configuration must have
+  a `<zip-file>` root element with rules that match files at the zip root, and the files must
+  have distinct names (e.g. not `win/app.exe` and `mac/app.exe` together). For example:
+
+  ```xml
+  <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+    <zip-file>
+      <jar-file path="*.jar"><jar-sign /></jar-file>
+      <pe-file path="*.exe"><authenticode-sign /></pe-file>
+    </zip-file>
+  </artifact-configuration>
+  ```
+
+A signing policy that requires approval therefore asks for one approval per invocation or
+execution, not one per file. To sign files in separate requests, e.g. with different artifact
+configurations or signing policies, invoke the CLI once per file, or give the plugin one
+`<execution>` per set of files.
+
+What SignPath receives depends on how many files are selected: an `<includes>` pattern or
+shell glob that starts matching a second file turns a bare file into a zip. If SignPath
+rejects the request because the artifact does not match the artifact configuration, check the
+log: the tool logs `Packed N files at the root of a zip file` when it zips.
+
+Nothing is written unless the request completes and the signed artifact holds every file.
+
 ### Output Modes
 
 **Maven Plugin:**
 
 - `<outputDirectory>` set → each signed file is written to `<outputDirectory>/<filename>`.
-- `<outputDirectory>` not set → each signed file replaces the original in place. The download
-  is first written to a temporary file (`.signing-tmp` suffix, same directory as the target),
-  then moved atomically to replace the original.
+- `<outputDirectory>` not set → each signed file replaces the original in place.
 
 **CLI:**
 
@@ -343,9 +373,10 @@ to turn this into a build failure instead.
 | `--output-dir <dir>` (any number of files) | `<dir>/<original-filename>` for each file |
 | Neither `--output` nor `--output-dir`, with `--force-overwrite` | In-place replacement (same directory, atomic rename) |
 
-In all cases the download is first written to a `.codesign-tmp` temporary file in the same
-directory as the destination. On platforms where atomic rename across filesystems is
-unsupported, the CLI falls back to a non-atomic copy.
+In all cases (plugin and CLI), the signed artifact is downloaded to a temporary `.codesign-*`
+directory next to the first output, and each signed file is then written to a `.codesign-tmp`
+temporary file in the same directory as its destination and moved atomically into place. On
+platforms where atomic rename is unsupported, the tools fall back to a non-atomic move.
 
 ### Retry and Timeout
 
@@ -361,8 +392,8 @@ unsupported, the CLI falls back to a non-atomic copy.
 | `connectTimeout` | 30 s | HTTP connect timeout |
 
 **CLI** — all derived from `--wait-for-completion-timeout` (default: 600 s), which applies to
-each signing request separately (one per file, or one for all files with
-`--submission-mode github-actions`), starting when it is submitted:
+the signing request (one per invocation, see [Signing Requests](#signing-requests)), starting
+when it is submitted:
 
 | Parameter | Formula | Example (600 s) |
 | --- | --- | --- |

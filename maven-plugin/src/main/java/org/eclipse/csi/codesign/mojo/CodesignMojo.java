@@ -12,27 +12,19 @@ package org.eclipse.csi.codesign.mojo;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Reader;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.AclEntry;
 import java.nio.file.attribute.AclEntryPermission;
 import java.nio.file.attribute.AclEntryType;
 import java.nio.file.attribute.AclFileAttributeView;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.UserPrincipal;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,11 +54,14 @@ import org.eclipse.csi.codesign.SigningRequestStatus;
 import org.eclipse.csi.codesign.SigningWorkflow;
 
 /**
- * Maven goal that signs build artifacts via the SignPath REST API.
+ * Maven goal that signs build artifacts with SignPath.
  *
- * <p>The mojo scans the configured build directory using include/exclude glob patterns, submits
- * matching files for signing, polls each request until a final status is reached, and downloads the
- * signed artifact (either in-place or to the configured output directory).
+ * <p>The mojo scans the configured build directory using include/exclude glob patterns, adds the
+ * project and attached artifacts when configured, submits the files of the execution in one signing
+ * request, polls it until a final status is reached, and writes the signed files (either in-place
+ * or to the configured output directory). One file is sent as is; several files are packed at the
+ * root of a zip file, so the artifact configuration must then have a {@code <zip-file>} root
+ * element and the files must have distinct names.
  *
  * <p>API authentication is resolved from Maven {@code settings.xml}, the {@code
  * CSI_CODESIGN_API_TOKEN} environment variable, or a config file.
@@ -167,19 +162,14 @@ public class CodesignMojo extends AbstractMojo {
    * <p>Optional. Mapped to {@code -Dcsi.codesign.submissionMode}. Accepted values:
    *
    * <ul>
-   *   <li>{@code direct} (default): each file is uploaded to the SignPath REST API in its own
-   *       signing request.
-   *   <li>{@code github-actions}: the files of the execution are stored as an artifact of the
-   *       running GitHub Actions job and submitted in one signing request through the SignPath
-   *       GitHub connector. Signing policies with trusted build system verification require this
-   *       mode. A single file is uploaded as is (the artifact configuration is the same as in
-   *       {@code direct} mode), under an artifact named after it, which must be unique within the
-   *       workflow run. Several files are packed at the root of a zip file, so the artifact
-   *       configuration must have a {@code <zip-file>} root element matching files at the zip root,
-   *       and the files must have distinct names. The build needs the {@code ACTIONS_RESULTS_URL},
-   *       {@code ACTIONS_RUNTIME_TOKEN}, {@code GITHUB_RUN_ID}, {@code GITHUB_REPOSITORY} and
-   *       {@code GITHUB_TOKEN} environment variables; see the usage documentation. {@code
-   *       description} is ignored.
+   *   <li>{@code direct} (default): the signing request is uploaded to the SignPath REST API.
+   *   <li>{@code github-actions}: the signing request is stored as an artifact of the running
+   *       GitHub Actions job and submitted through the SignPath GitHub connector. Signing policies
+   *       with trusted build system verification require this mode. A single file is uploaded under
+   *       an artifact named after it, which must be unique within the workflow run. The build needs
+   *       the {@code ACTIONS_RESULTS_URL}, {@code ACTIONS_RUNTIME_TOKEN}, {@code GITHUB_RUN_ID},
+   *       {@code GITHUB_REPOSITORY} and {@code GITHUB_TOKEN} environment variables; see the usage
+   *       documentation. {@code description} is ignored.
    * </ul>
    */
   @Parameter(property = "csi.codesign.submissionMode", defaultValue = SUBMISSION_MODE_DIRECT)
@@ -333,8 +323,8 @@ public class CodesignMojo extends AbstractMojo {
   }
 
   /**
-   * Executes the signing goal: collects artifacts, submits them to the SignPath API, polls until
-   * completion, and writes the signed artifacts to the output location.
+   * Executes the signing goal: collects artifacts, submits them to SignPath in one signing request,
+   * polls until completion, and writes the signed artifacts to the output location.
    *
    * @throws MojoExecutionException on configuration or API errors
    * @throws MojoFailureException when signing completes with a non-success status
@@ -372,13 +362,7 @@ public class CodesignMojo extends AbstractMojo {
             maxRetries);
 
     try (CodesignClient client = buildClient(config)) {
-      if (viaGitHubActions) {
-        signViaGitHubActions(client, filesToSign, gitHubActionsContext);
-      } else {
-        for (Path filePath : filesToSign) {
-          signFile(client, filePath);
-        }
-      }
+      signFiles(client, filesToSign, gitHubActionsContext);
     }
   }
 
@@ -410,13 +394,14 @@ public class CodesignMojo extends AbstractMojo {
   }
 
   /**
-   * Signs the files in one request through the SignPath GitHub connector and writes the signed
-   * files to their output locations.
+   * Signs the files in one signing request, through the SignPath GitHub connector when {@code
+   * gitHubActionsContext} is set and the REST API otherwise, and writes the signed files to their
+   * output locations.
    */
-  private void signViaGitHubActions(
-      CodesignClient client, List<Path> filesToSign, GitHubActionsContext context)
+  private void signFiles(
+      CodesignClient client, List<Path> filesToSign, GitHubActionsContext gitHubActionsContext)
       throws MojoExecutionException, MojoFailureException {
-    if (description != null) {
+    if (gitHubActionsContext != null && description != null) {
       getLog()
           .warn(
               "description is ignored with submissionMode "
@@ -433,14 +418,17 @@ public class CodesignMojo extends AbstractMojo {
         new SigningWorkflow(client, Duration.ofSeconds(pollInterval), msg -> getLog().info(msg));
     try {
       SigningRequestStatus status =
-          workflow.signViaGitHubActions(
-              context,
-              gitHubConnectorUrl,
-              projectId,
-              signingPolicy,
-              artifactConfiguration,
-              parameters,
-              files);
+          gitHubActionsContext != null
+              ? workflow.signViaGitHubActions(
+                  gitHubActionsContext,
+                  gitHubConnectorUrl,
+                  projectId,
+                  signingPolicy,
+                  artifactConfiguration,
+                  parameters,
+                  files)
+              : workflow.sign(
+                  projectId, signingPolicy, artifactConfiguration, description, parameters, files);
       if (!status.isCompleted()) {
         throw new MojoFailureException(
             "Signing request did not complete successfully. Status: "
@@ -698,65 +686,6 @@ public class CodesignMojo extends AbstractMojo {
   }
 
   /**
-   * Submits a single artifact for signing, waits for completion, and writes the signed artifact to
-   * the output location.
-   *
-   * @param client SignPath client
-   * @param filePath artifact path to sign
-   * @throws MojoExecutionException on API or I/O failures
-   * @throws MojoFailureException when signing completes with a non-success status
-   */
-  private void signFile(CodesignClient client, Path filePath)
-      throws MojoExecutionException, MojoFailureException {
-    getLog().info("Submitting for signing: " + filePath);
-
-    SigningWorkflow workflow =
-        new SigningWorkflow(client, Duration.ofSeconds(pollInterval), msg -> getLog().info(msg));
-
-    try {
-      SigningRequestStatus status =
-          workflow.submitAndWait(
-              projectId, signingPolicy, artifactConfiguration, description, parameters, filePath);
-
-      if (!status.isCompleted()) {
-        throw new MojoFailureException(
-            "Signing request did not complete successfully. Status: "
-                + status.status()
-                + ", workflow status: "
-                + status.workflowStatus()
-                + (status.webLink() != null ? ". See " + status.webLink() : ""));
-      }
-
-      Path outputPath = resolveOutputPath(filePath);
-      Path tmpPath = outputPath.resolveSibling(outputPath.getFileName() + ".signing-tmp");
-      try {
-        getLog().info("Downloading signed artifact to: " + outputPath);
-        client.downloadSignedArtifact(status, tmpPath);
-        try {
-          Files.move(
-              tmpPath,
-              outputPath,
-              StandardCopyOption.REPLACE_EXISTING,
-              StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-          // Fallback for filesystems or platforms that don't support atomic rename
-          getLog().debug("Atomic move not supported, falling back to regular move: " + e);
-          Files.move(tmpPath, outputPath, StandardCopyOption.REPLACE_EXISTING);
-        }
-        getLog().info("Signed artifact SHA-256: " + sha256Hex(outputPath));
-      } finally {
-        Files.deleteIfExists(tmpPath);
-      }
-
-      getLog().info("Successfully signed: " + outputPath);
-    } catch (CodesignException e) {
-      throw new MojoExecutionException("SignPath API error while signing " + filePath, e);
-    } catch (IOException e) {
-      throw new MojoExecutionException("I/O error while signing " + filePath, e);
-    }
-  }
-
-  /**
    * Resolves the output location for a signed artifact.
    *
    * @param inputPath original artifact path
@@ -804,19 +733,6 @@ public class CodesignMojo extends AbstractMojo {
     } catch (IOException e) {
       throw new MojoExecutionException("Failed to scan files in " + baseDirectory, e);
     }
-  }
-
-  private static String sha256Hex(Path path) throws IOException {
-    MessageDigest digest;
-    try {
-      digest = MessageDigest.getInstance("SHA-256");
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 is guaranteed by the JDK spec", e);
-    }
-    try (InputStream in = new DigestInputStream(Files.newInputStream(path), digest)) {
-      in.transferTo(OutputStream.nullOutputStream());
-    }
-    return HexFormat.of().formatHex(digest.digest());
   }
 
   /**

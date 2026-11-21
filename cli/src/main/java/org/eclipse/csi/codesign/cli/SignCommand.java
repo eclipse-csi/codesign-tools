@@ -11,24 +11,17 @@
 package org.eclipse.csi.codesign.cli;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import org.eclipse.csi.codesign.CodesignClient;
 import org.eclipse.csi.codesign.CodesignException;
 import org.eclipse.csi.codesign.GitHubActionsContext;
@@ -44,16 +37,17 @@ import picocli.CommandLine.Spec;
 /**
  * Signs one or more artifact files via the SignPath REST API.
  *
+ * <p>The files of one invocation are submitted in a single signing request: a single file is sent
+ * as is; several files are packed at the root of a zip file, which the artifact configuration must
+ * then expect, and must have distinct names.
+ *
  * <h2>Submission modes</h2>
  *
  * <ul>
- *   <li><b>{@code direct}</b> (default): each file is uploaded to the SignPath REST API in its own
- *       signing request.
- *   <li><b>{@code github-actions}</b>: the files are stored as an artifact of the running GitHub
- *       Actions job and submitted in one signing request through the SignPath GitHub connector.
- *       Signing policies with trusted build system verification require this mode. A single file is
- *       uploaded as is; several files are packed at the root of a zip file, which the artifact
- *       configuration must then expect.
+ *   <li><b>{@code direct}</b> (default): the signing request is uploaded to the SignPath REST API.
+ *   <li><b>{@code github-actions}</b>: the signing request is stored as an artifact of the running
+ *       GitHub Actions job and submitted through the SignPath GitHub connector. Signing policies
+ *       with trusted build system verification require this mode.
  * </ul>
  *
  * <h2>Output modes</h2>
@@ -210,13 +204,14 @@ class SignCommand implements Callable<Integer> {
       paramLabel = "<mode>",
       defaultValue = SUBMISSION_MODE_DIRECT,
       description =
-          "How signing requests are submitted: '"
+          "How the signing request is submitted: '"
               + SUBMISSION_MODE_DIRECT
-              + "' uploads each file to the SignPath REST API; '"
+              + "' uploads it to the SignPath REST API; '"
               + SUBMISSION_MODE_GITHUB_ACTIONS
-              + "' submits the files in one request through the SignPath GitHub connector, as"
-              + " required by signing policies with trusted build system verification: a single"
-              + " file as is, several files at the root of a zip file (default: ${DEFAULT-VALUE}).")
+              + "' submits it through the SignPath GitHub connector, as required by signing"
+              + " policies with trusted build system verification. Either way, the files are"
+              + " signed in one request: a single file as is, several files at the root of a zip"
+              + " file (default: ${DEFAULT-VALUE}).")
   String submissionMode;
 
   @Option(
@@ -297,13 +292,7 @@ class SignCommand implements Callable<Integer> {
               Duration.ofSeconds(timeout),
               msg -> spec.commandLine().getOut().println(msg));
 
-      if (viaGitHubActions) {
-        signViaGitHubActions(workflow, gitHubActionsContext);
-      } else {
-        for (Path inputFile : inputFiles) {
-          signFile(client, workflow, inputFile);
-        }
-      }
+      signFiles(workflow, gitHubActionsContext);
     }
 
     return 0;
@@ -325,9 +314,13 @@ class SignCommand implements Callable<Integer> {
     };
   }
 
-  private void signViaGitHubActions(SigningWorkflow workflow, GitHubActionsContext context)
+  /**
+   * Signs the input files in one signing request, through the SignPath GitHub connector when {@code
+   * gitHubActionsContext} is set and the REST API otherwise, and writes the signed files.
+   */
+  private void signFiles(SigningWorkflow workflow, GitHubActionsContext gitHubActionsContext)
       throws CodesignException, IOException {
-    if (description != null) {
+    if (gitHubActionsContext != null && description != null) {
       spec.commandLine()
           .getErr()
           .println(
@@ -337,22 +330,33 @@ class SignCommand implements Callable<Integer> {
     }
     Map<Path, Path> files = new LinkedHashMap<>();
     for (Path inputFile : inputFiles) {
-      files.put(inputFile.toAbsolutePath().normalize(), resolveOutputPath(inputFile));
+      Path absInput = inputFile.toAbsolutePath().normalize();
+      files.put(absInput, resolveOutputPath(inputFile));
+      if (verbose) {
+        spec.commandLine().getOut().println("Signing: " + absInput);
+      }
     }
 
     SigningRequestStatus status =
-        workflow.signViaGitHubActions(
-            context,
-            gitHubConnectorUrl,
-            projectId,
-            signingPolicy,
-            artifactConfiguration,
-            parameters,
-            files);
+        gitHubActionsContext != null
+            ? workflow.signViaGitHubActions(
+                gitHubActionsContext,
+                gitHubConnectorUrl,
+                projectId,
+                signingPolicy,
+                artifactConfiguration,
+                parameters,
+                files)
+            : workflow.sign(
+                projectId, signingPolicy, artifactConfiguration, description, parameters, files);
 
     if (!status.isCompleted()) {
       throw new RuntimeException(
-          "Signing did not complete successfully. Status: "
+          "Signing did not complete successfully for "
+              + files.keySet().stream()
+                  .map(path -> "'" + path.getFileName() + "'")
+                  .collect(Collectors.joining(", "))
+              + ". Status: "
               + status.status()
               + ", workflow: "
               + status.workflowStatus()
@@ -361,59 +365,6 @@ class SignCommand implements Callable<Integer> {
     for (Path output : files.values()) {
       spec.commandLine().getOut().println("Signed: " + output);
     }
-  }
-
-  private void signFile(CodesignClient client, SigningWorkflow workflow, Path inputFile)
-      throws CodesignException, IOException {
-    Path absInput = inputFile.toAbsolutePath().normalize();
-
-    if (verbose) {
-      spec.commandLine().getOut().println("Signing: " + absInput);
-    }
-
-    SigningRequestStatus status =
-        workflow.submitAndWait(
-            projectId, signingPolicy, artifactConfiguration, description, parameters, absInput);
-
-    if (!status.isCompleted()) {
-      throw new RuntimeException(
-          "Signing did not complete successfully for '"
-              + absInput.getFileName()
-              + "'. Status: "
-              + status.status()
-              + ", workflow: "
-              + status.workflowStatus()
-              + (status.webLink() != null ? ". See " + status.webLink() : ""));
-    }
-
-    Path outputPath = resolveOutputPath(inputFile);
-
-    // Ensure the output directory exists (e.g. --output-dir may point to a new dir)
-    Files.createDirectories(outputPath.getParent());
-
-    // Download to a temp file in the same directory as the destination → atomic move
-    Path tmpPath = outputPath.resolveSibling(outputPath.getFileName() + ".codesign-tmp");
-    try {
-      if (verbose) {
-        spec.commandLine().getOut().println("Downloading signed artifact → " + outputPath);
-      }
-      client.downloadSignedArtifact(status, tmpPath);
-      try {
-        Files.move(
-            tmpPath,
-            outputPath,
-            StandardCopyOption.ATOMIC_MOVE,
-            StandardCopyOption.REPLACE_EXISTING);
-      } catch (AtomicMoveNotSupportedException e) {
-        // Fallback for cross-filesystem moves or platforms that don't support atomic rename
-        Files.move(tmpPath, outputPath, StandardCopyOption.REPLACE_EXISTING);
-      }
-      spec.commandLine().getOut().println("Signed artifact SHA-256: " + sha256Hex(outputPath));
-    } finally {
-      Files.deleteIfExists(tmpPath);
-    }
-
-    spec.commandLine().getOut().println("Signed: " + outputPath);
   }
 
   private Path resolveOutputPath(Path inputFile) {
@@ -509,19 +460,6 @@ class SignCommand implements Callable<Integer> {
    */
   CodesignClient buildClient(CodesignClient.Config config) {
     return new CodesignClient(config);
-  }
-
-  private static String sha256Hex(Path path) throws IOException {
-    MessageDigest digest;
-    try {
-      digest = MessageDigest.getInstance("SHA-256");
-    } catch (NoSuchAlgorithmException e) {
-      throw new IllegalStateException("SHA-256 is guaranteed by the JDK spec", e);
-    }
-    try (InputStream in = new DigestInputStream(Files.newInputStream(path), digest)) {
-      in.transferTo(OutputStream.nullOutputStream());
-    }
-    return HexFormat.of().formatHex(digest.digest());
   }
 
   /**

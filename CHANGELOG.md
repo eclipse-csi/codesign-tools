@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+* **Breaking:** the files of one CLI invocation or one Maven plugin execution are now signed in **one** signing request in every submission mode, as `github-actions` already did. A single file is still sent as is. Several files, which `direct` mode used to send in one request each, are now packed at the root of a zip file, so the artifact configuration must have a `<zip-file>` root element (e.g. `<zip-file><jar-file path="*.jar">…</jar-file></zip-file>`) and the files must have distinct names. This affects, for example, a plugin execution with `<signAttachedArtifacts>true</signAttachedArtifacts>` or with `<includes>` that match several files. A policy that requires approval now asks for one approval per invocation or execution instead of one per file, and switching between `direct` and `github-actions` no longer requires a different artifact configuration. To keep one request per file, invoke the CLI once per file or give the plugin one `<execution>` per file. See "Signing Requests" in USAGE.md.
+* For Java API users: `SigningWorkflow.sign` signs several files in one request through the REST API and writes them back, like `SigningWorkflow.signViaGitHubActions` does through the GitHub connector. `SigningWorkflow.submitAndWait` is unchanged.
+
 ## [v0.10.1] - 2026-11-21
 
 ### Added

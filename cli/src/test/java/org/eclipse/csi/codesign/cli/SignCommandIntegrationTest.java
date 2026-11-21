@@ -14,15 +14,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import okhttp3.OkHttpClient;
+import okio.Buffer;
 import org.eclipse.csi.codesign.CodesignClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -189,7 +194,7 @@ class SignCommandIntegrationTest {
   }
 
   @Test
-  void signsMultipleFilesToOutputDir() throws IOException {
+  void signsMultipleFilesToOutputDir() throws Exception {
     Path f1 = tempDir.resolve("app.jar");
     Path f2 = tempDir.resolve("installer.exe");
     Files.writeString(f1, "unsigned-jar");
@@ -197,29 +202,21 @@ class SignCommandIntegrationTest {
 
     Path outDir = tempDir.resolve("signed");
 
-    // Responses for first file
-    String status1 = server.url("/v1/org/SigningRequests/r1").toString();
-    String dl1 = server.url("/dl/app.jar").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", status1).build());
+    // Both files go out in one zipped request; the signed zip comes back
+    String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
+    String dl = server.url("/dl/signed.zip").toString();
+    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(statusResponse(dl1))
+            .body(statusResponse(dl))
             .build());
-    server.enqueue(new MockResponse.Builder().code(200).body("signed-jar").build());
-
-    // Responses for second file
-    String status2 = server.url("/v1/org/SigningRequests/r2").toString();
-    String dl2 = server.url("/dl/installer.exe").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", status2).build());
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
-            .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(statusResponse(dl2))
+            .body(new Buffer().write(zipOf("app.jar", "signed-jar", "installer.exe", "signed-exe")))
             .build());
-    server.enqueue(new MockResponse.Builder().code(200).body("signed-exe").build());
 
     int exit =
         cli()
@@ -241,7 +238,22 @@ class SignCommandIntegrationTest {
     assertEquals(0, exit);
     assertEquals("signed-jar", Files.readString(outDir.resolve("app.jar")));
     assertEquals("signed-exe", Files.readString(outDir.resolve("installer.exe")));
-    assertEquals(6, server.getRequestCount());
+    assertEquals(3, server.getRequestCount(), "one submit, one poll, one download");
+    String submitBody = server.takeRequest().getBody().string(StandardCharsets.ISO_8859_1);
+    assertTrue(submitBody.contains("filename=\"codesign-unsigned-"), submitBody);
+    assertTrue(submitBody.contains("app.jar") && submitBody.contains("installer.exe"), submitBody);
+  }
+
+  private static byte[] zipOf(String... namesAndContents) throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ZipOutputStream out = new ZipOutputStream(bytes)) {
+      for (int i = 0; i < namesAndContents.length; i += 2) {
+        out.putNextEntry(new ZipEntry(namesAndContents[i]));
+        out.write(namesAndContents[i + 1].getBytes(StandardCharsets.UTF_8));
+        out.closeEntry();
+      }
+    }
+    return bytes.toByteArray();
   }
 
   @Test

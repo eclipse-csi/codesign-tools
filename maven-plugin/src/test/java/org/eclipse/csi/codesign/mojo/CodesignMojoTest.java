@@ -15,16 +15,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
 import okhttp3.OkHttpClient;
+import okio.Buffer;
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
@@ -262,34 +269,30 @@ class CodesignMojoTest {
   }
 
   @Test
-  void signsProjectAndAttachedArtifactsWhenBothEnabled() throws Exception {
+  void signsProjectAndAttachedArtifactsInOneZippedRequest() throws Exception {
     Path mainArtifact = tempDir.resolve("main.jar");
     Path attachedArtifact = tempDir.resolve("attached.zip");
     Files.writeString(mainArtifact, "unsigned-main");
     Files.writeString(attachedArtifact, "unsigned-attached");
 
-    String mainStatusUrl = server.url("/Api/v1/test-org/SigningRequests/main").toString();
-    String mainSignedUrl = server.url("/Api/signed-main").toString();
-    String attachedStatusUrl = server.url("/Api/v1/test-org/SigningRequests/attached").toString();
-    String attachedSignedUrl = server.url("/Api/signed-attached").toString();
+    String statusUrl = server.url("/Api/v1/test-org/SigningRequests/both").toString();
+    String signedUrl = server.url("/Api/signed-both").toString();
+    Map<String, String> signedEntries = new LinkedHashMap<>();
+    signedEntries.put("main.jar", "signed-main");
+    signedEntries.put("attached.zip", "signed-attached");
 
-    server.enqueue(submitted(mainStatusUrl));
+    server.enqueue(submitted(statusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(statusJson("Completed", "Completed", true, mainSignedUrl))
+            .body(statusJson("Completed", "Completed", true, signedUrl))
             .build());
-    server.enqueue(new MockResponse.Builder().code(200).body("signed-main").build());
-
-    server.enqueue(submitted(attachedStatusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
-            .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(statusJson("Completed", "Completed", true, attachedSignedUrl))
+            .body(new Buffer().write(zipOf(signedEntries)))
             .build());
-    server.enqueue(new MockResponse.Builder().code(200).body("signed-attached").build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"*.nonexistent"});
@@ -301,7 +304,39 @@ class CodesignMojoTest {
 
     assertEquals("signed-main", Files.readString(mainArtifact));
     assertEquals("signed-attached", Files.readString(attachedArtifact));
-    assertEquals(6, server.getRequestCount());
+    assertEquals(3, server.getRequestCount(), "one submit, one poll, one download");
+
+    String submitBody = server.takeRequest().getBody().string(StandardCharsets.ISO_8859_1);
+    assertTrue(submitBody.contains("filename=\"codesign-unsigned-"), submitBody);
+    assertTrue(submitBody.contains(".zip\""), submitBody);
+    assertTrue(submitBody.contains("main.jar") && submitBody.contains("attached.zip"), submitBody);
+  }
+
+  @Test
+  void duplicateFileNamesAreRejectedBeforeSubmitting() throws Exception {
+    Files.createDirectories(tempDir.resolve("a"));
+    Files.createDirectories(tempDir.resolve("b"));
+    Files.writeString(tempDir.resolve("a/tool.exe"), "a");
+    Files.writeString(tempDir.resolve("b/tool.exe"), "b");
+
+    CodesignMojo mojo = createMojo();
+    setField(mojo, "includes", new String[] {"**/tool.exe"});
+
+    MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> mojo.execute());
+    assertTrue(ex.getCause().getMessage().contains("names must be unique"), ex.getMessage());
+    assertEquals(0, server.getRequestCount());
+  }
+
+  private static byte[] zipOf(Map<String, String> entries) throws IOException {
+    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+    try (ZipOutputStream out = new ZipOutputStream(bytes)) {
+      for (Map.Entry<String, String> entry : entries.entrySet()) {
+        out.putNextEntry(new ZipEntry(entry.getKey()));
+        out.write(entry.getValue().getBytes(StandardCharsets.UTF_8));
+        out.closeEntry();
+      }
+    }
+    return bytes.toByteArray();
   }
 
   @Test
@@ -553,7 +588,7 @@ class CodesignMojoTest {
     setField(mojo, "includes", new String[] {"error.exe"});
 
     MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> mojo.execute());
-    assertTrue(ex.getMessage().startsWith("SignPath API error while signing "), ex.getMessage());
+    assertTrue(ex.getMessage().startsWith("SignPath error while signing "), ex.getMessage());
     assertEquals(
         "SignPath API error (HTTP 401): Unauthorized."
             + " User is not allowed to log into the organization 'test-org'."
