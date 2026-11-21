@@ -455,6 +455,15 @@
                     <url>https://central.sonatype.com/api/v1/publisher</url>
                     <namespace>org.eclipse.csi</namespace>
                     <applyMavenCentralRules>true</applyMavenCentralRules>
+                    <!--
+                      How long JReleaser waits for Central to validate the upload: 45 x 20s,
+                      15 minutes. The release workflow runs it with the UPLOAD stage through
+                      .github/scripts/publish-to-maven-central.py, which keeps following the
+                      deployment after this wait, and publishes it. This bound only has to stay
+                      well under the script's own timeout.
+                    -->
+                    <retryDelay>20</retryDelay>
+                    <maxRetries>45</maxRetries>
                     <stagingRepositories>
                       <stagingRepository>api/target/staging-deploy</stagingRepository>
                       <stagingRepository>maven-plugin/target/staging-deploy</stagingRepository>

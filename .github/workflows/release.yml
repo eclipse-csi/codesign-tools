@@ -22,8 +22,12 @@ concurrency:
 permissions: {}
 
 jobs:
-  maven-central:
-    name: Publish to Maven Central
+  # Builds and stages the Maven artifacts, but publishes nothing: publishing to Maven Central
+  # cannot be undone, so it waits in the maven-central job until the native binaries are built
+  # too. A failure in either build then leaves nothing published, and "Re-run failed jobs"
+  # retries only what failed.
+  maven-build:
+    name: Build Maven artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: release
@@ -93,18 +97,6 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-      - name: Deploy to Maven Central
-        if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
-        env:
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.CENTRAL_SONATYPE_TOKEN_USERNAME }}
-          JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
-          JRELEASER_NEXUS2_USERNAME: ${{ secrets.CENTRAL_SONATYPE_TOKEN_USERNAME }}
-          JRELEASER_NEXUS2_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
-          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          JRELEASER_GPG_KEYNAME: ${{ secrets.GPG_KEY_ID }}
-        run: ./mvnw -B -ntp -DskipTests jreleaser:deploy
-
       - name: Validate release configuration (dry-run mode)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run' }}
         env:
@@ -129,7 +121,7 @@ jobs:
         with:
           name: cli-fatjar
           path: out/cli-fatjar/
-          retention-days: 1
+          retention-days: 7
           if-no-files-found: error
 
       # The SBOMs (-cyclonedx.json per module, -bom-all.json with the GitHub Actions merged in)
@@ -153,6 +145,19 @@ jobs:
             cli/target/staging-deploy/**/*-cyclonedx.json
             cli/target/staging-deploy/**/*-bom-all.json
 
+      # The staging repositories are all the maven-central job needs from this build.
+      - name: Upload staging repositories
+        if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: maven-staging
+          path: |
+            api/target/staging-deploy/
+            maven-plugin/target/staging-deploy/
+            cli/target/staging-deploy/
+          retention-days: 7
+          if-no-files-found: error
+
   native-build:
     name: Native binaries
     if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
@@ -161,14 +166,89 @@ jobs:
       actions: read # SignPath downloads the unsigned Windows binary, a workflow artifact
       contents: read
     with:
-      artifact-retention-days: 1
+      artifact-retention-days: 7
       signing-policy: release-signing
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
+  # Publishing to Maven Central is irreversible, so it runs once everything is built. It is
+  # safe to run again, as a re-run attempt or as a new run for the same tag:
+  # publish-to-maven-central.py compares what Central already has with the staged jars and
+  # POMs, and carries on with the deployment an earlier run made (recorded in a commit status)
+  # instead of uploading a second one for the same version.
+  maven-central:
+    name: Publish to Maven Central
+    needs: [maven-build, native-build]
+    if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
+    runs-on: ubuntu-latest
+    # Must stay above the script's --timeout-minutes, so that the script, not the runner,
+    # gives up, with a message saying where the deployment stands.
+    timeout-minutes: 80
+    environment: release
+
+    permissions:
+      statuses: write # to record the Central deployment on the commit, for later runs to find
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          disable-sudo-and-containers: true
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The project version is derived from the release tag; a shallow clone fails the build.
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Maven wrapper distribution
+        uses: $/.github/actions/install-maven-wrapper
+
+      - name: Download staging repositories
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: maven-staging
+          path: .
+
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          gpg --batch --import <<< "${GPG_PRIVATE_KEY}"
+          echo "allow-loopback-pinentry" >> ~/.gnupg/gpg-agent.conf
+          gpgconf --kill gpg-agent
+
+      - name: Publish to Maven Central
+        env:
+          TAG: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.CENTRAL_SONATYPE_TOKEN_USERNAME }}
+          JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
+          JRELEASER_NEXUS2_USERNAME: ${{ secrets.CENTRAL_SONATYPE_TOKEN_USERNAME }}
+          JRELEASER_NEXUS2_PASSWORD: ${{ secrets.CENTRAL_SONATYPE_TOKEN_PASSWORD }}
+          JRELEASER_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          JRELEASER_GPG_KEYNAME: ${{ secrets.GPG_KEY_ID }}
+        run: >-
+          python3 .github/scripts/publish-to-maven-central.py
+          --version "${TAG#v}"
+          --staging-dir api/target/staging-deploy
+          --staging-dir maven-plugin/target/staging-deploy
+          --staging-dir cli/target/staging-deploy
+          --timeout-minutes 60
+          -- ./mvnw -B -ntp -N -DskipTests jreleaser:deploy
+
   assemble-and-release:
     name: Assemble archives and publish GitHub release
-    needs: [maven-central, native-build]
+    needs: [maven-build, native-build, maven-central]
     if: ${{ startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'publish')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -249,7 +329,7 @@ jobs:
           done
           (cd out/windows-x86_64 && zip "../../out/archives/csi-codesign-${VERSION}-windows-x86_64.zip" csi-codesign.exe)
 
-      # The archives are assembled here, so the maven-central job's attestation step cannot
+      # The archives are assembled here, so the maven-build job's attestation step cannot
       # cover them -- it only sees the staging-deploy Maven artifacts. Attest them here, or
       # `gh attestation verify` on a downloaded archive answers 404.
       - name: Attest build provenance of the platform archives

@@ -218,12 +218,52 @@ to:
 Build provenance attestations are stored by GitHub and checked with `gh attestation verify`;
 they are not uploaded as files. Each release's notes show how to verify all of the above.
 
+Nothing is published until everything is built: the `maven-build` and `native-build` jobs run
+first, and only then does `maven-central` publish, followed by the GitHub release and the
+site.
+
 The workflow can also be run manually (`workflow_dispatch`). `mode=publish` must be dispatched
-from a release tag. `mode=dry-run` works from any branch: it runs only the Maven Central job
+from a release tag. `mode=dry-run` works from any branch: it runs only the `maven-build` job
 (build with integration tests, SBOM vulnerability scan, JReleaser deploy in dry-run mode), with
 the Maven Central check relaxed to accept the `-SNAPSHOT` version a branch builds. It does not
 build the native binaries or exercise the GitHub release; the [Local Dry Run](#local-dry-run)
 covers JReleaser's part of that.
+
+### Recovering from a Failed Release
+
+Use **Re-run failed jobs** on the failed run: it retries only what failed. Workflow artifacts
+are kept for 7 days, so this works within that time. After that, or if the run is gone, run
+the workflow again for the tag (`workflow_dispatch` from the tag, `mode=publish`); there is no
+need to delete or push the tag again.
+
+The `maven-central` job is safe to run any number of times, as a re-run attempt or as part of a
+new run for the same tag. It runs `.github/scripts/publish-to-maven-central.py`, which has
+JReleaser upload the bundle and wait for validation (its `UPLOAD` stage), then publishes the
+deployment through the Central Portal API itself. As soon as the bundle is uploaded, the script
+records the deployment ID in a commit status on the release commit (context
+`Maven Central (X.Y.Z)`), with the SHA-256 digest of the jars and POMs it was built from. Every
+later run for that commit finds it there, even if the job was killed. Then:
+
+- if all the components are already published, it downloads their jars and POMs from Maven
+  Central and compares them with the staged ones. Identical, there is nothing to do (for
+  example, publication finished after the job gave up). Different, the job fails: Central holds
+  something other than what this commit builds, and a version cannot be republished;
+- if the recorded deployment was built from the same jars and POMs, it carries on with it
+  (waits for validation, publishes it, or waits for its publication) instead of uploading a
+  second one for the same version, which Central refuses to publish (HTTP 400). If that
+  deployment failed, it drops it and uploads again;
+- if the recorded deployment was built from other files, it drops it and uploads again, unless
+  Central is already publishing it, in which case the job fails;
+- if only some of the components are published, it stops: check the
+  [Central Portal deployments](https://central.sonatype.com/publishing/deployments).
+
+Only the jars and POMs are compared, because the build is reproducible: building the same
+commit again produces them byte for byte. Signatures, Sigstore bundles and SBOMs differ on
+every build, so a rebuilt staging repository still matches a deployment made from an earlier
+build.
+
+The script gives up after 60 minutes, before the job's own timeout, and says where the
+deployment stands.
 
 ### Cutting a Release
 
