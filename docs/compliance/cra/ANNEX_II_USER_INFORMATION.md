@@ -270,28 +270,41 @@ Pin the Maven plugin to an exact version (not a range, not `LATEST`). In `pom.xm
 
 **Step 2 — Verify the release signature before deploying a new version.**
 
-Maven plugin JARs and CLI fat JARs are signed with Sigstore keyless signing. Verify using
-[`cosign`](https://github.com/sigstore/cosign):
+Every release artifact is signed with Sigstore keyless signing by the release workflow
+(`.github/workflows/release.yml`) running on the release tag. The signature, its
+short-lived certificate and its Rekor transparency log entry are in a `.sigstore.json`
+bundle next to the artifact: on Maven Central for every file published there, and on
+GitHub Releases for the native CLI archives and the CLI fat JAR (from the first release
+after v0.8.4). Verify using [`cosign`](https://github.com/sigstore/cosign) 3.x, pinning
+the identity to the release workflow and the tag of the version you downloaded:
 
 ```bash
-# Verify a Maven plugin JAR downloaded from Maven Central
-cosign verify-blob \
+# Maven plugin JAR downloaded from Maven Central (same command for any other artifact)
+cosign verify-blob codesign-maven-plugin-VERSION.jar \
   --bundle codesign-maven-plugin-VERSION.jar.sigstore.json \
-  codesign-maven-plugin-VERSION.jar
+  --certificate-identity https://github.com/eclipse-csi/codesign-tools/.github/workflows/release.yml@refs/tags/vVERSION \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Native CLI binaries include SLSA provenance attestations. Verify using
-[`slsa-verifier`](https://github.com/slsa-framework/slsa-verifier):
+Without `--certificate-identity`, a valid signature only proves that *someone* signed the
+file; the identity check is what ties it to this project's release workflow.
+
+Release artifacts also have SLSA v1 build provenance attestations, stored by GitHub
+rather than as release assets: the JARs and POMs on Maven Central, the CycloneDX SBOMs on
+Maven Central (from the first release after v0.8.4), the CLI fat JAR, and the native CLI
+archives (from v0.8.3). Verify using the [GitHub CLI](https://cli.github.com/), which
+looks the attestation up by the file's SHA-256 digest:
 
 ```bash
-slsa-verifier verify-artifact \
-  --provenance-path csi-codesign-linux-x86_64.intoto.jsonl \
-  --source-uri github.com/eclipse-csi/codesign-tools \
-  csi-codesign-linux-x86_64
+gh attestation verify csi-codesign-VERSION-linux-x86_64.tar.gz \
+  --repo eclipse-csi/codesign-tools \
+  --signer-workflow eclipse-csi/codesign-tools/.github/workflows/release.yml \
+  --source-ref refs/tags/vVERSION
 ```
 
 GPG signatures (`.asc` files) are also provided for each release artifact and can be
-verified against the project's published GPG public key.
+verified against the project's published GPG public key. The release notes of each
+GitHub Release list these commands with the version and key identifier filled in.
 
 **Step 3 — Verify the SBOM.**
 

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * The project version is now derived from git tags by the [Maven Git Versioning Extension](https://github.com/qoomon/maven-git-versioning-extension), the way `setuptools-scm` does it for Python: a commit tagged `vX.Y.Z` builds as `X.Y.Z`, any other commit as the next patch version with `-SNAPSHOT`. The `<version>` in the POMs is now a `0.0.0-SNAPSHOT` placeholder, `release.sh` takes only the release version and no longer commits POM changes, and building from source needs the git history and tags (a shallow clone fails the build).
+* The native CLI archives and the CLI fat JAR on GitHub Releases now come with a Sigstore bundle (`.sigstore.json`), like every artifact on Maven Central already did, so they can be checked with `cosign verify-blob` against the release workflow's identity without importing the OpenPGP key. The CycloneDX SBOMs published to Maven Central now also have a build provenance attestation, checked with `gh attestation verify`. The release notes show the verification commands for each.
 * `codesign --version` on development builds now identifies the commit they were built from, e.g. `codesign 0.8.5-dev18+g1a2b3c4` (18 commits after v0.8.4, at commit `1a2b3c4`), instead of `codesign 0.8.5-SNAPSHOT`. Release builds still report the plain version.
 
 ## [v0.8.4] - 2026-10-21

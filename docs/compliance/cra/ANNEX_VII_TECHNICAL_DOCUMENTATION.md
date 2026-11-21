@@ -182,7 +182,7 @@ The following steps apply to every CI run and release:
 | Secret scan | TruffleHog: accidental credential detection | Annex I §2(d), I1, I2 |
 | SBOM | CycloneDX 1.6 SBOM generated per module + aggregate | CRA Art. 13(3), Part II §1 |
 | Release signing | Sigstore keyless signing of all release artifacts | Annex I §2(l), T3 |
-| Provenance | SLSA provenance attestation for native binaries | Annex I §2(l), T3 |
+| Provenance | SLSA build provenance attestations for the Maven Central JARs, POMs and SBOMs, the CLI fat JAR and the native binary archives | Annex I §2(l), T3 |
 | GPG signing | GPG signatures on all Maven Central artifacts | Annex I §2(l) |
 | Dependency updates | Dependabot: automated Maven + Actions dependency update PRs | Part II §2, T3 |
 
@@ -199,8 +199,9 @@ Native Image. The build process:
 2. Invokes `native-maven-plugin` (0.11.x) with `native-image` to produce the binary.
 3. Uploads the binary as a GitHub Actions artifact with a 1-day retention period.
 4. A separate assembly job downloads all platform binaries and runs JReleaser to produce
-   `.zip` / `.tar.gz` archives, applies GPG signatures, generates SLSA attestations, and
-   publishes to GitHub Releases.
+   `.zip` / `.tar.gz` archives, signs them and the CLI fat JAR with Sigstore keyless signing
+   (`cosign sign-blob`), applies GPG signatures, generates SLSA attestations, and publishes
+   to GitHub Releases.
 
 The GraalVM reflect configuration (`cli/src/main/resources/META-INF/native-image/...
 /reflect-config.json`) is maintained to ensure picocli annotation processing works
@@ -298,9 +299,13 @@ Security updates are delivered as new releases published to two channels:
    are published to Maven Central via JReleaser with the `release` Maven profile. All
    artifacts are GPG-signed and Sigstore keyless-signed.
 
-2. **GitHub Releases** — Native CLI binaries (`.zip` / `.tar.gz`), GPG signatures (`.asc`),
-   Sigstore signature bundles (`.sigstore.json`), SLSA provenance attestations
-   (`.intoto.jsonl`), and CycloneDX SBOMs are published to GitHub Releases.
+2. **GitHub Releases** — Native CLI binaries (`.zip` / `.tar.gz`) and the CLI fat JAR are
+   published to GitHub Releases with GPG signatures (`.asc`), Sigstore signature bundles
+   (`.sigstore.json`) and a GPG-signed SHA-256 checksum manifest.
+
+SLSA build provenance attestations for both channels are stored by GitHub (artifact
+attestations, retrieved by digest with `gh attestation verify`) rather than published as
+release assets.
 
 **No automatic update mechanism is provided.** All updates are opt-in. Users update by:
 
@@ -316,7 +321,9 @@ Security patches are released free of charge as part of the open-source release 
 
 The JReleaser configuration in the root `pom.xml` defines the release workflow, with
 GPG signing active on `RELEASE` versions (inactive for `SNAPSHOT` versions) and SLSA
-attestations enabled via the `catalog.github` configuration.
+attestations enabled via the `catalog.github` configuration. The Sigstore bundles of the
+GitHub Release assets are produced by the workflow and uploaded through JReleaser's
+`files` section.
 
 ### 2(g) Standards and Specifications Applied
 
@@ -326,7 +333,7 @@ or referenced in the development of this product:
 | Standard / Specification | Scope | Application status |
 | --- | --- | --- |
 | **CycloneDX 1.6** | SBOM format | Fully applied; SBOMs generated per module and as aggregate for every release |
-| **SLSA Supply-chain Levels for Software Artifacts** | Supply chain integrity | Applied at Level 2+ for native binary provenance attestations via GitHub OIDC |
+| **SLSA Supply-chain Levels for Software Artifacts** | Supply chain integrity | Applied at Level 2+ for build provenance attestations of all release artifacts via GitHub OIDC |
 | **Sigstore / Rekor** | Artifact signing and transparency | Fully applied; keyless signing of all release artifacts with Rekor log entries |
 | **Semantic Versioning 2.0.0** | Version scheme | Fully applied across all modules |
 | **Eclipse Foundation Vulnerability Reporting Policy** | Vulnerability handling governance | Fully applied as the governing disclosure policy |

@@ -51,6 +51,16 @@ MAX_BODY = 9_500
 # the key advertised to users cannot drift from the key that actually signed the assets.
 SIGNING_KEY_ENV = "GPG_KEY_ID"
 
+# The verification section is also rendered for releases backfilled with --publish, so it must
+# only advertise what each release actually shipped. The platform archives are attested since
+# v0.8.3 (the Maven Central artifacts and the fat JAR since v0.5.0), and the GitHub release
+# assets carry Sigstore bundles from the first release after v0.8.4.
+ARCHIVES_ATTESTED_SINCE = (0, 8, 3)
+ASSET_BUNDLES_AFTER = (0, 8, 4)
+
+WORKFLOW_IDENTITY = f"https://github.com/{REPO}/.github/workflows/release.yml"
+OIDC_ISSUER = "https://token.actions.githubusercontent.com"
+
 MAVEN_ARTIFACTS = [
     ("API", "codesign-api"),
     ("Maven plugin", "codesign-maven-plugin"),
@@ -217,14 +227,55 @@ def signing_key():
     return key
 
 
+def version_tuple(version):
+    """(major, minor, patch) of a version such as "0.8.4", for comparisons."""
+    return tuple(int(part) for part in re.findall(r"\d+", version)[:3])
+
+
+def cosign_command(version, asset):
+    """The cosign invocation that checks `asset` was signed by this tag's release workflow."""
+    return f"""cosign verify-blob {asset} \\
+  --bundle {asset}.sigstore.json \\
+  --certificate-identity {WORKFLOW_IDENTITY}@refs/tags/v{version} \\
+  --certificate-oidc-issuer {OIDC_ISSUER}"""
+
+
 def render_verification(version):
     coordinates = "\n".join(
         f"| {label} | `org.eclipse.csi:{artifact}:{version}` |"
         for label, artifact in MAVEN_ARTIFACTS
     )
-    # Only the CLI fat JAR carries a build attestation: the archives are assembled in a job
-    # that does not run actions/attest-build-provenance. Claiming otherwise would send users
-    # to a 'gh attestation verify' that fails with 404.
+    release = version_tuple(version)
+    archive = f"csi-codesign-{version}-linux-x86_64.tar.gz"
+    fat_jar = f"codesign-cli-{version}-bin.jar"
+
+    # Claiming a bundle or an attestation a release does not have sends users to a cosign
+    # error or a 'gh attestation verify' that fails with 404.
+    if release > ASSET_BUNDLES_AFTER:
+        sigstore = f"""
+Each archive and the CLI fat JAR also has a Sigstore bundle (`.sigstore.json`), from keyless
+signing in the release workflow. It proves the file was signed by this repository's release
+workflow running on this tag, with no key to import:
+
+```shell
+{cosign_command(version, archive)}
+```
+"""
+    else:
+        sigstore = ""
+
+    # The SBOMs published to Maven Central are attested from the same release as the bundles.
+    central_attested = (
+        "jars, POMs and SBOMs" if release > ASSET_BUNDLES_AFTER else "jars and POMs"
+    )
+
+    attested = archive if release >= ARCHIVES_ATTESTED_SINCE else fat_jar
+    attested_what = (
+        "an archive or the CLI fat JAR"
+        if release >= ARCHIVES_ATTESTED_SINCE
+        else "the CLI fat JAR"
+    )
+
     return f"""## Verifying this release
 
 Every asset has a detached OpenPGP signature (`.asc`) made by the Eclipse CSI project key,
@@ -238,21 +289,34 @@ gpg --verify checksums_sha256.txt.asc checksums_sha256.txt
 # 2. Verify what you downloaded against the manifest
 sha256sum --ignore-missing -c checksums_sha256.txt   # Linux
 shasum -a 256 --ignore-missing -c checksums_sha256.txt   # macOS
-
-# 3. Verify the build provenance of the CLI fat JAR
-gh attestation verify codesign-cli-{version}-bin.jar --repo {REPO}
 ```
 
 The key is fetched above by the identifier published here, so `gpg --verify` should report
 `Good signature from "Eclipse Common Security Infrastructure Project <csi-dev@eclipse.org>"`.
 It also warns that the key is not certified by you, which is expected unless you have signed
 it yourself.
+{sigstore}
+To check the SLSA build provenance of {attested_what}:
+
+```shell
+gh attestation verify {attested} --repo {REPO}
+```
 
 ### Maven Central
 
 | Artifact | Coordinates |
 | --- | --- |
-{coordinates}"""
+{coordinates}
+
+Every file on Maven Central has a Sigstore bundle next to it, so a download can be checked
+against the release workflow that built it:
+
+```shell
+{cosign_command(version, fat_jar)}
+```
+
+The {central_attested} also have a build provenance attestation, checked with
+`gh attestation verify` as above."""
 
 
 def render(label, tag, head, override=None, version=None):

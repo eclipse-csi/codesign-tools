@@ -499,10 +499,30 @@
                 </artifacts>
               </csi-codesign>
             </distributions>
+            <!--
+              The .sigstore.json bundles are written by the "Sign release assets with Sigstore"
+              step of .github/workflows/release.yml. They are listed one by one, not globbed,
+              so that a missing bundle fails the release instead of shipping unsigned assets.
+            -->
             <files>
               <artifacts>
                 <artifact>
                   <path>out/cli-fatjar/codesign-cli-{{projectVersion}}-bin.jar</path>
+                </artifact>
+                <artifact>
+                  <path>out/cli-fatjar/codesign-cli-{{projectVersion}}-bin.jar.sigstore.json</path>
+                </artifact>
+                <artifact>
+                  <path>out/archives/csi-codesign-{{projectVersion}}-linux-x86_64.tar.gz.sigstore.json</path>
+                </artifact>
+                <artifact>
+                  <path>out/archives/csi-codesign-{{projectVersion}}-linux-aarch_64.tar.gz.sigstore.json</path>
+                </artifact>
+                <artifact>
+                  <path>out/archives/csi-codesign-{{projectVersion}}-osx-aarch_64.tar.gz.sigstore.json</path>
+                </artifact>
+                <artifact>
+                  <path>out/archives/csi-codesign-{{projectVersion}}-windows-x86_64.zip.sigstore.json</path>
                 </artifact>
               </artifacts>
             </files>

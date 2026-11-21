@@ -238,7 +238,7 @@ Risk is rated **High (H) / Medium (M) / Low (L)** using the DREAD-inspired scale
 | --- | --- | --- | --- |
 | **PR-1** | **CycloneDX SBOM published on every release** (via `generate-sbom` profile). Ensure the SBOM is attached to every GitHub Release and Maven Central deployment. | ✅ Already in place | T3, S3, CRA Art. 13(3) |
 | **PR-2** | **Sigstore/Rekor transparency log entries for every release** (via GitHub OIDC + Sigstore in release workflow). Add a step to the release checklist to verify the Rekor entry after release. | ✅ Already in place | T3, S3 |
-| **PR-3** | **SLSA Level 2+ provenance attestation for native binaries.** Verify attestations are attached to GitHub Release assets and document verification procedure. | ✅ Attestations in native build step; documentation of verification UX pending | T3 |
+| **PR-3** | **SLSA Level 2+ provenance attestation for native binaries.** Verify attestations are attached to GitHub Release assets and document verification procedure. | ✅ Attestations for native archives, CLI fat JAR and Maven Central artifacts (incl. SBOMs); verification documented in `ANNEX_II_USER_INFORMATION.md` §11(a) and in each release's notes | T3 |
 | **PR-4** | **All GitHub Actions pinned to full commit SHAs** (not version tags). | ✅ All workflows use `@<sha>` references | T3, S3 |
 | **PR-5** | **`harden-runner` egress policy:** enable `egress-policy: block` with an allowlist limited to Maven Central, GitHub, SignPath, and Sonatype endpoints. Currently set to `audit` mode. | Open | T3 |
 | **PR-6** | **Build log scan for exposed secrets** before publishing the workflow run. | Open | I1, I2 |
