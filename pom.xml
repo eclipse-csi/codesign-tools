@@ -56,6 +56,12 @@
          when the extension is disabled. -->
     <project.build.outputTimestamp>1980-01-01T00:00:02Z</project.build.outputTimestamp>
 
+    <!-- The version the CLI prints for its version option (-V). The git versioning extension
+         sets it to the release version on a vX.Y.Z tag, and to a traceable development version
+         elsewhere, e.g. 0.8.5-dev18+g1a2b3c4 (18 commits after v0.8.4, at commit 1a2b3c4).
+         This default is only used when the extension is disabled. -->
+    <codesign.build.version>${project.version}</codesign.build.version>
+
     <sigstore.skip>true</sigstore.skip>
 
     <maven.version>3.10.1</maven.version>
