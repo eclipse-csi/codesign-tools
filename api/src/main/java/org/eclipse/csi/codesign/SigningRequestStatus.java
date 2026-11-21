@@ -18,20 +18,42 @@ import java.net.URI;
  * @param status the signing request status (e.g. "Completed", "Failed", "Denied", "Canceled")
  * @param workflowStatus the detailed workflow processing state
  * @param isFinalStatus whether the status is terminal (polling should stop)
- * @param signedArtifactLink URI to download the signed artifact (present when completed)
+ * @param signedArtifactLink URI to download the signed artifact; SignPath includes it in every
+ *     state, but the artifact can only be downloaded once the request is completed
  * @param unsignedArtifactLink URI to the original unsigned artifact
+ * @param webLink URI of the signing request page in the SignPath web application, for humans
+ *     investigating a request (may be {@code null})
  */
 public record SigningRequestStatus(
     String status,
     String workflowStatus,
     boolean isFinalStatus,
     URI signedArtifactLink,
-    URI unsignedArtifactLink) {
+    URI unsignedArtifactLink,
+    URI webLink) {
 
   private static final String STATUS_COMPLETED = "Completed";
   private static final String STATUS_FAILED = "Failed";
   private static final String STATUS_DENIED = "Denied";
   private static final String STATUS_CANCELED = "Canceled";
+
+  /**
+   * Creates a status without a web link.
+   *
+   * @param status the signing request status
+   * @param workflowStatus the detailed workflow processing state
+   * @param isFinalStatus whether the status is terminal
+   * @param signedArtifactLink URI to download the signed artifact
+   * @param unsignedArtifactLink URI to the original unsigned artifact
+   */
+  public SigningRequestStatus(
+      String status,
+      String workflowStatus,
+      boolean isFinalStatus,
+      URI signedArtifactLink,
+      URI unsignedArtifactLink) {
+    this(status, workflowStatus, isFinalStatus, signedArtifactLink, unsignedArtifactLink, null);
+  }
 
   /**
    * Returns {@code true} if the signing request completed successfully.

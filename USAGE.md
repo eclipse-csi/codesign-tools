@@ -201,6 +201,13 @@ Configure the plugin in `pom.xml` to sign files automatically during `package`:
 
 After `mvn package`, signed files are available in `target/signed/`.
 
+> **Parameters must be declared in the artifact configuration.** Values passed with
+> `<parameters>` (plugin) or `--param key=value` (CLI) are only kept by SignPath when the
+> artifact configuration declares a parameter of that name in its `<parameters>` block, e.g.
+> `<parameter name="buildNumber" />`. SignPath silently drops undeclared parameters, and
+> rejects the request (HTTP 400) when a parameter declared with `required="true"` is missing.
+> See [User-defined parameters](https://docs.signpath.io/artifact-configuration/syntax#user-defined-parameters).
+
 ---
 
 ## Configuration Reference
@@ -344,13 +351,23 @@ No token source is configured. Add a `codesign` server entry to `~/.m2/settings.
 
 **HTTP 401 Unauthorized**
 The token is invalid, expired, or does not have permission to submit signing requests for
-the specified organization. Verify the token in the SignPath portal.
+the specified organization. Verify the token in the SignPath portal. SignPath also answers
+401 (`User is not allowed to log into the organization`) when the organization ID is wrong,
+and 404 when it is not a valid organization ID at all.
+
+**HTTP 400 "One or more validation errors occurred"**
+SignPath rejected the submitted request; the error message names the offending field. The
+most common causes are a project, signing policy, or artifact configuration slug that does
+not exist (`There is no signing policy with slug '…' in the project with slug '…'`), a
+signing policy that the token's user is not a submitter of, or a missing required
+user-defined parameter (`The parameters '…' are required`).
 
 **Signing status `Failed`**
 SignPath rejected the artifact — usually a policy violation (wrong file type, policy
 mismatch) or a SignPath internal error. Check the `workflowStatus` field printed in the
-build/CLI output. Review the signing policy and artifact configuration in the SignPath
-portal.
+build/CLI output, and open the signing request link printed with the error to see
+SignPath's processing log. Review the signing policy and artifact configuration in the
+SignPath portal.
 
 **Signing status `Denied`**
 A human approver rejected the signing request. This is expected when a policy requires
@@ -376,7 +393,8 @@ command line.
 **Timeout waiting for signing completion (CLI)**
 Signing a file took longer than `--wait-for-completion-timeout` (measured separately for each
 file). Increase it, and check the SignPath portal — the request may be waiting for manual
-approval. The Maven plugin has no completion
+approval. The signing request is not canceled on timeout: it stays open in SignPath (the
+error message links to it), so cancel it there if it is no longer needed. The Maven plugin has no completion
 timeout: it polls until SignPath reports a final status (`<retryTimeout>` only bounds retries
 of transient HTTP failures).
 

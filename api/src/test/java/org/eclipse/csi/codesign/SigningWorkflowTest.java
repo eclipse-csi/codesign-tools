@@ -11,6 +11,8 @@
 package org.eclipse.csi.codesign;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,22 +56,8 @@ class SigningWorkflowTest {
 
   @Test
   void preUploadSha256IsLoggedBeforeSubmit() throws Exception {
-    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/42").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
-    server.enqueue(
-        new MockResponse.Builder()
-            .code(200)
-            .setHeader("Content-Type", "application/json")
-            .body(
-                """
-                {
-                  "status": "Completed",
-                  "workflowStatus": "Done",
-                  "isFinalStatus": true,
-                  "signedArtifactLink": null
-                }
-                """)
-            .build());
+    enqueueSubmit(42);
+    server.enqueue(statusResponse("Completed", "Completed", true));
 
     Path artifact = tempDir.resolve("artifact.jar");
     Files.writeString(artifact, "test-artifact-content");
@@ -113,15 +101,15 @@ class SigningWorkflowTest {
         new SigningWorkflow(client, Duration.ofMillis(10), Duration.ofMillis(300), null);
 
     enqueueSubmit(1);
-    server.enqueue(statusResponse("Completed", "Done", true));
+    server.enqueue(statusResponse("Completed", "Completed", true));
     workflow.submitAndWait("proj", "policy", null, null, null, first);
 
     // Outlast the timeout between requests: a shared deadline would already be expired
     Thread.sleep(400);
 
     enqueueSubmit(2);
-    server.enqueue(statusResponse("InProgress", "Running", false));
-    server.enqueue(statusResponse("Completed", "Done", true));
+    server.enqueue(statusResponse("InProgress", "QueuedForMalwareScanning", false));
+    server.enqueue(statusResponse("Completed", "Completed", true));
     SigningRequestStatus status =
         workflow.submitAndWait("proj", "policy", null, null, null, second);
 
@@ -138,7 +126,7 @@ class SigningWorkflowTest {
             if ("POST".equals(request.getMethod())) {
               return new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build();
             }
-            return statusResponse("InProgress", "Running", false);
+            return statusResponse("WaitingForApproval", "WaitingForApproval", false);
           }
         });
 
@@ -155,28 +143,78 @@ class SigningWorkflowTest {
     assertTrue(
         e.getMessage().contains("Timeout waiting for signing request to complete"),
         "Unexpected message: " + e.getMessage());
+    assertTrue(
+        e.getMessage().contains("Last status: WaitingForApproval/WaitingForApproval"),
+        "Unexpected message: " + e.getMessage());
+    assertTrue(
+        e.getMessage()
+            .endsWith(
+                ". The signing request is still open in SignPath: "
+                    + server.url("/Web").toString()
+                    + "/test-org-id/SigningRequests/"
+                    + SignPathResponses.REQUEST_ID),
+        "Unexpected message: " + e.getMessage());
+  }
+
+  @Test
+  void pollsThroughRealWorkflowStatesUntilCompleted() throws Exception {
+    enqueueSubmit(7);
+    server.enqueue(statusResponse("InProgress", "QueuedForMalwareScanning", false));
+    server.enqueue(statusResponse("InProgress", "Processing", false));
+    server.enqueue(statusResponse("Completed", "Completed", true));
+
+    Path artifact = tempDir.resolve("artifact.jar");
+    Files.writeString(artifact, "content");
+    List<String> logLines = new ArrayList<>();
+    SigningWorkflow workflow = new SigningWorkflow(client, Duration.ofMillis(10), logLines::add);
+
+    SigningRequestStatus status =
+        workflow.submitAndWait("proj", "policy", null, null, null, artifact);
+
+    assertTrue(status.isCompleted());
+    assertEquals(
+        List.of(
+            "Signing status: InProgress (workflow: QueuedForMalwareScanning)",
+            "Signing status: InProgress (workflow: Processing)",
+            "Signing status: Completed (workflow: Completed)"),
+        logLines.stream().filter(l -> l.startsWith("Signing status: ")).toList());
+    assertEquals(4, server.getRequestCount(), "1 submit + 3 status polls");
+  }
+
+  @Test
+  void returnsDeniedStatusWithoutError() throws Exception {
+    enqueueSubmit(8);
+    server.enqueue(statusResponse("WaitingForApproval", "WaitingForApproval", false));
+    server.enqueue(statusResponse("Denied", "Denied", true));
+
+    Path artifact = tempDir.resolve("artifact.jar");
+    Files.writeString(artifact, "content");
+    SigningWorkflow workflow = new SigningWorkflow(client, Duration.ofMillis(10), null);
+
+    SigningRequestStatus status =
+        workflow.submitAndWait("proj", "policy", null, null, null, artifact);
+
+    assertTrue(status.isDenied());
+    assertFalse(status.isCompleted());
+    assertNotNull(status.webLink());
+  }
+
+  private String apiBaseUrl() {
+    return server.url("/Api").toString();
   }
 
   private void enqueueSubmit(int requestId) {
-    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/" + requestId).toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(
+        SignPathResponses.submitted(apiBaseUrl(), "test-org-id", String.valueOf(requestId)));
   }
 
-  private static MockResponse statusResponse(
-      String status, String workflowStatus, boolean isFinalStatus) {
-    return new MockResponse.Builder()
-        .code(200)
-        .setHeader("Content-Type", "application/json")
-        .body(
-            """
-            {
-              "status": "%s",
-              "workflowStatus": "%s",
-              "isFinalStatus": %s,
-              "signedArtifactLink": null
-            }
-            """
-                .formatted(status, workflowStatus, isFinalStatus))
-        .build();
+  private MockResponse statusResponse(String status, String workflowStatus, boolean isFinalStatus) {
+    return SignPathResponses.status(
+        apiBaseUrl(),
+        "test-org-id",
+        SignPathResponses.REQUEST_ID,
+        status,
+        workflowStatus,
+        isFinalStatus);
   }
 }

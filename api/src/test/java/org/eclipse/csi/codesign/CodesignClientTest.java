@@ -11,6 +11,7 @@
 package org.eclipse.csi.codesign;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,10 +57,17 @@ class CodesignClientTest {
     server.close();
   }
 
+  private String apiBaseUrl() {
+    return server.url("/Api").toString().replaceFirst("/$", "");
+  }
+
   @Test
   void submitReturnsSigningRequestWithLocationHeader() throws Exception {
-    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/123").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    String statusUrl =
+        SignPathResponses.signingRequestUrl(
+            apiBaseUrl(), "test-org-id", SignPathResponses.REQUEST_ID);
+    server.enqueue(
+        SignPathResponses.submitted(apiBaseUrl(), "test-org-id", SignPathResponses.REQUEST_ID));
 
     Path artifact = tempDir.resolve("test.jar");
     Files.writeString(artifact, "fake-jar-content");
@@ -81,8 +89,8 @@ class CodesignClientTest {
 
   @Test
   void submitWithOptionalParameters() throws Exception {
-    String statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/456").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(
+        SignPathResponses.submitted(apiBaseUrl(), "test-org-id", SignPathResponses.REQUEST_ID));
 
     Path artifact = tempDir.resolve("test.exe");
     Files.writeString(artifact, "fake-exe-content");
@@ -108,7 +116,7 @@ class CodesignClientTest {
 
   @Test
   void submitThrowsOnNon201() throws Exception {
-    server.enqueue(new MockResponse.Builder().code(400).body("Bad Request").build());
+    server.enqueue(SignPathResponses.problem(400, SignPathResponses.UNKNOWN_SIGNING_POLICY));
 
     Path artifact = tempDir.resolve("test.jar");
     Files.writeString(artifact, "fake-jar-content");
@@ -116,9 +124,15 @@ class CodesignClientTest {
     CodesignException ex =
         assertThrows(
             CodesignException.class,
-            () -> client.submit("proj", "policy", null, null, null, artifact));
+            () -> client.submit("my-project", "no-such-policy", null, null, null, artifact));
     assertEquals(400, ex.httpStatus());
-    assertTrue(ex.responseBody().contains("Bad Request"));
+    assertEquals(SignPathResponses.UNKNOWN_SIGNING_POLICY, ex.responseBody());
+    assertEquals(
+        "SignPath API error (HTTP 400): One or more validation errors occurred."
+            + " SigningPolicySlug: There is no signing policy with slug 'no-such-policy'"
+            + " in the project with slug 'my-project'."
+            + " (trace ID: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01)",
+        ex.getMessage());
   }
 
   @Test
@@ -137,22 +151,12 @@ class CodesignClientTest {
 
   @Test
   void getStatusParsesJsonResponse() throws Exception {
-    String json =
-        """
-        {
-          "status": "Completed",
-          "workflowStatus": "Done",
-          "isFinalStatus": true,
-          "signedArtifactLink": "https://example.com/signed",
-          "unsignedArtifactLink": "https://example.com/unsigned"
-        }
-        """;
+    String base = "https://app.signpath.io/Api";
+    String requestUrl =
+        SignPathResponses.signingRequestUrl(base, "test-org-id", SignPathResponses.REQUEST_ID);
     server.enqueue(
-        new MockResponse.Builder()
-            .code(200)
-            .setHeader("Content-Type", "application/json")
-            .body(json)
-            .build());
+        SignPathResponses.status(
+            base, "test-org-id", SignPathResponses.REQUEST_ID, "Completed", "Completed", true));
 
     URI statusUrl = server.url("/Api/v1/test-org-id/SigningRequests/123").uri();
     SigningRequest signingRequest = new SigningRequest(statusUrl);
@@ -161,9 +165,14 @@ class CodesignClientTest {
 
     assertTrue(status.isCompleted());
     assertTrue(status.isFinalStatus());
-    assertEquals("Done", status.workflowStatus());
-    assertEquals(URI.create("https://example.com/signed"), status.signedArtifactLink());
-    assertEquals(URI.create("https://example.com/unsigned"), status.unsignedArtifactLink());
+    assertEquals("Completed", status.workflowStatus());
+    assertEquals(URI.create(requestUrl + "/SignedArtifact"), status.signedArtifactLink());
+    assertEquals(URI.create(requestUrl + "/UnsignedArtifact"), status.unsignedArtifactLink());
+    assertEquals(
+        URI.create(
+            "https://app.signpath.io/Web/test-org-id/SigningRequests/"
+                + SignPathResponses.REQUEST_ID),
+        status.webLink());
 
     RecordedRequest recorded = server.takeRequest();
     assertEquals("GET", recorded.getMethod());
@@ -171,8 +180,31 @@ class CodesignClientTest {
   }
 
   @Test
+  void getStatusParsesFailedResponseThatStillHasASignedArtifactLink() throws Exception {
+    // SignPath includes signedArtifactLink in every state; only the status says it is usable
+    server.enqueue(
+        SignPathResponses.status(
+            apiBaseUrl(),
+            "test-org-id",
+            SignPathResponses.REQUEST_ID,
+            "Failed",
+            "ProcessingFailed",
+            true));
+
+    SigningRequestStatus status =
+        client.getStatus(
+            new SigningRequest(server.url("/Api/v1/test-org-id/SigningRequests/1").uri()));
+
+    assertTrue(status.isFinalStatus());
+    assertTrue(status.isFailed());
+    assertFalse(status.isCompleted());
+    assertEquals("ProcessingFailed", status.workflowStatus());
+    assertNotNull(status.signedArtifactLink());
+  }
+
+  @Test
   void getStatusThrowsOnError() throws Exception {
-    server.enqueue(new MockResponse.Builder().code(404).body("Not Found").build());
+    server.enqueue(SignPathResponses.problem(404, SignPathResponses.NOT_FOUND));
 
     URI statusUrl = server.url("/test").uri();
     SigningRequest signingRequest = new SigningRequest(statusUrl);
@@ -180,16 +212,26 @@ class CodesignClientTest {
     CodesignException ex =
         assertThrows(CodesignException.class, () -> client.getStatus(signingRequest));
     assertEquals(404, ex.httpStatus());
+    assertTrue(
+        ex.getMessage().startsWith("SignPath API error (HTTP 404): Not Found. No matching entity"),
+        ex.getMessage());
   }
 
   @Test
   void downloadSignedArtifactWritesToFile() throws Exception {
     String content = "signed-content-bytes";
-    server.enqueue(new MockResponse.Builder().code(200).body(content).build());
+    server.enqueue(
+        new MockResponse.Builder()
+            .code(200)
+            .setHeader("Content-Type", "application/octet-stream")
+            .setHeader(
+                "Content-Disposition", "attachment; filename=test.jar; filename*=UTF-8''test.jar")
+            .body(content)
+            .build());
 
     URI signedLink = server.url("/signed-artifact").uri();
     SigningRequestStatus status =
-        new SigningRequestStatus("Completed", "Done", true, signedLink, null);
+        new SigningRequestStatus("Completed", "Completed", true, signedLink, null);
 
     Path output = tempDir.resolve("signed.jar");
     client.downloadSignedArtifact(status, output);
@@ -204,7 +246,8 @@ class CodesignClientTest {
 
   @Test
   void downloadThrowsWhenNoLink() {
-    SigningRequestStatus status = new SigningRequestStatus("Completed", "Done", true, null, null);
+    SigningRequestStatus status =
+        new SigningRequestStatus("Completed", "Completed", true, null, null);
 
     assertThrows(
         CodesignException.class,
@@ -232,12 +275,32 @@ class CodesignClientTest {
 
     URI signedLink = server.url("/signed-artifact").uri();
     SigningRequestStatus status =
-        new SigningRequestStatus("Completed", "Done", true, signedLink, null);
+        new SigningRequestStatus("Completed", "Completed", true, signedLink, null);
 
     CodesignException ex =
         assertThrows(
             CodesignException.class,
             () -> client.downloadSignedArtifact(status, tempDir.resolve("out.jar")));
     assertEquals(500, ex.httpStatus());
+    assertEquals("SignPath API error (HTTP 500): Internal Server Error", ex.getMessage());
+  }
+
+  @Test
+  void downloadThrowsWhenArtifactIsNotAvailable() throws Exception {
+    // What SignPath answers when downloading the signed artifact of a non-completed request
+    server.enqueue(SignPathResponses.problem(400, SignPathResponses.ARTIFACT_NOT_AVAILABLE));
+
+    URI signedLink = server.url("/signed-artifact").uri();
+    SigningRequestStatus status =
+        new SigningRequestStatus("Failed", "ProcessingFailed", true, signedLink, null);
+
+    Path output = tempDir.resolve("out.jar");
+    CodesignException ex =
+        assertThrows(CodesignException.class, () -> client.downloadSignedArtifact(status, output));
+    assertEquals(400, ex.httpStatus());
+    assertTrue(
+        ex.getMessage().contains("Bad Request. The signing request's artifact is not available."),
+        ex.getMessage());
+    assertFalse(Files.exists(output), "Nothing must be written for an error response");
   }
 }

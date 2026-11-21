@@ -122,8 +122,9 @@ class SignCommand implements Callable<Integer> {
       names = "--param",
       paramLabel = "<key>=<value>",
       description =
-          "Custom parameter forwarded to SignPath (repeatable)."
-              + " Format: --param key=value --param key2=value2")
+          "User-defined parameter forwarded to SignPath (repeatable)."
+              + " Format: --param key=value --param key2=value2."
+              + " SignPath ignores parameters not declared in the artifact configuration.")
   Map<String, String> parameters;
 
   // --- Authentication ---
@@ -274,7 +275,8 @@ class SignCommand implements Callable<Integer> {
               + "'. Status: "
               + status.status()
               + ", workflow: "
-              + status.workflowStatus());
+              + status.workflowStatus()
+              + (status.webLink() != null ? ". See " + status.webLink() : ""));
     }
 
     Path outputPath = resolveOutputPath(inputFile);

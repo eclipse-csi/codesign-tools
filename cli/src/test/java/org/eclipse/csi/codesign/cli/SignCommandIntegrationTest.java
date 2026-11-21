@@ -37,9 +37,11 @@ import picocli.CommandLine;
 class SignCommandIntegrationTest {
 
   private static final String CONTENT_TYPE = "Content-Type";
-  private static final String APPLICATION_JSON = "application/json";
+  private static final String APPLICATION_JSON = "application/json; charset=utf-8";
+  private static final String WEB_LINK = "https://app.signpath.io/Web/org/SigningRequests/r1";
 
   private MockWebServer server;
+  private final StringWriter err = new StringWriter();
 
   @TempDir Path tempDir;
 
@@ -96,20 +98,52 @@ class SignCommandIntegrationTest {
               }
             })
         .setOut(new PrintWriter(new StringWriter()))
-        .setErr(new PrintWriter(new StringWriter()))
+        .setErr(new PrintWriter(err, true))
         .setExecutionExceptionHandler(new PrintExceptionMessageHandler());
   }
 
   private String statusResponse(String downloadUrl) {
+    return statusJson("Completed", "Completed", true, downloadUrl);
+  }
+
+  /**
+   * A status document shaped like a real SignPath answer: extra fields the client ignores, a {@code
+   * webLink}, and a {@code signedArtifactLink} that is present in every state.
+   */
+  private static String statusJson(
+      String status, String workflowStatus, boolean isFinalStatus, String downloadUrl) {
     return """
     {
-      "status": "Completed",
-      "workflowStatus": "Done",
-      "isFinalStatus": true,
-      "signedArtifactLink": "%s"
+      "signingRequestId": "5f0c3b8e-2a71-4c1d-9e46-0b7d2f9a1c35",
+      "status": "%s",
+      "workflowStatus": "%s",
+      "malwareScanningStatus": "Completed",
+      "isFinalStatus": %s,
+      "projectId": "0d9e8a77-31b5-4f0e-a3c2-6f1b2e4d5a60",
+      "projectSlug": "proj",
+      "projectName": "Project",
+      "artifactConfigurationId": "7c2f4e19-5b8a-4d3c-9f01-2a6e8d3b4c71",
+      "artifactConfigurationSlug": "initial",
+      "artifactConfigurationName": "Initial version",
+      "signingPolicyId": "b4e1d0a2-6c3f-4a58-8e97-1f2d3c4b5a82",
+      "signingPolicySlug": "release",
+      "signingPolicyName": "Release",
+      "unsignedArtifactLink": "%s.unsigned",
+      "signedArtifactLink": "%s",
+      "webLink": "%s"
     }
     """
-        .formatted(downloadUrl);
+        .formatted(status, workflowStatus, isFinalStatus, downloadUrl, downloadUrl, WEB_LINK);
+  }
+
+  /** {@code 201 Created} answer to the submit request, with its real JSON body. */
+  private static MockResponse submitted(String statusUrl) {
+    return new MockResponse.Builder()
+        .code(201)
+        .setHeader(CONTENT_TYPE, APPLICATION_JSON)
+        .setHeader("Location", statusUrl)
+        .body("{\"signingRequestId\":\"5f0c3b8e-2a71-4c1d-9e46-0b7d2f9a1c35\"}")
+        .build();
   }
 
   @Test
@@ -121,7 +155,7 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/req-001").toString();
     String downloadUrl = server.url("/download/signed.jar").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
@@ -218,7 +252,7 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
@@ -255,16 +289,13 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
     // First poll: in progress
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {"status":"InProgress","workflowStatus":"Processing","isFinalStatus":false}
-                """)
+            .body(statusJson("InProgress", "QueuedForMalwareScanning", false, downloadUrl))
             .build());
     // Second poll: completed
     server.enqueue(
@@ -304,15 +335,13 @@ class SignCommandIntegrationTest {
     Files.writeString(input, "unsigned");
 
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    String downloadUrl = statusUrl + "/SignedArtifact";
+    server.enqueue(submitted(statusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {"status":"Denied","workflowStatus":"PolicyDenied","isFinalStatus":true}
-                """)
+            .body(statusJson("Denied", "Denied", true, downloadUrl))
             .build());
 
     int exit =
@@ -333,14 +362,30 @@ class SignCommandIntegrationTest {
     assertNotEquals(0, exit);
     // Original file unchanged
     assertEquals("unsigned", Files.readString(input));
+    assertTrue(
+        err.toString()
+            .contains(
+                "Signing did not complete successfully for 'app.jar'. Status: Denied,"
+                    + " workflow: Denied. See "
+                    + WEB_LINK),
+        err.toString());
+    assertEquals(2, server.getRequestCount(), "No download attempt for a denied request");
   }
 
   @Test
-  void failsWhenSubmitReturnsError() throws IOException {
+  void failsWithoutDownloadWhenSigningFails() throws IOException {
     Path input = tempDir.resolve("app.jar");
     Files.writeString(input, "unsigned");
 
-    server.enqueue(new MockResponse.Builder().code(403).body("Forbidden").build());
+    String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
+    // SignPath still returns a signedArtifactLink for failed requests; it must not be used
+    server.enqueue(submitted(statusUrl));
+    server.enqueue(
+        new MockResponse.Builder()
+            .code(200)
+            .setHeader(CONTENT_TYPE, APPLICATION_JSON)
+            .body(statusJson("Failed", "ProcessingFailed", true, statusUrl + "/SignedArtifact"))
+            .build());
 
     int exit =
         cli()
@@ -357,7 +402,57 @@ class SignCommandIntegrationTest {
                 "--force-overwrite",
                 input.toString());
 
-    assertNotEquals(0, exit);
+    assertEquals(1, exit);
+    assertEquals("unsigned", Files.readString(input));
+    assertTrue(
+        err.toString().contains("Status: Failed, workflow: ProcessingFailed"), err.toString());
+    assertEquals(2, server.getRequestCount(), "No download attempt for a failed request");
+  }
+
+  @Test
+  void failsWhenSubmitReturnsError() throws IOException {
+    Path input = tempDir.resolve("app.jar");
+    Files.writeString(input, "unsigned");
+
+    server.enqueue(
+        new MockResponse.Builder()
+            .code(400)
+            .setHeader(CONTENT_TYPE, "application/problem+json")
+            .body(
+                """
+                {"errors":{"SigningPolicySlug":["There is no signing policy with slug 'release' \
+                in the project with slug 'proj'."]},\
+                "type":"https://tools.ietf.org/html/rfc9110#section-15.5.1",\
+                "title":"One or more validation errors occurred.","status":400,\
+                "traceId":"00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}\
+                """)
+            .build());
+
+    int exit =
+        cli()
+            .execute(
+                "sign",
+                "--base-url",
+                server.url("").toString().replaceAll("/$", ""),
+                "--organization-id",
+                "org",
+                "--project-id",
+                "proj",
+                "--signing-policy",
+                "release",
+                "--force-overwrite",
+                input.toString());
+
+    assertEquals(1, exit);
+    assertTrue(
+        err.toString()
+            .contains(
+                "Error: SignPath API error (HTTP 400): One or more validation errors occurred."
+                    + " SigningPolicySlug: There is no signing policy with slug 'release'"
+                    + " in the project with slug 'proj'."
+                    + " (trace ID: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01)"),
+        err.toString());
+    assertEquals("unsigned", Files.readString(input));
   }
 
   @Test
@@ -369,7 +464,7 @@ class SignCommandIntegrationTest {
     String statusUrl = server.url("/v1/org/SigningRequests/r1").toString();
     String downloadUrl = server.url("/dl/app.jar").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)

@@ -6,9 +6,11 @@
   "response": {
     "status": 200,
     "headers": {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json; charset=utf-8"
     },
-    "body": "{\"status\":\"Completed\",\"workflowStatus\":\"Completed\",\"isFinalStatus\":true,\"signedArtifactLink\":\"{{request.baseUrl}}/Api/v1/token-env-org/signed-artifact\",\"unsignedArtifactLink\":null}",
-    "transformers": ["response-template"]
+    "body": "{\"signingRequestId\":\"abc123\",\"status\":\"Completed\",\"workflowStatus\":\"Completed\",\"malwareScanningStatus\":\"Completed\",\"isFinalStatus\":true,\"projectId\":\"0d9e8a77-31b5-4f0e-a3c2-6f1b2e4d5a60\",\"projectSlug\":\"test-project\",\"projectName\":\"Test Project\",\"artifactConfigurationId\":\"7c2f4e19-5b8a-4d3c-9f01-2a6e8d3b4c71\",\"artifactConfigurationSlug\":\"initial\",\"artifactConfigurationName\":\"Initial version\",\"signingPolicyId\":\"b4e1d0a2-6c3f-4a58-8e97-1f2d3c4b5a82\",\"signingPolicySlug\":\"test-policy\",\"signingPolicyName\":\"Test policy\",\"unsignedArtifactLink\":\"{{request.baseUrl}}/Api/v1/token-env-org/SigningRequests/abc123/UnsignedArtifact\",\"signedArtifactLink\":\"{{request.baseUrl}}/Api/v1/token-env-org/signed-artifact\",\"artifactDescriptionXmlLink\":\"{{request.baseUrl}}/Api/v1/token-env-org/SigningRequests/abc123/ArtifactDescriptionXml\",\"webLink\":\"{{request.baseUrl}}/Web/token-env-org/SigningRequests/abc123\"}",
+    "transformers": [
+      "response-template"
+    ]
   }
 }

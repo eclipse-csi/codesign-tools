@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* When a signing request ends `Failed`, `Denied` or `Canceled`, the CLI and the Maven plugin now print a link to the request in the SignPath web application, where its processing log and approval history can be checked. When the CLI's `--wait-for-completion-timeout` expires, the error also links to the request and says it is still open in SignPath (it is not canceled). For Java API users, `SigningRequestStatus` has a new `webLink()` component; the previous five-argument constructor is kept.
+
+### Changed
+
+* SignPath API errors are now readable. Instead of dumping SignPath's JSON error document, the message shows its title, detail and per-field validation errors, plus the trace ID to quote to SignPath support, e.g. `SignPath API error (HTTP 400): One or more validation errors occurred. SigningPolicySlug: There is no signing policy with slug 'release' in the project with slug 'my-project'. (trace ID: 00-…)`. Responses that aren't in that format are still shown as is, and `CodesignException.responseBody()` still returns the raw body.
+* The documentation now explains that SignPath silently ignores user-defined parameters (`--param`, `<parameters>`) that the artifact configuration doesn't declare, and the troubleshooting guide covers HTTP 400 validation errors and wrong organization IDs.
+
 ## [v0.9.0] - 2026-11-21
 
 ### Changed

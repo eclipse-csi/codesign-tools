@@ -133,7 +133,10 @@ public class SigningWorkflow {
                 + status.workflowStatus()
                 + " ["
                 + request.statusUrl()
-                + "]",
+                + "]"
+                + (status.webLink() != null
+                    ? ". The signing request is still open in SignPath: " + status.webLink()
+                    : ""),
             null);
       }
 

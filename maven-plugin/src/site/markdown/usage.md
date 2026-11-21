@@ -124,8 +124,8 @@ signing credentials are absent).
 
 ## Passing Additional Parameters to SignPath
 
-Use the `<parameters>` map to attach arbitrary key/value metadata to the signing
-request (e.g. build number, Git commit SHA):
+Use the `<parameters>` map to pass user-defined parameters to the signing request
+(e.g. build number, Git commit SHA):
 
 ```xml
 <configuration>
@@ -135,6 +135,11 @@ request (e.g. build number, Git commit SHA):
   </parameters>
 </configuration>
 ```
+
+SignPath only keeps parameters that the artifact configuration declares in its
+`<parameters>` block (e.g. `<parameter name="buildNumber" />`); undeclared parameters are
+silently dropped. See
+[User-defined parameters](https://docs.signpath.io/artifact-configuration/syntax#user-defined-parameters).
 
 ## Complete Goal Reference
 

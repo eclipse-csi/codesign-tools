@@ -47,7 +47,49 @@ class CodesignMojoTest {
   private static final String CSI_CODESIGN_SKIP_SIGNING = "CSI_CODESIGN_SKIP_SIGNING";
   private static final String DEFAULT_SERVER_ID = "codesign";
   private static final String CONTENT_TYPE = "Content-Type";
-  private static final String APPLICATION_JSON = "application/json";
+  private static final String APPLICATION_JSON = "application/json; charset=utf-8";
+  private static final String WEB_LINK =
+      "https://app.signpath.io/Web/test-org/SigningRequests/5f0c3b8e-2a71-4c1d-9e46-0b7d2f9a1c35";
+
+  /**
+   * A status document shaped like a real SignPath answer: extra fields the plugin ignores, a {@code
+   * webLink}, and a {@code signedArtifactLink} that SignPath includes in every state.
+   */
+  private static String statusJson(
+      String status, String workflowStatus, boolean isFinalStatus, String signedArtifactLink) {
+    return """
+    {
+      "signingRequestId": "5f0c3b8e-2a71-4c1d-9e46-0b7d2f9a1c35",
+      "status": "%s",
+      "workflowStatus": "%s",
+      "malwareScanningStatus": "Completed",
+      "isFinalStatus": %s,
+      "projectId": "0d9e8a77-31b5-4f0e-a3c2-6f1b2e4d5a60",
+      "projectSlug": "test-project",
+      "projectName": "Test Project",
+      "artifactConfigurationId": "7c2f4e19-5b8a-4d3c-9f01-2a6e8d3b4c71",
+      "artifactConfigurationSlug": "initial",
+      "artifactConfigurationName": "Initial version",
+      "signingPolicyId": "b4e1d0a2-6c3f-4a58-8e97-1f2d3c4b5a82",
+      "signingPolicySlug": "test-policy",
+      "signingPolicyName": "Test policy",
+      "signedArtifactLink": "%s",
+      "webLink": "%s"
+    }
+    """
+        .formatted(status, workflowStatus, isFinalStatus, signedArtifactLink, WEB_LINK);
+  }
+
+  /** {@code 201 Created} answer to the submit request, with its real JSON body. */
+  private static MockResponse submitted(String statusUrl) {
+    return new MockResponse.Builder()
+        .code(201)
+        .setHeader(CONTENT_TYPE, APPLICATION_JSON)
+        .setHeader("Location", statusUrl)
+        .body("{\"signingRequestId\":\"5f0c3b8e-2a71-4c1d-9e46-0b7d2f9a1c35\"}")
+        .build();
+  }
+
   private static final MavenProjectHelper PROJECT_HELPER =
       new MavenProjectHelper() {
         @Override
@@ -231,41 +273,21 @@ class CodesignMojoTest {
     String attachedStatusUrl = server.url("/Api/v1/test-org/SigningRequests/attached").toString();
     String attachedSignedUrl = server.url("/Api/signed-attached").toString();
 
-    server.enqueue(
-        new MockResponse.Builder().code(201).setHeader("Location", mainStatusUrl).build());
+    server.enqueue(submitted(mainStatusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {
-                  "status": "Completed",
-                  "workflowStatus": "Done",
-                  "isFinalStatus": true,
-                  "signedArtifactLink": "%s"
-                }
-                """
-                    .formatted(mainSignedUrl))
+            .body(statusJson("Completed", "Completed", true, mainSignedUrl))
             .build());
     server.enqueue(new MockResponse.Builder().code(200).body("signed-main").build());
 
-    server.enqueue(
-        new MockResponse.Builder().code(201).setHeader("Location", attachedStatusUrl).build());
+    server.enqueue(submitted(attachedStatusUrl));
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {
-                  "status": "Completed",
-                  "workflowStatus": "Done",
-                  "isFinalStatus": true,
-                  "signedArtifactLink": "%s"
-                }
-                """
-                    .formatted(attachedSignedUrl))
+            .body(statusJson("Completed", "Completed", true, attachedSignedUrl))
             .build());
     server.enqueue(new MockResponse.Builder().code(200).body("signed-attached").build());
 
@@ -310,21 +332,12 @@ class CodesignMojoTest {
 
       String statusUrl = server.url("/Api/v1/test-org/SigningRequests/" + packaging).toString();
       String signedUrl = server.url("/Api/signed-" + packaging).toString();
-      server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+      server.enqueue(submitted(statusUrl));
       server.enqueue(
           new MockResponse.Builder()
               .code(200)
               .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-              .body(
-                  """
-                  {
-                    "status": "Completed",
-                    "workflowStatus": "Done",
-                    "isFinalStatus": true,
-                    "signedArtifactLink": "%s"
-                  }
-                  """
-                      .formatted(signedUrl))
+              .body(statusJson("Completed", "Completed", true, signedUrl))
               .build());
       server.enqueue(new MockResponse.Builder().code(200).body("signed-" + packaging).build());
 
@@ -385,21 +398,12 @@ class CodesignMojoTest {
 
     for (String value : new String[] {"true", "TRUE", "True"}) {
       Files.writeString(artifact, "unsigned");
-      server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+      server.enqueue(submitted(statusUrl));
       server.enqueue(
           new MockResponse.Builder()
               .code(200)
               .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-              .body(
-                  """
-                  {
-                    "status": "Completed",
-                    "workflowStatus": "Done",
-                    "isFinalStatus": true,
-                    "signedArtifactLink": "%s"
-                  }
-                  """
-                      .formatted(signedUrl))
+              .body(statusJson("Completed", "Completed", true, signedUrl))
               .build());
       server.enqueue(new MockResponse.Builder().code(200).body("signed").build());
 
@@ -430,7 +434,7 @@ class CodesignMojoTest {
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/123").toString();
 
     // Submit response
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
 
     // Status poll - in progress
     server.enqueue(
@@ -438,13 +442,8 @@ class CodesignMojoTest {
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
             .body(
-                """
-                {
-                  "status": "InProgress",
-                  "workflowStatus": "Processing",
-                  "isFinalStatus": false
-                }
-                """)
+                statusJson(
+                    "InProgress", "QueuedForMalwareScanning", false, statusUrl + "/SignedArtifact"))
             .build());
 
     // Status poll - completed
@@ -453,16 +452,7 @@ class CodesignMojoTest {
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {
-                  "status": "Completed",
-                  "workflowStatus": "Done",
-                  "isFinalStatus": true,
-                  "signedArtifactLink": "%s"
-                }
-                """
-                    .formatted(signedUrl))
+            .body(statusJson("Completed", "Completed", true, signedUrl))
             .build());
 
     // Download signed artifact
@@ -488,22 +478,13 @@ class CodesignMojoTest {
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/789").toString();
     String signedUrl = server.url("/Api/signed-artifact").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
 
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {
-                  "status": "Completed",
-                  "workflowStatus": "Done",
-                  "isFinalStatus": true,
-                  "signedArtifactLink": "%s"
-                }
-                """
-                    .formatted(signedUrl))
+            .body(statusJson("Completed", "Completed", true, signedUrl))
             .build());
 
     server.enqueue(new MockResponse.Builder().code(200).body("signed-jar-content").build());
@@ -529,26 +510,26 @@ class CodesignMojoTest {
 
     String statusUrl = server.url("/Api/v1/test-org/SigningRequests/denied").toString();
 
-    server.enqueue(new MockResponse.Builder().code(201).setHeader("Location", statusUrl).build());
+    server.enqueue(submitted(statusUrl));
 
     server.enqueue(
         new MockResponse.Builder()
             .code(200)
             .setHeader(CONTENT_TYPE, APPLICATION_JSON)
-            .body(
-                """
-                {
-                  "status": "Denied",
-                  "workflowStatus": "PolicyDenied",
-                  "isFinalStatus": true
-                }
-                """)
+            .body(statusJson("Denied", "Denied", true, statusUrl + "/SignedArtifact"))
             .build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"denied.exe"});
 
-    assertThrows(MojoFailureException.class, () -> mojo.execute());
+    MojoFailureException ex = assertThrows(MojoFailureException.class, () -> mojo.execute());
+    assertEquals(
+        "Signing request did not complete successfully. Status: Denied, workflow status: Denied."
+            + " See "
+            + WEB_LINK,
+        ex.getMessage());
+    assertEquals("content", Files.readString(artifact));
+    assertEquals(2, server.getRequestCount(), "No download attempt for a denied request");
   }
 
   @Test
@@ -556,12 +537,28 @@ class CodesignMojoTest {
     Path artifact = tempDir.resolve("error.exe");
     Files.writeString(artifact, "content");
 
-    server.enqueue(new MockResponse.Builder().code(403).body("Forbidden").build());
+    server.enqueue(
+        new MockResponse.Builder()
+            .code(401)
+            .setHeader(CONTENT_TYPE, "application/problem+json")
+            .body(
+                """
+                {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.2","title":"Unauthorized",\
+                "status":401,"detail":"User is not allowed to log into the organization 'test-org'.",\
+                "traceId":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"}\
+                """)
+            .build());
 
     CodesignMojo mojo = createMojo();
     setField(mojo, "includes", new String[] {"error.exe"});
 
-    assertThrows(MojoExecutionException.class, () -> mojo.execute());
+    MojoExecutionException ex = assertThrows(MojoExecutionException.class, () -> mojo.execute());
+    assertTrue(ex.getMessage().startsWith("SignPath API error while signing "), ex.getMessage());
+    assertEquals(
+        "SignPath API error (HTTP 401): Unauthorized."
+            + " User is not allowed to log into the organization 'test-org'."
+            + " (trace ID: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01)",
+        ex.getCause().getMessage());
   }
 
   @Test

@@ -21,8 +21,12 @@
   "response": {
     "status": 201,
     "headers": {
+      "Content-Type": "application/json; charset=utf-8",
       "Location": "{{request.baseUrl}}/Api/v1/multi-exec-org/SigningRequests/exe-req-id"
     },
-    "transformers": ["response-template"]
+    "body": "{\"signingRequestId\":\"exe-req-id\"}",
+    "transformers": [
+      "response-template"
+    ]
   }
 }

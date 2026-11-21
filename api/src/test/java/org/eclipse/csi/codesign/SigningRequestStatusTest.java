@@ -10,7 +10,9 @@
 
 package org.eclipse.csi.codesign;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -29,7 +31,7 @@ class SigningRequestStatusTest {
   void completedStatus() {
     SigningRequestStatus status =
         new SigningRequestStatus(
-            STATUS_COMPLETED, "Done", true, URI.create(SIGNED_URL), URI.create(UNSIGNED_URL));
+            STATUS_COMPLETED, "Completed", true, URI.create(SIGNED_URL), URI.create(UNSIGNED_URL));
     assertTrue(status.isCompleted());
     assertFalse(status.isFailed());
     assertFalse(status.isDenied());
@@ -40,7 +42,7 @@ class SigningRequestStatusTest {
   @Test
   void failedStatus() {
     SigningRequestStatus status =
-        new SigningRequestStatus(STATUS_FAILED, "Error", true, null, null);
+        new SigningRequestStatus(STATUS_FAILED, "ProcessingFailed", true, null, null);
     assertFalse(status.isCompleted());
     assertTrue(status.isFailed());
     assertFalse(status.isDenied());
@@ -50,7 +52,7 @@ class SigningRequestStatusTest {
   @Test
   void deniedStatus() {
     SigningRequestStatus status =
-        new SigningRequestStatus(STATUS_DENIED, "PolicyDenied", true, null, null);
+        new SigningRequestStatus(STATUS_DENIED, "Denied", true, null, null);
     assertFalse(status.isCompleted());
     assertFalse(status.isFailed());
     assertTrue(status.isDenied());
@@ -60,7 +62,7 @@ class SigningRequestStatusTest {
   @Test
   void canceledStatus() {
     SigningRequestStatus status =
-        new SigningRequestStatus(STATUS_CANCELED, "UserCanceled", true, null, null);
+        new SigningRequestStatus(STATUS_CANCELED, "Canceled", true, null, null);
     assertFalse(status.isCompleted());
     assertFalse(status.isFailed());
     assertFalse(status.isDenied());
@@ -76,5 +78,20 @@ class SigningRequestStatusTest {
     assertFalse(status.isDenied());
     assertFalse(status.isCanceled());
     assertFalse(status.isFinalStatus());
+  }
+
+  @Test
+  void fiveArgumentConstructorLeavesWebLinkUnset() {
+    SigningRequestStatus status =
+        new SigningRequestStatus(STATUS_COMPLETED, "Completed", true, null, null);
+    assertNull(status.webLink());
+  }
+
+  @Test
+  void webLinkIsExposed() {
+    URI webLink = URI.create("https://app.signpath.io/Web/org/SigningRequests/id");
+    SigningRequestStatus status =
+        new SigningRequestStatus(STATUS_DENIED, "Denied", true, null, null, webLink);
+    assertEquals(webLink, status.webLink());
   }
 }

@@ -257,7 +257,12 @@ public class CodesignMojo extends AbstractMojo {
   @Parameter(property = "csi.codesign.connectTimeout", defaultValue = "30")
   private int connectTimeout;
 
-  /** Optional custom key/value parameters forwarded to SignPath in the submit request. */
+  /**
+   * Optional user-defined key/value parameters forwarded to SignPath in the submit request.
+   *
+   * <p>SignPath only keeps parameters declared in the artifact configuration's {@code <parameters>}
+   * block; undeclared parameters are silently dropped.
+   */
   @Parameter private Map<String, String> parameters;
 
   /**
@@ -593,7 +598,8 @@ public class CodesignMojo extends AbstractMojo {
             "Signing request did not complete successfully. Status: "
                 + status.status()
                 + ", workflow status: "
-                + status.workflowStatus());
+                + status.workflowStatus()
+                + (status.webLink() != null ? ". See " + status.webLink() : ""));
       }
 
       Path outputPath = resolveOutputPath(filePath);
