@@ -163,6 +163,31 @@ To generate SBOMs (CycloneDX) in a build, enable the `generate-sbom` profile
 ./mvnw clean verify -Pgenerate-sbom
 ```
 
+### Project version
+
+The version is not written in the POMs: their `<version>0.0.0-SNAPSHOT</version>` is a
+placeholder. The [Maven Git Versioning Extension](https://github.com/qoomon/maven-git-versioning-extension),
+loaded from `.mvn/extensions.xml` and configured in `.mvn/maven-git-versioning-extension.xml`,
+derives it from git at build time:
+
+| HEAD | Version |
+| --- | --- |
+| tagged `vX.Y.Z` | `X.Y.Z` |
+| anything else | next patch after the closest `vX.Y.Z` tag, e.g. `0.8.5-SNAPSHOT` after `v0.8.4` |
+
+```shell
+./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version
+```
+
+Consequences for local work:
+
+- The build needs the git history and tags. In a shallow clone with no reachable release tag,
+  the build fails; run `git fetch --unshallow --tags`.
+- `-Dversioning.disable=true` turns the extension off and builds the `0.0.0-SNAPSHOT`
+  placeholder. IntelliJ IDEA users may want to add it to the Maven importer's VM options.
+- The extension writes a `.git-versioned-pom.xml` next to each `pom.xml` (git-ignored); it is
+  the POM that gets installed and deployed.
+
 ## Releasing (Maven Central via JReleaser)
 
 This project publishes to Maven Central via JReleaser.
@@ -170,6 +195,22 @@ This project publishes to Maven Central via JReleaser.
 - Workflow: `.github/workflows/release.yml`
 - Trigger: push a version tag (e.g., `v1.0.0`) or run manually via `workflow_dispatch`
 - Build profile: `release`
+
+### Cutting a Release
+
+```shell
+export GPG_KEY_ID=<artifact signing key>   # see Release Notes below
+./release.sh --dry-run 0.8.5               # checks only, changes nothing
+./release.sh 0.8.5
+```
+
+Because the version comes from the tag (see [Project version](#project-version)), the script
+makes a single signed commit that only touches `CHANGELOG.md` (the `[Unreleased]` section
+becomes `[v0.8.5]`, and a new empty `[Unreleased]` section is opened), tags it `v0.8.5`,
+checks that Maven now derives `0.8.5` from the tag, and pushes `main` and the tag. Every later
+commit builds as `0.8.6-SNAPSHOT` without any POM change. A minor or major release is the same
+command with that version (e.g. `./release.sh 0.9.0`); it only has to be greater than the
+latest release tag.
 
 ### Required GitHub Secrets
 
@@ -206,8 +247,12 @@ Preview before tagging, or re-render a past release:
 ```shell
 export GPG_KEY_ID=<artifact signing key>
 python3 .github/scripts/render-release-notes.py --unreleased
+python3 .github/scripts/render-release-notes.py --unreleased --version 0.9.0
 python3 .github/scripts/render-release-notes.py --tag v0.8.2
 ```
+
+Without `--version`, an unreleased preview uses the version Maven builds at HEAD without its
+`-SNAPSHOT` suffix, which is always the next patch version.
 
 To repair the notes of an already-published release, `--dry-run` diffs against the live body
 and `--publish` replaces it (both require `gh` authentication):
