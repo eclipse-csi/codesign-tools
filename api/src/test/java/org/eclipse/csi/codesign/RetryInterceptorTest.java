@@ -11,6 +11,7 @@
 package org.eclipse.csi.codesign;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -149,7 +150,7 @@ class RetryInterceptorTest {
     }
     // Should have retried a few times but not all 10
     int count = server.getRequestCount();
-    assert count >= 1 && count < 10 : "Expected limited retries, got " + count;
+    assertTrue(count >= 1 && count < 10, "Expected limited retries, got " + count);
   }
 
   @Test

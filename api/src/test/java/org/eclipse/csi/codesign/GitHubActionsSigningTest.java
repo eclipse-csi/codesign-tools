@@ -182,6 +182,10 @@ class GitHubActionsSigningTest {
         JsonParser.parseString("[{\"name\":\"version\",\"value\":\"1.2.3\"}]"),
         payload.get("parameters"));
 
+    try (var leftovers = Files.list(app.getParent())) {
+      assertEquals(List.of(app), leftovers.toList(), "work directory next to the output removed");
+    }
+
     assertTrue(logLines.contains("[SignPath connector] Information: Artifact verified"));
     assertTrue(logLines.contains("Signing request: https://app.example/req-1"));
     assertFalse(String.join("\n", logLines).contains("SECRET"), "upload URL must not be logged");
@@ -429,6 +433,23 @@ class GitHubActionsSigningTest {
         () ->
             workflow.signViaGitHubActions(
                 context(), "http://connector.example", "p", "s", null, null, Map.of(app, app)));
+  }
+
+  @Test
+  void trailingSlashesOfConnectorUrlAreIgnored() throws Exception {
+    Path app = write("app.jar", "app");
+    SigningWorkflow workflow = new SigningWorkflow(client, Duration.ofMillis(10), logLines::add);
+
+    workflow.signViaGitHubActions(
+        context(),
+        server.url(CONNECTOR_PATH).toString() + "//",
+        "proj",
+        "policy",
+        null,
+        null,
+        Map.of(app, app));
+
+    assertEquals("signed:app", Files.readString(app));
   }
 
   private SigningRequestStatus sign(Map<Path, Path> files, Map<String, String> parameters)

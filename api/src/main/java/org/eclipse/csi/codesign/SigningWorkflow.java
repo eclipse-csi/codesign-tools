@@ -188,7 +188,11 @@ public class SigningWorkflow {
     }
     boolean single = inputsByName.size() == 1;
 
-    Path workDir = Files.createTempDirectory("codesign-");
+    // Work next to the outputs rather than in the shared temporary directory: the downloaded
+    // signed files never sit in a publicly writable location, and stay on the output filesystem.
+    Path firstOutputDir = outputsByName.values().iterator().next().toAbsolutePath().getParent();
+    Files.createDirectories(firstOutputDir);
+    Path workDir = Files.createTempDirectory(firstOutputDir, ".codesign-");
     try {
       for (Map.Entry<String, Path> entry : inputsByName.entrySet()) {
         logger.accept(

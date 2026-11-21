@@ -196,11 +196,11 @@ public class CodesignClient implements AutoCloseable {
       Consumer<String> logger)
       throws CodesignException, IOException {
     requireHttps("connectorUrl", connectorUrl);
-    String url =
-        connectorUrl.replaceAll("/+$", "")
-            + "/"
-            + organizationId
-            + "/SigningRequests?api-version=1.0";
+    String base = connectorUrl;
+    while (base.endsWith("/")) {
+      base = base.substring(0, base.length() - 1);
+    }
+    String url = base + "/" + organizationId + "/SigningRequests?api-version=1.0";
 
     JsonObject payload = new JsonObject();
     payload.addProperty("artifactId", Long.toString(artifactId));
