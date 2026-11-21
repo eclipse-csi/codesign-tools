@@ -64,6 +64,10 @@
 
     <sigstore.skip>true</sigstore.skip>
 
+    <!-- SignPath signing policy of the codesign profile. The release workflow sets it to
+         release-signing on release tags. -->
+    <codesign.signingPolicy>test-signing</codesign.signingPolicy>
+
     <!-- Whether the release profile's Maven Central check rejects -SNAPSHOT versions. Since the
          version is derived from git tags, main always builds X.Y.Z-SNAPSHOT: dry runs of the
          release (release.yml mode=dry-run, the local dry run in CONTRIBUTING.md) pass
@@ -279,6 +283,14 @@
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>flatten-maven-plugin</artifactId>
           <version>1.9.0</version>
+        </plugin>
+        <plugin>
+          <!-- Signs this project's own jars (codesign profile). This must be a released version,
+               never ${project.version}: Maven cannot run a plugin built by the same reactor.
+               Dependabot bumps it after each release. -->
+          <groupId>org.eclipse.csi</groupId>
+          <artifactId>codesign-maven-plugin</artifactId>
+          <version>0.10.1</version>
         </plugin>
         <plugin>
           <groupId>org.cyclonedx</groupId>
@@ -694,6 +706,44 @@
                 <phase>clean</phase>
                 <goals>
                   <goal>clean</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <!--
+        Signs the jars with SignPath, through its GitHub connector: the Eclipse Foundation
+        signing policies require trusted build system verification. Only works in a GitHub
+        Actions job that sets CSI_CODESIGN_API_TOKEN, GITHUB_TOKEN, ACTIONS_RESULTS_URL and
+        ACTIONS_RUNTIME_TOKEN (see the expose-actions-runtime action), and has the actions: read
+        permission. The jars are signed in place at pre-integration-test: after jar and shade
+        (package), before the Sigstore signatures (verify), deploy checksums, provenance
+        attestations and OpenPGP signatures, so that all of these cover the signed jars.
+        Each execution sends one jar as is, hence the jar-file artifact configuration.
+      -->
+      <id>codesign</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.csi</groupId>
+            <artifactId>codesign-maven-plugin</artifactId>
+            <configuration>
+              <organizationId>46624a66-6595-48fd-85c3-64bdee7fecc9</organizationId>
+              <projectId>technology.csi</projectId>
+              <signingPolicy>${codesign.signingPolicy}</signingPolicy>
+              <artifactConfiguration>jar-file</artifactConfiguration>
+              <submissionMode>github-actions</submissionMode>
+            </configuration>
+            <executions>
+              <execution>
+                <!-- The project artifact (signProjectArtifact=auto): skips the pom parent. -->
+                <id>codesign</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>codesign</goal>
                 </goals>
               </execution>
             </executions>

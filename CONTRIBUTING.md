@@ -205,11 +205,13 @@ normally by `release.sh` (see [Cutting a Release](#cutting-a-release)). In order
 to:
 
 1. **Maven Central**: `codesign-api`, `codesign-maven-plugin` and `codesign-cli` (with the
-   `-bin` fat JAR), built with the `release` and `generate-sbom` profiles and deployed by
-   JReleaser. Every file has an OpenPGP signature (`.asc`) and a Sigstore bundle
+   `-bin` fat JAR), built with the `release`, `generate-sbom` and `codesign` profiles and
+   deployed by JReleaser. The JARs (not the sources and javadoc JARs) are signed with SignPath
+   (see [Code Signing in CI](#code-signing-in-ci)). Every file has an OpenPGP signature (`.asc`) and a Sigstore bundle
    (`.sigstore.json`, from `sigstore-maven-plugin`). The JARs, POMs and CycloneDX SBOMs also
    get a build provenance attestation.
-2. **GitHub Releases**: the native CLI archives for each platform and the CLI fat JAR, each
+2. **GitHub Releases**: the native CLI archives for each platform and the CLI fat JAR (signed
+   with SignPath, like the Windows binary in its archive), each
    with an OpenPGP signature, a Sigstore bundle (from `cosign`) and a build provenance
    attestation, plus a signed `checksums_sha256.txt`. The release body is rendered from
    `CHANGELOG.md` (see [Release Notes](#release-notes)).
@@ -258,9 +260,12 @@ later run for that commit finds it there, even if the job was killed. Then:
   [Central Portal deployments](https://central.sonatype.com/publishing/deployments).
 
 Only the jars and POMs are compared, because the build is reproducible: building the same
-commit again produces them byte for byte. Signatures, Sigstore bundles and SBOMs differ on
-every build, so a rebuilt staging repository still matches a deployment made from an earlier
-build.
+commit again produces the same POMs, and jars with the same entries. The jars themselves are not
+byte for byte the same, because each build signs them again with SignPath, and a signature
+carries the signing time. They are therefore compared entry by entry, without their signature
+files (`META-INF/*.SF`, `*.RSA`, `*.DSA`, `*.EC`, `SIG-*`). Detached signatures, Sigstore
+bundles and SBOMs differ on every build, so a rebuilt staging repository still matches a
+deployment made from an earlier build.
 
 The script gives up after 60 minutes, before the job's own timeout, and says where the
 deployment stands.
@@ -314,21 +319,31 @@ Configure these repository/environment secrets before running the release workfl
 The project signs its own artifacts with SignPath (project `technology.csi`, configured in
 [sealform-configuration](https://github.com/EclipseFdn/sealform-configuration/blob/main/ef-projects/projects/technology.csi.yaml)).
 Both of its signing policies require trusted build system verification. The tools therefore
-submit through the SignPath GitHub connector (`--submission-mode github-actions`); a direct
-REST upload would be rejected. Each file is uploaded on its own (not zipped), with the `jar-file`
-and `pe-file` artifact configurations of the project.
+submit through the SignPath GitHub connector (`--submission-mode github-actions` for the CLI,
+`<submissionMode>github-actions</submissionMode>` for the plugin); a direct REST upload would
+be rejected. Each file is uploaded on its own (not zipped), with the `jar-file` and `pe-file`
+artifact configurations of the project.
 
 | Workflow | Event | Signed | Policy |
 | --- | --- | --- | --- |
 | `ci-native.yml` | push to `main`, dispatch | `csi-codesign.exe` (signed by itself, artifact configuration `pe-file`) | `test-signing` |
-| `ci.yml` | push to `main`, dispatch | the jars, one request each, as a smoke test (signed by the fat JAR just built, artifact configuration `jar-file`; not published) | `test-signing` |
-| `release.yml` | release tag | `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
+| `ci.yml` | push to `main`, dispatch | the jars, by the Maven build (`codesign` profile, artifact configuration `jar-file`; not published) | `test-signing` |
+| `release.yml` | release tag | the jars deployed to Maven Central, the CLI fat JAR and `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
+| `release.yml` | dry run dispatched from a branch | the jars (not published) | `test-signing` |
 | any | pull request | nothing (forks and Dependabot cannot read the secret) | — |
 
-The jars published to Maven Central are not signed yet. To sign them before checksums, GPG
-and Sigstore signatures are computed, they have to be signed inside the Maven build, by
-`codesign-maven-plugin`. Maven cannot use a plugin built by the same reactor, so the build
-needs a released version with `github-actions` support.
+The jars are signed inside the Maven build by the `codesign` profile of the root `pom.xml`, in
+place, at `pre-integration-test`: after they are packaged (and the CLI fat JAR shaded), before
+the Sigstore signatures, checksums, build provenance attestations and OpenPGP signatures are
+made, so that these cover the signed jars. The workflows run it as a separate Maven invocation,
+after the tests, so that the SignPath token and the job's artifact credentials never reach the
+test JVMs. `.github/scripts/check-jars-signed.sh` then checks that every jar is signed.
+
+Maven cannot run a plugin built by the same reactor, so the profile uses the **last released**
+`codesign-maven-plugin` (its version is in `<pluginManagement>`), never `${project.version}`.
+Dependabot bumps it after each release. The profile only works in a GitHub Actions job: it needs
+the environment variables the `expose-actions-runtime` action provides, `GITHUB_TOKEN`, the
+SignPath token as `CSI_CODESIGN_API_TOKEN`, and the `actions: read` permission.
 
 ### Release Notes
 

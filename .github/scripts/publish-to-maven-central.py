@@ -37,7 +37,11 @@ many times it runs, whether as a re-run attempt or as a new run for the same tag
    deployment that was never recorded), the published files are compared as in 1.
 
 Only jars and POMs are compared. They are reproducible: a rebuild of the same commit produces
-the same bytes. Signatures, Sigstore bundles and SBOMs are not, so they are expected to differ
+the same POMs, and jars with the same entries. The jars are signed with SignPath (jarsigner)
+during the build, and a signature differs on every build (it carries the signing time and a
+timestamp), so jars are compared by the content of their entries, leaving out the JAR signature
+files (META-INF/*.SF, *.RSA, *.DSA, *.EC, SIG-*); see payload_digest. Detached signatures,
+Sigstore bundles and SBOMs are not reproducible either, so they are expected to differ
 between builds of the same commit.
 
 The Central Portal Publisher API is documented at
@@ -48,6 +52,7 @@ is the one JReleaser itself uses to refuse an upload of already-published compon
 import argparse
 import base64
 import hashlib
+import io
 import json
 import os
 import re
@@ -57,8 +62,9 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 DEFAULT_API_URL = "https://central.sonatype.com/api/v1/publisher"
 DEFAULT_REPOSITORY_URL = "https://repo1.maven.org/maven2"
@@ -71,6 +77,13 @@ DEPLOYMENT_ID_RE = re.compile(r"uploaded as deployment (?P<id>[0-9A-Za-z-]+)")
 # The environment variable JReleaser reads the deployer stage from, for the deployer named
 # "sonatype" in pom.xml. UPLOAD uploads the bundle and waits for validation, without publishing.
 STAGE_ENV = "JRELEASER_DEPLOY_MAVEN_MAVENCENTRAL_SONATYPE_STAGE"
+
+# The entries of a signed jar that hold its signature (JAR File Specification, "Signed JAR
+# File"): signature files and signature block files, directly under META-INF/. They differ on
+# every build, so payload_digest leaves them out.
+JAR_SIGNATURE_FILE_RE = re.compile(
+    r"META-INF/(?:[^/]+\.(?:SF|RSA|DSA|EC)|SIG-[^/]+)", re.IGNORECASE
+)
 
 # The files whose content identifies a release. Everything else in a staging repository
 # (signatures, checksums, Sigstore bundles, SBOMs) legitimately differs between builds.
@@ -172,7 +185,10 @@ class Staging:
                     components.add(
                         Component(".".join(parts[:-3]), parts[-3], parts[-2])
                     )
-                self.payload["/".join(parts)] = (file, sha256_file(file))
+                self.payload["/".join(parts)] = (
+                    file,
+                    payload_digest(file.name, file.read_bytes()),
+                )
         if not components:
             raise PublishError(
                 "No POM found in the staging directories: nothing to publish"
@@ -184,12 +200,26 @@ class Staging:
         self.digest = hashlib.sha256(manifest.encode()).hexdigest()
 
 
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as f:
-        while chunk := f.read(1 << 16):
-            digest.update(chunk)
-    return digest.hexdigest()
+def payload_digest(name: str, data: bytes) -> str:
+    """SHA-256 digest that identifies a jar or POM across builds of the same commit.
+
+    A POM is digested as is. A jar is digested by its entries: the SHA-256 of each entry's
+    content, by entry name, leaving out the JAR signature files. Two builds of the same commit
+    then agree although each was signed separately, while any change to a class, a resource or
+    the manifest (which lists the digest of every signed entry) still changes the digest."""
+    if PurePosixPath(name).suffix != ".jar":
+        return hashlib.sha256(data).hexdigest()
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as jar:
+            lines = sorted(
+                f"{info.filename} {hashlib.sha256(jar.read(info)).hexdigest()}\n"
+                for info in jar.infolist()
+                if not info.is_dir()
+                and not JAR_SIGNATURE_FILE_RE.fullmatch(info.filename)
+            )
+    except zipfile.BadZipFile as e:
+        raise PublishError(f"{name} is not a valid jar: {e}") from e
+    return hashlib.sha256("".join(lines).encode()).hexdigest()
 
 
 class Central:
@@ -382,7 +412,8 @@ def published_components(ctx: Context) -> list[Component]:
 
 
 def verify_published(ctx: Context) -> None:
-    """Check that the Maven Central repository serves the staged jars and POMs, byte for byte.
+    """Check that the Maven Central repository serves the staged jars and POMs (jars compared
+    without their signatures, see payload_digest).
     Files not there yet (the repository can lag behind a publication) are waited for."""
     pending = dict(ctx.staging.payload)
     mismatches = []
@@ -396,7 +427,7 @@ def verify_published(ctx: Context) -> None:
             if status != 200:
                 raise PublishError(f"Could not download {path}: HTTP {status}")
             del pending[path]
-            if hashlib.sha256(content).hexdigest() != expected:
+            if payload_digest(path, content) != expected:
                 mismatches.append(path)
         if not pending:
             break
@@ -414,7 +445,8 @@ def verify_published(ctx: Context) -> None:
             f"Different: {', '.join(sorted(mismatches))}"
         )
     log(
-        f"Maven Central serves the {len(ctx.staging.payload)} staged jars and POMs, byte for byte"
+        f"Maven Central serves the {len(ctx.staging.payload)} staged jars and POMs"
+        " (jars compared without their signatures)"
     )
 
 

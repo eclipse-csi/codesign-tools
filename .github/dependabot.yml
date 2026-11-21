@@ -23,6 +23,7 @@ updates:
           - "org.graalvm.buildtools:*"
           - "dev.sigstore:*"
           - "org.asciidoctor:*"
+          - "org.eclipse.csi:*"
       dependencies:
         patterns:
           - "*"

@@ -110,6 +110,8 @@
                     <exclude>META-INF/*.SF</exclude>
                     <exclude>META-INF/*.DSA</exclude>
                     <exclude>META-INF/*.RSA</exclude>
+                    <!-- The codesign profile signs codesign-api before it is shaded in. -->
+                    <exclude>META-INF/*.EC</exclude>
                   </excludes>
                 </filter>
               </filters>
@@ -263,6 +265,36 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <!-- Also signs the fat jar, as a second signing request: the inherited execution signs
+           the thin jar. -->
+      <id>codesign</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.csi</groupId>
+            <artifactId>codesign-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>codesign-fat-jar</id>
+                <phase>pre-integration-test</phase>
+                <goals>
+                  <goal>codesign</goal>
+                </goals>
+                <configuration>
+                  <signProjectArtifact>false</signProjectArtifact>
+                  <includes>
+                    <include>codesign-cli-*-bin.jar</include>
+                  </includes>
+                  <failOnNoFilesFound>true</failOnNoFilesFound>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

@@ -35,6 +35,8 @@ jobs:
     permissions:
       id-token: write # needed for OIDC-based Sigstore keyless signing and SLSA attestation
       attestations: write # needed to create SLSA build provenance attestations
+      actions: read # SignPath downloads the jars to sign, workflow artifacts, with GITHUB_TOKEN
+      contents: read
 
     steps:
       - name: Harden Runner
@@ -71,13 +73,44 @@ jobs:
           echo "::error::Publish mode requires a tag ref (refs/tags/v*). Dispatch this workflow from the release tag."
           exit 1
 
+      # The tests run in their own Maven invocation, without the signing credentials, so that
+      # the SignPath token and the job's artifact credentials never reach the test JVMs.
+      - name: Run tests
+        run: ./mvnw -B -ntp -P integration-tests clean verify
+
+      - name: Expose Actions runtime for signing
+        id: actions-runtime
+        uses: $/.github/actions/expose-actions-runtime
+
+      # The jars are signed with SignPath by the build itself (codesign profile in pom.xml, with
+      # the released codesign-maven-plugin), before the Sigstore signatures, checksums and
+      # attestations are made. The build is reproducible, so these are the jars just tested.
+      # Only a release tag is signed with release-signing: a dry run dispatched from a branch
+      # uses test-signing.
+      #
       # The version is derived from git tags, so a dry run dispatched from a branch builds
       # X.Y.Z-SNAPSHOT, which the release profile's Maven Central check rejects. Relax only that
       # check, and only off a release tag: a tag push or a dispatch from a tag keeps it strict.
-      - name: Build release artifacts
+      - name: Build, sign and stage release artifacts
         env:
           ON_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
-        run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Dpomchecker.release="${ON_RELEASE_TAG}" -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean deploy
+          SIGNING_POLICY: ${{ startsWith(github.ref, 'refs/tags/v') && 'release-signing' || 'test-signing' }}
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          ACTIONS_RESULTS_URL: ${{ steps.actions-runtime.outputs.actions-results-url }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.actions-runtime.outputs.actions-runtime-token }}
+        run: ./mvnw -B -ntp -P generate-sbom,release,codesign -DskipTests -Dcodesign.signingPolicy="${SIGNING_POLICY}" -Dsigstore.skip=false -Dpomchecker.release="${ON_RELEASE_TAG}" -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json deploy
+
+      # Sources and javadoc jars hold no code to run, and are not signed.
+      - name: Check the jar signatures
+        run: |
+          mapfile -t jars < <(find api/target/staging-deploy maven-plugin/target/staging-deploy cli/target/staging-deploy \
+            -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | sort)
+          if [[ ${#jars[@]} -ne 4 ]]; then
+            echo "::error::Expected 4 jars to check in the staging repositories, found ${#jars[@]}: ${jars[*]}"
+            exit 1
+          fi
+          .github/scripts/check-jars-signed.sh "${jars[@]}"
 
       - name: Scan SBOM for vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
