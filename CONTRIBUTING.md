@@ -60,7 +60,7 @@ Install the following tools **before** running any build or quality check:
 | **poutine** | any | `poutine` git hook — workflow security analysis |
 
 `cdxgen` and `cyclonedx-cli` are additionally needed for the `generate-sbom`
-profile; see [Additional Development Tools](#additional-development-tools) below.
+profile, and `trivy` to cut a release; see [Additional Development Tools](#additional-development-tools) below.
 
 This project uses [prek](https://prek.j178.dev/) to run quality checks
 automatically as Git hooks. prek is written in Rust and does not require
@@ -117,6 +117,7 @@ system:
 | **poutine** | Workflow security analysis (run by the commit-time hook) | `brew install boostsecurityio/tap/poutine` |
 | **cdxgen** | GitHub Actions SBOM generation (used in `generate-sbom` profile) | Requires Node.js; `npm install -g @cyclonedx/cdxgen` |
 | **cyclonedx-cli** | SBOM merging (used in `generate-sbom` profile) | `brew install cyclonedx-cli` |
+| **trivy** | SBOM vulnerability scan run by `release.sh` (only needed to cut a release) | `brew install trivy` |
 | **GraalVM** | Native CLI binary builds (optional) | [graalvm.org](https://www.graalvm.org/) |
 
 ### Running the Python scripts manually
@@ -197,21 +198,57 @@ submission checks out a shallow clone that cannot be configured, so it must stay
 for this repository (Settings > Advanced Security > Dependency graph);
 `.github/workflows/dependency-submission.yml` submits the Maven dependency graph instead.
 
-## Releasing (Maven Central via JReleaser)
+## Releasing
 
-This project publishes to Maven Central via JReleaser.
+Releases are published by `.github/workflows/release.yml` when a `vX.Y.Z` tag is pushed,
+normally by `release.sh` (see [Cutting a Release](#cutting-a-release)). In order, it publishes
+to:
 
-- Workflow: `.github/workflows/release.yml`
-- Trigger: push a version tag (e.g., `v1.0.0`) or run manually via `workflow_dispatch`
-- Build profile: `release`
+1. **Maven Central**: `codesign-api`, `codesign-maven-plugin` and `codesign-cli` (with the
+   `-bin` fat JAR), built with the `release` and `generate-sbom` profiles and deployed by
+   JReleaser. Every file has an OpenPGP signature (`.asc`) and a Sigstore bundle
+   (`.sigstore.json`, from `sigstore-maven-plugin`). The JARs, POMs and CycloneDX SBOMs also
+   get a build provenance attestation.
+2. **GitHub Releases**: the native CLI archives for each platform and the CLI fat JAR, each
+   with an OpenPGP signature, a Sigstore bundle (from `cosign`) and a build provenance
+   attestation, plus a signed `checksums_sha256.txt`. The release body is rendered from
+   `CHANGELOG.md` (see [Release Notes](#release-notes)).
+3. **The documentation site**, last, so that a release that failed never reaches it.
+
+Build provenance attestations are stored by GitHub and checked with `gh attestation verify`;
+they are not uploaded as files. Each release's notes show how to verify all of the above.
+
+The workflow can also be run manually (`workflow_dispatch`). `mode=publish` must be dispatched
+from a release tag. `mode=dry-run` works from any branch: it runs only the Maven Central job
+(build with integration tests, SBOM vulnerability scan, JReleaser deploy in dry-run mode), with
+the Maven Central check relaxed to accept the `-SNAPSHOT` version a branch builds. It does not
+build the native binaries or exercise the GitHub release; the [Local Dry Run](#local-dry-run)
+covers JReleaser's part of that.
 
 ### Cutting a Release
 
 ```shell
 export GPG_KEY_ID=<artifact signing key>   # see Release Notes below
-./release.sh --dry-run 0.8.5               # checks only, changes nothing
+./release.sh --dry-run 0.8.5               # every check, then prints what it would do
 ./release.sh 0.8.5
 ```
+
+Before it changes anything, `release.sh` checks that:
+
+- you are on `main`, with no uncommitted changes to tracked files, and not behind or diverged
+  from `origin/main`;
+- git can sign the commit and the tag: `user.signingkey` is set and usable with the configured
+  `gpg.format` (OpenPGP or SSH);
+- the version is `X.Y.Z`, greater than the latest release tag, and not already in
+  `CHANGELOG.md`;
+- the `[Unreleased]` section of `CHANGELOG.md` exists, has content, and renders as release
+  notes (which needs `GPG_KEY_ID`);
+- the aggregate SBOM has no fixable HIGH or CRITICAL vulnerability. Like the workflow, the
+  script builds it with the `generate-sbom` profile and scans it with Trivy, so `trivy`,
+  `cdxgen` and `cyclonedx` must be installed (see
+  [Additional Development Tools](#additional-development-tools)).
+
+It then asks for confirmation.
 
 Because the version comes from the tag (see [Project version](#project-version)), the script
 makes a single signed commit that only touches `CHANGELOG.md` (the `[Unreleased]` section
@@ -230,9 +267,6 @@ Configure these repository/environment secrets before running the release workfl
 - `GPG_PRIVATE_KEY` (ASCII-armored)
 - `GPG_KEY_ID`
 - `GPG_PASSPHRASE`
-
-Use the `mode=dry-run` option on the manual trigger to validate release configuration
-without publishing.
 
 ### Release Notes
 
@@ -284,14 +318,26 @@ python3 .github/scripts/render-release-notes.py --tag v0.8.1 --previous v0.7.3 -
 ### Local Dry Run
 
 ```shell
-# Step 1: build + deploy to local staging directories
-./mvnw -B -ntp -Prelease -Dsigstore.skip=true -DskipTests clean deploy
+# Step 1: build + deploy to local staging directories. main builds X.Y.Z-SNAPSHOT, which the
+# release profile's Maven Central check rejects unless told this is not a release.
+./mvnw -B -ntp -Prelease -Dpomchecker.release=false -DskipTests clean deploy
 
-# Step 2: render the release notes. This must come after step 1, which deletes target/.
+# Step 2: stand in for the release assets only CI produces (the native archives, the fat JAR
+# and their Sigstore bundles). jreleaser:full-release fails on any missing asset, and on an
+# empty one, which it cannot checksum.
+VERSION=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version | tail -n 1)
+rm -rf out && mkdir -p out/archives out/cli-fatjar
+cp cli/target/codesign-cli-*-bin.jar "out/cli-fatjar/codesign-cli-${VERSION}-bin.jar"
+for platform in linux-x86_64.tar.gz linux-aarch_64.tar.gz osx-aarch_64.tar.gz windows-x86_64.zip; do
+  echo placeholder > "out/archives/csi-codesign-${VERSION}-${platform}"
+done
+for asset in out/archives/* out/cli-fatjar/*; do echo '{}' > "${asset}.sigstore.json"; done
+
+# Step 3: render the release notes. This must come after step 1, which deletes target/.
 # jreleaser:full-release fails if target/release-notes.md is missing.
 python3 .github/scripts/render-release-notes.py --unreleased --output target/release-notes.md
 
-# Step 3: JReleaser dry run (mocked credentials are OK for SNAPSHOT)
+# Step 4: JReleaser dry run (mocked credentials are OK for SNAPSHOT)
 JRELEASER_GITHUB_TOKEN=dry_run_token \
   JRELEASER_MAVENCENTRAL_USERNAME=dry_run_user \
   JRELEASER_MAVENCENTRAL_PASSWORD=dry_run_pass \
@@ -299,13 +345,18 @@ JRELEASER_GITHUB_TOKEN=dry_run_token \
   JRELEASER_NEXUS2_PASSWORD=dry_run_pass \
   ./mvnw -B -ntp -DskipTests jreleaser:full-release -Djreleaser.dry.run=true
 
-# Step 4: confirm JReleaser published the rendered file verbatim
+# Step 5: confirm JReleaser published the rendered file verbatim
 diff target/release-notes.md target/jreleaser/release/CHANGELOG.md
+
+# Step 6: remove the placeholders
+rm -rf out
 ```
 
 A SNAPSHOT dry run cannot exercise everything: JReleaser forces `overwrite = true` and
 disables `release.github.issues` for snapshots, so neither the `BODY` update path nor issue
-labelling is covered by it.
+labelling is covered by it. Signing and cataloging (attestations) only run for releases. With
+placeholders, it also checks that every asset is wired into the release, not that the real
+ones are built or signed correctly.
 
 ## Contact
 

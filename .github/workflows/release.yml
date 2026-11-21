@@ -72,8 +72,13 @@ jobs:
           echo "::error::Publish mode requires a tag ref (refs/tags/v*). Dispatch this workflow from the release tag."
           exit 1
 
+      # The version is derived from git tags, so a dry run dispatched from a branch builds
+      # X.Y.Z-SNAPSHOT, which the release profile's Maven Central check rejects. Relax only that
+      # check, and only off a release tag: a tag push or a dispatch from a tag keeps it strict.
       - name: Build release artifacts
-        run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean deploy
+        env:
+          ON_RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: ./mvnw -B -ntp -P integration-tests,generate-sbom,release -Dsigstore.skip=false -Dpomchecker.release="${ON_RELEASE_TAG}" -Daether.checksums.omitChecksumsForExtensions=.asc,.sigstore.json clean deploy
 
       - name: Scan SBOM for vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

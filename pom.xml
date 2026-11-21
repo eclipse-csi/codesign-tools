@@ -64,6 +64,12 @@
 
     <sigstore.skip>true</sigstore.skip>
 
+    <!-- Whether the release profile's Maven Central check rejects -SNAPSHOT versions. Since the
+         version is derived from git tags, main always builds X.Y.Z-SNAPSHOT: dry runs of the
+         release (release.yml mode=dry-run, the local dry run in CONTRIBUTING.md) pass
+         -Dpomchecker.release=false to keep every other POM check. Real releases keep it true. -->
+    <pomchecker.release>true</pomchecker.release>
+
     <maven.version>3.10.1</maven.version>
     <okhttp.version>5.5.1</okhttp.version>
     <picocli.version>4.7.7</picocli.version>
@@ -650,7 +656,9 @@
                 </goals>
                 <configuration>
                   <rules>
-                    <checkMavenCentral implementation="org.kordamp.maven.enforcer.checker.CheckMavenCentral"/>
+                    <checkMavenCentral implementation="org.kordamp.maven.enforcer.checker.CheckMavenCentral">
+                      <release>${pomchecker.release}</release>
+                    </checkMavenCentral>
                   </rules>
                 </configuration>
               </execution>
