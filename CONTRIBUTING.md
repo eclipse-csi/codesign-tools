@@ -192,6 +192,11 @@ Consequences for local work:
   `0.8.5-dev18+g1a2b3c4`, 18 commits after `v0.8.4`), so a `-SNAPSHOT` binary can be traced
   back to its commit.
 
+In CI, every checkout that runs Maven uses `fetch-depth: 0`. GitHub's automatic dependency
+submission checks out a shallow clone that cannot be configured, so it must stay disabled
+for this repository (Settings > Advanced Security > Dependency graph);
+`.github/workflows/dependency-submission.yml` submits the Maven dependency graph instead.
+
 ## Releasing (Maven Central via JReleaser)
 
 This project publishes to Maven Central via JReleaser.
