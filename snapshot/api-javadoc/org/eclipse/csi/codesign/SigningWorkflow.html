@@ -91,15 +91,26 @@ loadScripts(document, 'script');</script>
 <hr>
 <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">SigningWorkflow</span>
 <span class="extends-implements">extends <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Object.html" title="class or interface in java.lang" class="external-link">Object</a></span></div>
-<div class="block">Orchestrates the full signing workflow: submit an artifact → poll until a final status is
- reached.
+<div class="block">Orchestrates the full signing workflow: submit → poll until a final status is reached → write the
+ signed files.
 
- <p>After a successful call to <a href="#submitAndWait(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)"><code>submitAndWait(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.nio.file.Path)</code></a>, callers should download the signed artifact
- via <a href="CodesignClient.html#downloadSignedArtifact(org.eclipse.csi.codesign.SigningRequestStatus,java.nio.file.Path)"><code>CodesignClient.downloadSignedArtifact(SigningRequestStatus, Path)</code></a>.
+ <p><a href="#sign(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)"><code>sign(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.util.Map&lt;java.nio.file.Path, java.nio.file.Path&gt;)</code></a> submits to the SignPath REST API and <a href="#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)"><code>signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.util.Map&lt;java.nio.file.Path, java.nio.file.Path&gt;)</code></a> through the
+ SignPath GitHub connector, which signing policies with trusted build system verification require.
+ Both send the files of one call in a single signing request, shaped the same way:
 
- <p><a href="#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)"><code>signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext, java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.util.Map&lt;java.nio.file.Path, java.nio.file.Path&gt;)</code></a> instead submits through the SignPath GitHub connector, which
- signing policies with trusted build system verification require, and writes the signed files
- itself.</div>
+ <ul>
+   <li><b>One file</b> is sent as is, so the artifact configuration describes the file itself
+       (e.g. a <code>&lt;jar-file&gt;</code> or <code>&lt;pe-file&gt;</code> root element).
+   <li><b>Several files</b> are packed at the root of a zip file. The artifact configuration must
+       then have a <code>&lt;zip-file&gt;</code> root element whose rules match files at the zip root (e.g.
+       <code>&lt;jar-file path="*.jar"&gt;</code>), and the files must have distinct names.
+ </ul>
+
+ <p>Both write each signed file to its output path, and nothing is written unless the request
+ completes and the signed artifact holds every file.
+
+ <p><a href="#submitAndWait(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)"><code>submitAndWait(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.nio.file.Path)</code></a> is the lower-level building block: it submits one file to the REST API
+ and polls, and callers download the signed artifact via <a href="CodesignClient.html#downloadSignedArtifact(org.eclipse.csi.codesign.SigningRequestStatus,java.nio.file.Path)"><code>CodesignClient.downloadSignedArtifact(SigningRequestStatus, Path)</code></a>.</div>
 </section>
 <section class="summary">
 <ul class="summary-list">
@@ -139,25 +150,36 @@ loadScripts(document, 'script');</script>
 <div class="table-header col-second">Method</div>
 <div class="table-header col-last">Description</div>
 <div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
-<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)" class="member-name-link">signViaGitHubActions</a><wbr>(<a href="GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a>&nbsp;context,
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#sign(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)" class="member-name-link">sign</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signingPolicy,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;artifactConfiguration,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;parameters,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputToOutput)</code></div>
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="block">Signs files through the SignPath REST API in a single signing request and writes the signed
+ files.</div>
+</div>
+<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
+<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)" class="member-name-link">signViaGitHubActions</a><wbr>(<a href="GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a>&nbsp;context,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;connectorUrl,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signingPolicy,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;artifactConfiguration,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;parameters,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputToOutput)</code></div>
-<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Signs files through the SignPath GitHub connector, as required by signing policies with trusted
  build system verification, and writes the signed files.</div>
 </div>
-<div class="col-first odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
-<div class="col-second odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitAndWait(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)" class="member-name-link">submitAndWait</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
+<div class="col-first even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
+<div class="col-second even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4"><code><a href="#submitAndWait(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)" class="member-name-link">submitAndWait</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signingPolicy,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;artifactConfiguration,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;parameters,
  <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&nbsp;artifactPath)</code></div>
-<div class="col-last odd-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
+<div class="col-last even-row-color method-summary-table method-summary-table-tab2 method-summary-table-tab4">
 <div class="block">Submits an artifact for signing and polls until a final status is reached.</div>
 </div>
 </div>
@@ -248,6 +270,44 @@ loadScripts(document, 'script');</script>
 </section>
 </li>
 <li>
+<section class="detail" id="sign(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)">
+<h3>sign</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></span>&nbsp;<span class="element-name">sign</span><wbr><span class="parameters">(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signingPolicy,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;artifactConfiguration,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;description,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;parameters,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputToOutput)</span>
+                          throws <span class="exceptions"><a href="CodesignException.html" title="class in org.eclipse.csi.codesign">CodesignException</a>,
+<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></span></div>
+<div class="block">Signs files through the SignPath REST API in a single signing request and writes the signed
+ files.
+
+ <p>One file is uploaded as is; several files are packed at the root of a zip file (see the
+ <a href="SigningWorkflow.html" title="class in org.eclipse.csi.codesign">class description</a>). Once the request completes, the signed
+ artifact is downloaded and each file is written to its output path, replacing any existing
+ file. Nothing is written unless the request completes and the signed artifact holds every file.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>projectId</code> - SignPath project slug</dd>
+<dd><code>signingPolicy</code> - SignPath signing policy slug</dd>
+<dd><code>artifactConfiguration</code> - optional artifact configuration slug; may be <code>null</code> to use
+     the project default</dd>
+<dd><code>description</code> - optional signing request description; may be <code>null</code></dd>
+<dd><code>parameters</code> - optional user-defined parameters; may be <code>null</code></dd>
+<dd><code>inputToOutput</code> - the files to sign, each mapped to where its signed version is written
+     (which may be the input itself); iteration order is kept in the zip</dd>
+<dt>Returns:</dt>
+<dd>the final (terminal) signing request status; the signed files were written only when it
+     <a href="SigningRequestStatus.html#isCompleted()">is completed</a></dd>
+<dt>Throws:</dt>
+<dd><code><a href="CodesignException.html" title="class in org.eclipse.csi.codesign">CodesignException</a></code> - if a file name occurs twice, if the API fails, if the completion
+     timeout elapses, or if the signed artifact lacks a file</dd>
+<dd><code><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/io/IOException.html" title="class or interface in java.io" class="external-link">IOException</a></code> - on transport, I/O or thread-interruption errors</dd>
+</dl>
+</section>
+</li>
+<li>
 <section class="detail" id="signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)">
 <h3>signViaGitHubActions</h3>
 <div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="return-type"><a href="SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></span>&nbsp;<span class="element-name">signViaGitHubActions</span><wbr><span class="parameters">(<a href="GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a>&nbsp;context,
@@ -263,19 +323,12 @@ loadScripts(document, 'script');</script>
  build system verification, and writes the signed files.
 
  <p>The files are stored as an artifact of the running GitHub Actions job (kept for one day),
- which is submitted to the connector in a single signing request:
-
- <ul>
-   <li><b>One file</b> is uploaded as is, like <code>actions/upload-artifact</code> with <code>
-       archive: false</code>: SignPath receives the file itself, exactly as with <a href="#submitAndWait(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)"><code>submitAndWait(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.nio.file.Path)</code></a>, so the same artifact configuration applies (e.g. a <code>&lt;jar-file&gt;</code> or
-       <code>&lt;pe-file&gt;</code> root element). As GitHub requires for such artifacts, the artifact is
-       named after the file, so a workflow run cannot upload two files of the same name this
-       way, not even from different jobs.
-   <li><b>Several files</b> are packed at the root of a zip file, like <code>
-       actions/upload-artifact</code> by default. The artifact configuration must then have a <code>
-       &lt;zip-file&gt;</code> root element whose rules match files at the zip root (e.g. <code>&lt;jar-file
-       path="*.jar"&gt;</code>), and the files must have distinct names.
- </ul>
+ which is submitted to the connector in a single signing request. One file is uploaded as is,
+ like <code>actions/upload-artifact</code> with <code>archive: false</code>; as GitHub requires for such
+ artifacts, the artifact is named after the file, so a workflow run cannot upload two files of
+ the same name this way, not even from different jobs. Several files are packed at the root of a
+ zip file, like <code>actions/upload-artifact</code> does by default. The request is shaped as with
+ <a href="#sign(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)"><code>sign(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.util.Map&lt;java.lang.String, java.lang.String&gt;, java.util.Map&lt;java.nio.file.Path, java.nio.file.Path&gt;)</code></a>, so the same artifact configuration applies (see the <a href="SigningWorkflow.html" title="class in org.eclipse.csi.codesign">class description</a>).
 
  <p>Once the request completes, the signed artifact is downloaded and each file is written to
  its output path, replacing any existing file. Nothing is written unless the request completes

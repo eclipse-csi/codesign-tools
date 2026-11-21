@@ -520,7 +520,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </dd>
 <dt class="hdlist1"><strong>--submission-mode</strong>=<em>&lt;mode&gt;</em></dt>
 <dd>
-<p>How signing requests are submitted: 'direct' uploads each file to the SignPath REST API; 'github-actions' submits the files in one request through the SignPath GitHub connector, as required by signing policies with trusted build system verification: a single file as is, several files at the root of a zip file (default: direct).</p>
+<p>How the signing request is submitted: 'direct' uploads it to the SignPath REST API; 'github-actions' submits it through the SignPath GitHub connector, as required by signing policies with trusted build system verification. Either way, the files are signed in one request: a single file as is, several files at the root of a zip file (default: direct).</p>
 </dd>
 <dt class="hdlist1"><strong>--github-connector-url</strong>=<em>&lt;url&gt;</em></dt>
 <dd>
@@ -559,7 +559,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="footer">
 <div id="footer-text">
 Version <br>
-Last updated 2026-11-21 23:01:36 UTC
+Last updated 2026-11-21 23:18:41 UTC
 </div>
 </div>
 </body>
