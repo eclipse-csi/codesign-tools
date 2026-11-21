@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.9.0] - 2026-11-21
+
 ### Changed
 
 * The project version is now derived from git tags by the [Maven Git Versioning Extension](https://github.com/qoomon/maven-git-versioning-extension), the way `setuptools-scm` does it for Python: a commit tagged `vX.Y.Z` builds as `X.Y.Z`, any other commit as the next patch version with `-SNAPSHOT`. The `<version>` in the POMs is now a `0.0.0-SNAPSHOT` placeholder, `release.sh` takes only the release version and no longer commits POM changes, and building from source needs the git history and tags (a shallow clone fails the build).
