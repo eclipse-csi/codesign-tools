@@ -10,6 +10,12 @@
 
   Releasing is therefore just tagging: release.sh no longer edits the POMs.
 
+  codesign.build.version, printed by the CLI version option (-V), keeps -SNAPSHOT builds
+  traceable: it is the release version on a tag, and X.Y.Z-dev<distance>+g<short commit>
+  elsewhere, the shape setuptools-scm gives Python development builds. It is not a Maven
+  version: the artifacts stay X.Y.Z-SNAPSHOT so repositories and tools keep treating them as
+  snapshots.
+
   The closest tag is found by walking the first-parent history, so the build needs the full
   history and the tags. A shallow clone with no reachable vX.Y.Z tag fails the build instead of
   producing a wrong version: CI checkouts use fetch-depth: 0.
@@ -33,6 +39,7 @@
       <version>${ref.version}</version>
       <properties>
         <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+        <codesign.build.version>${ref.version}</codesign.build.version>
       </properties>
     </ref>
     <ref type="branch">
@@ -40,6 +47,7 @@
       <version>${describe.tag.version.next}${describe.distance.snapshot}</version>
       <properties>
         <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+        <codesign.build.version>${describe.tag.version.next}-dev${describe.distance}+g${commit.short}</codesign.build.version>
       </properties>
     </ref>
   </refs>
@@ -50,6 +58,7 @@
     <version>${describe.tag.version.next}${describe.distance.snapshot}</version>
     <properties>
       <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+      <codesign.build.version>${describe.tag.version.next}-dev${describe.distance}+g${commit.short}</codesign.build.version>
     </properties>
   </rev>
 </configuration>

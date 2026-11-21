@@ -90,7 +90,7 @@ Three-module Maven aggregator (`codesign-parent`):
 - **CodesignCli** — picocli root `@Command`; main entry point for both the fat JAR and the native binary.
 - **SignCommand** — picocli `sign` subcommand; delegates to `SigningWorkflow` (package-private).
 - **TokenResolver** — CLI-internal token resolution (package-private).
-- **VersionProvider** — reads version from the `/version.properties` classpath resource (Maven-filtered at build time).
+- **VersionProvider** — reads version from the `/version.properties` classpath resource, Maven-filtered at build time from the `codesign.build.version` property: the release version on a `vX.Y.Z` tag, `X.Y.Z-dev<N>+g<commit>` otherwise.
 
 ### Key Dependencies
 

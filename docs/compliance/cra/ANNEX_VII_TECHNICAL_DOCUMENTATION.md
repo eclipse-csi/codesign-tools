@@ -40,6 +40,10 @@ resolved version.
 
 The version is embedded in the CLI at build time via the filtered resource
 `cli/src/main/resources/version.properties` and exposed through `csi-codesign --version`.
+A release build reports `MAJOR.MINOR.PATCH`; any other build reports the version it leads up
+to plus its distance from the previous release tag and its commit, e.g. `0.8.5-dev18+g1a2b3c4`
+(18 commits after `v0.8.4`, at commit `1a2b3c4`), so a development binary can be traced back
+to its source.
 
 Release tags in the Git repository follow the format `v<MAJOR>.<MINOR>.<PATCH>`
 (e.g., `v1.0.0`). Each GitHub Release includes the full set of distributed artifacts

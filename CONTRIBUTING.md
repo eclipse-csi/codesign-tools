@@ -187,6 +187,10 @@ Consequences for local work:
   placeholder. IntelliJ IDEA users may want to add it to the Maven importer's VM options.
 - The extension writes a `.git-versioned-pom.xml` next to each `pom.xml` (git-ignored); it is
   the POM that gets installed and deployed.
+- `codesign --version` reports the `codesign.build.version` property instead of the Maven
+  version: the release version on a tag, and `X.Y.Z-dev<N>+g<commit>` otherwise (e.g.
+  `0.8.5-dev18+g1a2b3c4`, 18 commits after `v0.8.4`), so a `-SNAPSHOT` binary can be traced
+  back to its commit.
 
 ## Releasing (Maven Central via JReleaser)
 
