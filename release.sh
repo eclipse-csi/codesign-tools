@@ -2,14 +2,18 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--dry-run] <RELEASE_VERSION> <NEXT_DEV_VERSION>"
+  echo "Usage: $0 [--dry-run] <RELEASE_VERSION>"
   echo
   echo "Arguments:"
   echo "  RELEASE_VERSION   The version to release (e.g., 0.5.12)"
-  echo "  NEXT_DEV_VERSION   The next development version (e.g., 0.5.13-SNAPSHOT)"
   echo
   echo "Options:"
   echo "  --dry-run         Show what would be done without making any changes"
+  echo
+  echo "The project version is derived from git tags (.mvn/maven-git-versioning-extension.xml),"
+  echo "so releasing is a CHANGELOG.md commit plus a signed vRELEASE_VERSION tag. The POMs are"
+  echo "not edited, and there is no next-development-version commit: every commit after the"
+  echo "tag builds as the next patch version with -SNAPSHOT."
   exit 1
 }
 
@@ -34,13 +38,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if [[ $# -ne 2 ]]; then
-  echo "Error: Expected 2 arguments, got $#"
+if [[ $# -ne 1 ]]; then
+  echo "Error: Expected 1 argument, got $#"
   usage
 fi
 
 RELEASE_VERSION="$1"
-NEXT_DEV_VERSION="$2"
 
 if "${DRY_RUN}"; then
   echo "[DRY RUN] No changes will be made."
@@ -69,22 +72,6 @@ if ! [[ "${RELEASE_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   exit 1
 fi
 echo "✅ Release version (${RELEASE_VERSION}) is in valid semver format."
-
-# Verify that NEXT_DEV_VERSION is in semver format with -SNAPSHOT suffix
-if ! [[ "${NEXT_DEV_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$ ]]; then
-  echo "Error: NEXT_DEV_VERSION must be in semver format with -SNAPSHOT suffix (e.g., 0.5.13-SNAPSHOT)"
-  exit 1
-fi
-echo "✅ Next development version (${NEXT_DEV_VERSION}) is in valid semver-SNAPSHOT format."
-
-# Verify that NEXT_DEV_VERSION is greater than RELEASE_VERSION
-NEXT_DEV_BASE="${NEXT_DEV_VERSION%-SNAPSHOT}"
-if [[ "$(printf '%s\n' "${RELEASE_VERSION}" "${NEXT_DEV_BASE}" | sort -V | tail -1)" != "${NEXT_DEV_BASE}" ]] \
-   || [[ "${RELEASE_VERSION}" == "${NEXT_DEV_BASE}" ]]; then
-  echo "Error: Next development version (${NEXT_DEV_VERSION}) must be greater than release version (${RELEASE_VERSION})"
-  exit 1
-fi
-echo "✅ Next development version (${NEXT_DEV_VERSION}) is greater than release version (${RELEASE_VERSION})."
 
 # Verify that commit/tag signing is properly configured.
 # The release commit and tag are signed (git commit -S / git tag -s), which
@@ -144,8 +131,9 @@ if [[ "${CURRENT_BRANCH}" != "main" ]]; then
 fi
 echo "✅ Current branch is main."
 
-# Verify that the local main branch is up to date (or ahead without diverging) with origin/main
-git fetch -q origin main
+# Verify that the local main branch is up to date (or ahead without diverging) with origin/main.
+# --tags: the release tags are the version history, so the checks below must see all of them.
+git fetch -q --tags origin main
 LOCAL_COMMIT=$(git rev-parse main)
 REMOTE_COMMIT=$(git rev-parse origin/main)
 if [[ "${LOCAL_COMMIT}" != "${REMOTE_COMMIT}" ]]; then
@@ -161,14 +149,6 @@ if [[ "${LOCAL_COMMIT}" != "${REMOTE_COMMIT}" ]]; then
 fi
 echo "✅ Local main branch is up to date with origin/main."
 
-# Verify that the current POM version is the SNAPSHOT of the release version
-CURRENT_POM_VERSION=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version)
-if [[ "${CURRENT_POM_VERSION}" != "${RELEASE_VERSION}-SNAPSHOT" ]]; then
-  echo "Error: Current POM version is ${CURRENT_POM_VERSION}, expected ${RELEASE_VERSION}-SNAPSHOT"
-  exit 1
-fi
-echo "✅ Current POM version (${CURRENT_POM_VERSION}) matches expected SNAPSHOT version."
-
 # Verify that the tag for the release version does not already exist
 if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
   echo "Error: Tag v${RELEASE_VERSION} already exists. Please choose a different release version or delete the existing tag before running this script."
@@ -176,19 +156,25 @@ if git rev-parse "v${RELEASE_VERSION}" >/dev/null 2>&1; then
 fi
 echo "✅ Tag v${RELEASE_VERSION} does not already exist."
 
-# Verify that the release version is not already in use in the pom.xml files
-for pom in pom.xml api/pom.xml cli/pom.xml maven-plugin/pom.xml; do
-  pom_version=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version -f "${pom}")
-  if [[ "${pom_version}" == "${RELEASE_VERSION}" ]]; then
-    echo "Error: Release version ${RELEASE_VERSION} is already set in ${pom}. Please choose a different release version or update the pom.xml files before running this script."
-    exit 1
-  fi
-  if [[ "${pom_version}" == "${NEXT_DEV_VERSION}" ]]; then
-    echo "Error: New development version ${NEXT_DEV_VERSION} is already set in ${pom}. Please choose a different new development version or update the pom.xml files before running this script."
-    exit 1
-  fi
-done
-echo "✅ Release and development versions are not already in use in pom.xml files."
+# Verify that HEAD is not already a release. Tagging it a second time would give one commit two
+# versions, and the build would pick whichever tag the extension sees first.
+HEAD_RELEASE_TAGS=$(git tag --points-at HEAD --list 'v[0-9]*')
+if [[ -n "${HEAD_RELEASE_TAGS}" ]]; then
+  echo "Error: HEAD is already tagged as a release (${HEAD_RELEASE_TAGS//$'\n'/, }). Commit something before releasing again."
+  exit 1
+fi
+echo "✅ HEAD is not already tagged as a release."
+
+# Verify that the release version is greater than every version released so far. The project
+# version is derived from the tags, so they are the only record of what has been released.
+LATEST_VERSION=$(git tag --list 'v[0-9]*' | sed 's/^v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+if [[ -n "${LATEST_VERSION}" ]] \
+   && { [[ "${RELEASE_VERSION}" == "${LATEST_VERSION}" ]] \
+        || [[ "$(printf '%s\n' "${LATEST_VERSION}" "${RELEASE_VERSION}" | sort -V | tail -1)" != "${RELEASE_VERSION}" ]]; }; then
+  echo "Error: Release version (${RELEASE_VERSION}) must be greater than the latest release (${LATEST_VERSION})."
+  exit 1
+fi
+echo "✅ Release version (${RELEASE_VERSION}) is greater than the latest release (${LATEST_VERSION:-none})."
 
 # Verify that the release version is not set in the CHANGELOG.md file
 if grep -q "## \[${RELEASE_VERSION}\]" CHANGELOG.md || grep -q "## \[v${RELEASE_VERSION}\]" CHANGELOG.md; then
@@ -221,7 +207,7 @@ if [[ -z "${GPG_KEY_ID:-}" ]]; then
   echo "Error: GPG_KEY_ID is not set. Export the OpenPGP key that signs the release artifacts (same value as the GPG_KEY_ID repository secret) before running this script."
   exit 1
 fi
-if ! python3 .github/scripts/render-release-notes.py --unreleased --check; then
+if ! python3 .github/scripts/render-release-notes.py --unreleased --version "${RELEASE_VERSION}" --check; then
   echo "Error: Could not render release notes from the [Unreleased] section of CHANGELOG.md."
   exit 1
 fi
@@ -251,7 +237,7 @@ echo "✅ No HIGH/CRITICAL vulnerabilities found in aggregate SBOM."
 
 # Confirm before proceeding (unless dry-run)
 if ! "${DRY_RUN}"; then
-  echo "About to release ${RELEASE_VERSION} and start development of ${NEXT_DEV_VERSION}."
+  echo "About to release ${RELEASE_VERSION}."
   read -rp "Continue? [y/N] " confirm
   if [[ ! "${confirm}" =~ ^[Yy]$ ]]; then
     echo "Aborted."
@@ -278,24 +264,30 @@ sed_inplace() {
 RELEASE_DATE=$(date +%Y-%m-%d)
 run sed_inplace "s/## \[Unreleased\]/## [v${RELEASE_VERSION}] - ${RELEASE_DATE}/g" CHANGELOG.md
 
-run ./mvnw versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false -f pom.xml
-run git add CHANGELOG.md api/pom.xml cli/pom.xml maven-plugin/pom.xml pom.xml
-run git commit -s -S -m "Release version ${RELEASE_VERSION}"
-run git tag -s "v${RELEASE_VERSION}" -m "Release version ${RELEASE_VERSION}"
-
-# Add unreleased section in the CHANGELOG.md file as the first h2 in the file.
+# Open a new, empty unreleased section as the first h2 in the file, in the same commit.
 # There is always a h1 at the top of the file, so it needs to be added after the first h1 and its content.
 run sed_inplace "0,/## /s/## /## [Unreleased]\n\n## /" CHANGELOG.md
 
-# Set the new development version in the pom.xml files and commit the changes
-run ./mvnw versions:set -DnewVersion="${NEXT_DEV_VERSION}" -DgenerateBackupPoms=false -f pom.xml
-run git add CHANGELOG.md api/pom.xml cli/pom.xml maven-plugin/pom.xml pom.xml
-run git commit -s -S -m "Start development of version ${NEXT_DEV_VERSION}"
+# The POMs are not touched: the tag alone sets the version (.mvn/maven-git-versioning-extension.xml).
+run git add CHANGELOG.md
+run git commit -s -S -m "Release version ${RELEASE_VERSION}"
+run git tag -s "v${RELEASE_VERSION}" -m "Release version ${RELEASE_VERSION}"
 
-# Push everything at the end: main once, carrying both commits, so CI sees a single
-# push instead of two (the release commit alone is a non-SNAPSHOT no-op for the site).
-# The tag goes last so the Release workflow only starts once main already describes the
-# next development version.
+# Before pushing, check that the build derives the release version from the new tag. The
+# Release workflow builds and publishes whatever version the extension computes, so a tag the
+# extension does not recognise would otherwise only show up there, as a SNAPSHOT release.
+if ! "${DRY_RUN}"; then
+  TAGGED_VERSION=$(./mvnw -q -DforceStdout help:evaluate -Dexpression=project.version | tail -n 1)
+  if [[ "${TAGGED_VERSION}" != "${RELEASE_VERSION}" ]]; then
+    echo "Error: The build derives version '${TAGGED_VERSION}' from tag v${RELEASE_VERSION}, expected ${RELEASE_VERSION}."
+    echo "Nothing was pushed. To undo: git tag -d v${RELEASE_VERSION} && git reset --hard HEAD~1"
+    exit 1
+  fi
+  echo "✅ The build derives version ${TAGGED_VERSION} from tag v${RELEASE_VERSION}."
+fi
+
+# Push main first, then the tag, so the Release workflow starts once the release commit is
+# already on main.
 run git push origin main
 run git push origin "v${RELEASE_VERSION}"
 

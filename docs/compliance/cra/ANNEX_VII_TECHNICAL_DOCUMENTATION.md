@@ -31,13 +31,12 @@ License 2.0.
 All three components share the same version number in any given release, specified as
 `MAJOR.MINOR.PATCH` per Semantic Versioning 2.0.0.
 
-The authoritative version is declared in the root `pom.xml`:
-
-```xml
-<groupId>org.eclipse.csi</groupId>
-<artifactId>codesign-parent</artifactId>
-<version><!-- MAJOR.MINOR.PATCH --></version>
-```
+The authoritative version is the Git release tag `v<MAJOR>.<MINOR>.<PATCH>`. The `<version>`
+in the POMs is a `0.0.0-SNAPSHOT` placeholder: at build time, the Maven Git Versioning
+Extension (configured in `.mvn/maven-git-versioning-extension.xml`) sets every module's
+version to `MAJOR.MINOR.PATCH` when the built commit carries a release tag, and to the next
+patch version with a `-SNAPSHOT` suffix for any other commit. Published POMs carry the
+resolved version.
 
 The version is embedded in the CLI at build time via the filtered resource
 `cli/src/main/resources/version.properties` and exposed through `csi-codesign --version`.

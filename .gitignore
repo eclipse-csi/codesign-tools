@@ -1,6 +1,7 @@
 target/
 out/
 .flattened-pom.xml
+.git-versioned-pom.xml
 
 ### IDE ###
 .idea/

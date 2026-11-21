@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The project version is derived from git, the way setuptools-scm / uv-dynamic-versioning do it
+  for Python. The <version> in the POMs is only a placeholder (0.0.0-SNAPSHOT), used when the
+  extension is disabled with -Dversioning.disable=true.
+
+    HEAD carries a vX.Y.Z tag          -> X.Y.Z
+    anything else (branch, PR, detached) -> next version after the closest vX.Y.Z tag, e.g.
+                                          0.8.5-SNAPSHOT when the closest tag is v0.8.4
+
+  Releasing is therefore just tagging: release.sh no longer edits the POMs.
+
+  The closest tag is found by walking the first-parent history, so the build needs the full
+  history and the tags. A shallow clone with no reachable vX.Y.Z tag fails the build instead of
+  producing a wrong version: CI checkouts use fetch-depth: 0.
+
+  In CI the checkout is a detached HEAD. On GitHub Actions the extension reads GITHUB_REF to
+  recover the branch or tag. Elsewhere, pass -Dgit.ref=refs/heads/<branch> (or refs/tags/<tag>).
+-->
+<configuration xmlns="https://github.com/qoomon/maven-git-versioning-extension">
+
+  <!-- Only release tags count when looking for the closest tag. A capture group in this
+       pattern must not be named "version": the extension reserves ${describe.tag.version}. -->
+  <describeTagPattern><![CDATA[v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?]]></describeTagPattern>
+
+  <!-- considerTagsOnBranches: a tagged commit gets its release version even when it is checked
+       out on a branch (e.g. main right after release.sh), not only as a detached tag checkout.
+       This is also what makes ${describe.distance.snapshot} below always resolve to -SNAPSHOT:
+       the branch and rev rules are only reached when HEAD is not a release tag. -->
+  <refs considerTagsOnBranches="true">
+    <ref type="tag">
+      <pattern><![CDATA[v(?<version>\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)]]></pattern>
+      <version>${ref.version}</version>
+      <properties>
+        <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+      </properties>
+    </ref>
+    <ref type="branch">
+      <pattern>.+</pattern>
+      <version>${describe.tag.version.next}${describe.distance.snapshot}</version>
+      <properties>
+        <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+      </properties>
+    </ref>
+  </refs>
+
+  <!-- Detached HEAD with no branch information and no release tag, e.g. a local
+       `git checkout <sha>`. -->
+  <rev>
+    <version>${describe.tag.version.next}${describe.distance.snapshot}</version>
+    <properties>
+      <project.build.outputTimestamp>${commit.timestamp}</project.build.outputTimestamp>
+    </properties>
+  </rev>
+</configuration>

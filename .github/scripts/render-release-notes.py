@@ -34,6 +34,8 @@ SECTION_RE = re.compile(r"^## \[(?P<label>[^\]]+)\]\s*(?:-\s*(?P<date>\S+))?\s*$
 
 # Commits release.sh generates for version bookkeeping. They carry no information for a
 # reader of the release notes, and are the only non-conventional subjects in the history.
+# Since the version is derived from git tags, release.sh only makes the "Release version"
+# commit; "Start development of version" commits remain in the history of older releases.
 MECHANICS_RE = re.compile(r"^(?:Release version |Start development of version )")
 
 DEPENDENCY_RE = re.compile(r"^(?:build|ci|chore)\((?:deps|deps-dev)\)")
@@ -69,17 +71,27 @@ def normalize(version):
 
 
 def project_version():
-    """The version in the root POM, without its -SNAPSHOT suffix.
+    """The version Maven builds at HEAD, without its -SNAPSHOT suffix.
 
-    Only used by --unreleased, where there is no tag to take the version from.
+    Only used by --unreleased without --version, where there is no tag to take the version
+    from. The <version> in pom.xml is a placeholder: the real one is derived from git tags by
+    the extension in .mvn/maven-git-versioning-extension.xml, so ask Maven rather than reading
+    the file. That yields the next patch version; pass --version for a minor or major release.
     """
-    text = Path("pom.xml").read_text(encoding="utf-8")
-    match = re.search(
-        r"<artifactId>codesign-parent</artifactId>\s*<version>([^<]+)</version>", text
+    mvnw = "mvnw.cmd" if os.name == "nt" else "./mvnw"
+    result = subprocess.run(
+        [mvnw, "-q", "-DforceStdout", "help:evaluate", "-Dexpression=project.version"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    if not match:
-        sys.exit("error: could not read the project version from pom.xml")
-    return match.group(1).removesuffix("-SNAPSHOT")
+    lines = result.stdout.strip().splitlines()
+    if result.returncode != 0 or not lines:
+        sys.exit(
+            "error: could not evaluate the project version with Maven; pass --version"
+            + (f"\n{result.stderr.strip()}" if result.stderr.strip() else "")
+        )
+    return lines[-1].strip().removesuffix("-SNAPSHOT")
 
 
 def sections(changelog):
@@ -243,12 +255,13 @@ it yourself.
 {coordinates}"""
 
 
-def render(label, tag, head, override=None):
+def render(label, tag, head, override=None, version=None):
     """Assemble the full release body.
 
     `label` selects the CHANGELOG section, `tag` names the release (None when previewing an
     unreleased version), `head` is the git revision the release points at, and `override`
-    forces the tag to compare against.
+    forces the tag to compare against. `version` is the version an unreleased preview is
+    rendered for; without it, the version Maven builds at HEAD is used.
     """
     previous = override or previous_tag(CHANGELOG, label, head)
     if override and not git("rev-parse", "--verify", f"{override}^{{commit}}"):
@@ -269,7 +282,10 @@ def render(label, tag, head, override=None):
             parts += ["", "## Contributors", ""]
             parts += [f"- {name}" for name in people]
 
-    version = normalize(tag) if tag else project_version()
+    if tag:
+        version = normalize(tag)
+    else:
+        version = normalize(version) if version else project_version()
     parts += ["", render_verification(version)]
 
     if previous and tag:
@@ -342,6 +358,11 @@ def main():
         help="tag to compare against, overriding auto-detection. Needed when backfilling "
         "a release whose predecessor in CHANGELOG.md was tagged but never published.",
     )
+    parser.add_argument(
+        "--version",
+        help="with --unreleased, the version to render the notes for, e.g. 0.9.0. Defaults "
+        "to the version Maven builds at HEAD, which is always the next patch version.",
+    )
     parser.add_argument("--output", type=Path, help="write here instead of stdout")
     parser.add_argument(
         "--check",
@@ -362,9 +383,13 @@ def main():
 
     if (args.publish or args.dry_run) and not args.tag:
         parser.error("--publish and --dry-run require --tag")
+    if args.version and not args.unreleased:
+        parser.error(
+            "--version requires --unreleased (a tag already names its version)"
+        )
 
     if args.unreleased:
-        body = render("Unreleased", None, "HEAD", args.previous)
+        body = render("Unreleased", None, "HEAD", args.previous, args.version)
     else:
         if git("rev-parse", "--verify", f"{args.tag}^{{commit}}") is None:
             sys.exit(

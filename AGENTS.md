@@ -27,6 +27,11 @@ The Maven wrapper (`./mvnw`) downloads Maven automatically; a JDK must already b
 > **Integration tests are opt-in.** Running `./mvnw verify` does not run them.
 > Use `-Pintegration-tests` to enable plugin integration tests.
 
+**The version comes from git tags, not the POMs.** `<version>0.0.0-SNAPSHOT</version>` is a
+placeholder; `.mvn/maven-git-versioning-extension.xml` derives `X.Y.Z` on a `vX.Y.Z` tag and the
+next patch `-SNAPSHOT` elsewhere. Never edit POM versions (no `versions:set`), and don't build
+from a shallow clone. See CONTRIBUTING.md, "Project version".
+
 ## Development Setup
 
 This project uses [prek](https://prek.j178.dev/) for Git hooks.
