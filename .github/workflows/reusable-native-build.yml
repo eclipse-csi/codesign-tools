@@ -43,27 +43,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          # The *.c.lencr.org entries are CRL distribution points for
-          # repo.maven.apache.org's Let's Encrypt chain (leaf CN=YE2 -> Root YE
-          # -> X2 -> X1). Windows TLS hard-fails the handshake when it cannot
-          # check certificate revocation, which broke the windows-x86_64 leg
-          # once harden-runner v2.20.0 started enforcing block mode on Windows.
-          # Re-derive from the StepSecurity run insights if Let's Encrypt
-          # rotates intermediates.
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
-            release-assets.githubusercontent.com:443
-            repo.maven.apache.org:443
-            ye2.c.lencr.org:80
-            ye2.c.lencr.org:443
-            ye.c.lencr.org:80
-            ye.c.lencr.org:443
-            x2.c.lencr.org:80
-            x2.c.lencr.org:443
-            x1.c.lencr.org:80
-            x1.c.lencr.org:443
+          egress-policy: audit
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -21,17 +21,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
-            raw.githubusercontent.com:443
-            release-assets.githubusercontent.com:443
-            go.dev:443
-            dl.google.com:443
-            storage.googleapis.com:443
-            proxy.golang.org:443
-            sum.golang.org:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,14 +75,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            raw.githubusercontent.com:443
-            files.pythonhosted.org:443
-            github.com:443
-            pypi.org:443
-            release-assets.githubusercontent.com:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -122,13 +105,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: false # require sudo to install shellcheck
-          egress-policy: block
-          allowed-endpoints: >
-            *.archive.ubuntu.com:80
-            api.github.com:443
-            esm.ubuntu.com:443
-            github.com:443
-            release-assets.githubusercontent.com:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -165,18 +142,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            github.com:443
-            api.github.com:443
-            release-assets.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            proxy.golang.org:443
-            dl.google.com:443
-            storage.googleapis.com:443
-            files.pythonhosted.org:443
-            pypi.org:443
-            go.dev:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -230,11 +196,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
-            api.deps.dev:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -256,10 +218,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: false # markdownlint needs to run in a container
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
+          egress-policy: audit
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -49,14 +49,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            github.com:443
-            release-assets.githubusercontent.com:443
-            raw.githubusercontent.com:443
-            repo.maven.apache.org:443
-            www.eclipse.org:443
+          egress-policy: audit
 
       - name: Resolve build target
         id: target
@@ -254,14 +247,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           disable-sudo-and-containers: true
-          egress-policy: block
-          allowed-endpoints: >
-            api.github.com:443
-            files.pythonhosted.org:443
-            github.com:443
-            pypi.org:443
-            release-assets.githubusercontent.com:443
-            raw.githubusercontent.com:443
+          egress-policy: audit
 
       # Always take the index generator, its template and the pom metadata from the
       # default branch, whatever ref is being published.

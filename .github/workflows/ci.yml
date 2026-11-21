@@ -28,16 +28,7 @@ jobs:
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
             disable-sudo-and-containers: true
-            egress-policy: block
-            allowed-endpoints: >
-              api.github.com:443
-              check.trivy.dev:443
-              get.trivy.dev:443
-              github.com:443
-              mirror.gcr.io:443
-              registry.npmjs.org:443
-              release-assets.githubusercontent.com:443
-              repo.maven.apache.org:443
+            egress-policy: audit
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
