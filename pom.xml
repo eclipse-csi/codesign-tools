@@ -430,13 +430,15 @@
             </release>
             <signing>
               <active>RELEASE</active>
-              <mode>COMMAND</mode>
-              <command>
-                <args>
-                  <arg>--pinentry-mode</arg>
-                  <arg>loopback</arg>
-                </args>
-              </command>
+              <pgp>
+                <mode>COMMAND</mode>
+                <command>
+                  <args>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </args>
+                </command>
+              </pgp>
             </signing>
             <catalog>
               <github>
