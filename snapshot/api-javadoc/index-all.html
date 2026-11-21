@@ -49,7 +49,7 @@ loadScripts(document, 'script');</script>
 <div class="header">
 <h1>Index</h1>
 </div>
-<a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:W">W</a>&nbsp;<br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a><span class="vertical-separator">|</span><a href="allpackages-index.html">All&nbsp;Packages</a><span class="vertical-separator">|</span><a href="serialized-form.html">Serialized&nbsp;Form</a>
+<a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:F">F</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:W">W</a>&nbsp;<br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a><span class="vertical-separator">|</span><a href="allpackages-index.html">All&nbsp;Packages</a><span class="vertical-separator">|</span><a href="serialized-form.html">Serialized&nbsp;Form</a>
 <h2 class="title" id="I:A">A</h2>
 <dl class="index">
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.Config.html#apiToken()" class="member-name-link">apiToken()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.Config.html" title="class in org.eclipse.csi.codesign">CodesignClient.Config</a></dt>
@@ -116,6 +116,10 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Indicates whether some other object is "equal to" this one.</div>
 </dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Indicates whether some other object is "equal to" this one.</div>
+</dd>
 <dt><a href="org/eclipse/csi/codesign/SigningRequest.html#equals(java.lang.Object)" class="member-name-link">equals(Object)</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/SigningRequest.html" title="class in org.eclipse.csi.codesign">SigningRequest</a></dt>
 <dd>
 <div class="block">Indicates whether some other object is "equal to" this one.</div>
@@ -125,16 +129,40 @@ loadScripts(document, 'script');</script>
 <div class="block">Indicates whether some other object is "equal to" this one.</div>
 </dd>
 </dl>
+<h2 class="title" id="I:F">F</h2>
+<dl class="index">
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#fromEnvironment(java.util.function.Function)" class="member-name-link">fromEnvironment(Function&lt;String, String&gt;)</a> - Static method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Reads the context from environment variables.</div>
+</dd>
+</dl>
 <h2 class="title" id="I:G">G</h2>
 <dl class="index">
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.html#getStatus(org.eclipse.csi.codesign.SigningRequest)" class="member-name-link">getStatus(SigningRequest)</a> - Method in class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.html" title="class in org.eclipse.csi.codesign">CodesignClient</a></dt>
 <dd>
 <div class="block">Polls the status of a signing request.</div>
 </dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html" class="type-name-link" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a> - Record Class in <a href="org/eclipse/csi/codesign/package-summary.html">org.eclipse.csi.codesign</a></dt>
+<dd>
+<div class="block">The GitHub Actions job a signing request is submitted from, as required by SignPath's GitHub
+ trusted build system.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#%3Cinit%3E(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)" class="member-name-link">GitHubActionsContext(String, String, String, String, String)</a> - Constructor for record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Creates an instance of a <code>GitHubActionsContext</code> record class.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#gitHubToken()" class="member-name-link">gitHubToken()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/GitHubActionsContext.html#param-gitHubToken"><code>gitHubToken</code></a> record component.</div>
+</dd>
 </dl>
 <h2 class="title" id="I:H">H</h2>
 <dl class="index">
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.Config.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.Config.html" title="class in org.eclipse.csi.codesign">CodesignClient.Config</a></dt>
+<dd>
+<div class="block">Returns a hash code value for this object.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#hashCode()" class="member-name-link">hashCode()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
 <dd>
 <div class="block">Returns a hash code value for this object.</div>
 </dd>
@@ -197,9 +225,17 @@ loadScripts(document, 'script');</script>
 </dl>
 <h2 class="title" id="I:R">R</h2>
 <dl class="index">
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#repository()" class="member-name-link">repository()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/GitHubActionsContext.html#param-repository"><code>repository</code></a> record component.</div>
+</dd>
 <dt><a href="org/eclipse/csi/codesign/CodesignException.html#responseBody()" class="member-name-link">responseBody()</a> - Method in exception class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignException.html" title="class in org.eclipse.csi.codesign">CodesignException</a></dt>
 <dd>
 <div class="block">Returns the response body from the failed SignPath API call, or <code>null</code> if not applicable.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#resultsUrl()" class="member-name-link">resultsUrl()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/GitHubActionsContext.html#param-resultsUrl"><code>resultsUrl</code></a> record component.</div>
 </dd>
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.Config.html#retryInterval()" class="member-name-link">retryInterval()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.Config.html" title="class in org.eclipse.csi.codesign">CodesignClient.Config</a></dt>
 <dd>
@@ -208,6 +244,14 @@ loadScripts(document, 'script');</script>
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.Config.html#retryTimeout()" class="member-name-link">retryTimeout()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.Config.html" title="class in org.eclipse.csi.codesign">CodesignClient.Config</a></dt>
 <dd>
 <div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/CodesignClient.Config.html#param-retryTimeout"><code>retryTimeout</code></a> record component.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#runId()" class="member-name-link">runId()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/GitHubActionsContext.html#param-runId"><code>runId</code></a> record component.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#runtimeToken()" class="member-name-link">runtimeToken()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/GitHubActionsContext.html#param-runtimeToken"><code>runtimeToken</code></a> record component.</div>
 </dd>
 </dl>
 <h2 class="title" id="I:S">S</h2>
@@ -249,6 +293,11 @@ loadScripts(document, 'script');</script>
 <dd>
 <div class="block">Creates a workflow that polls indefinitely (no completion deadline).</div>
 </dd>
+<dt><a href="org/eclipse/csi/codesign/SigningWorkflow.html#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)" class="member-name-link">signViaGitHubActions(GitHubActionsContext, String, String, String, String, Map&lt;String, String&gt;, Map&lt;Path, Path&gt;)</a> - Method in class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/SigningWorkflow.html" title="class in org.eclipse.csi.codesign">SigningWorkflow</a></dt>
+<dd>
+<div class="block">Signs files through the SignPath GitHub connector, as required by signing policies with trusted
+ build system verification, and writes the signed files.</div>
+</dd>
 <dt><a href="org/eclipse/csi/codesign/SigningRequestStatus.html#status()" class="member-name-link">status()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></dt>
 <dd>
 <div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/SigningRequestStatus.html#param-status"><code>status</code></a> record component.</div>
@@ -271,6 +320,10 @@ loadScripts(document, 'script');</script>
 <dt><a href="org/eclipse/csi/codesign/CodesignClient.Config.html#toString()" class="member-name-link">toString()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/CodesignClient.Config.html" title="class in org.eclipse.csi.codesign">CodesignClient.Config</a></dt>
 <dd>
 <div class="block">Returns a string representation of this record class.</div>
+</dd>
+<dt><a href="org/eclipse/csi/codesign/GitHubActionsContext.html#toString()" class="member-name-link">toString()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></dt>
+<dd>
+<div class="block">Renders the context without its tokens.</div>
 </dd>
 <dt><a href="org/eclipse/csi/codesign/SigningRequest.html#toString()" class="member-name-link">toString()</a> - Method in record class org.eclipse.csi.codesign.<a href="org/eclipse/csi/codesign/SigningRequest.html" title="class in org.eclipse.csi.codesign">SigningRequest</a></dt>
 <dd>
@@ -299,7 +352,7 @@ loadScripts(document, 'script');</script>
 <div class="block">Returns the value of the <a href="./org/eclipse/csi/codesign/SigningRequestStatus.html#param-workflowStatus"><code>workflowStatus</code></a> record component.</div>
 </dd>
 </dl>
-<a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:W">W</a>&nbsp;<br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a><span class="vertical-separator">|</span><a href="allpackages-index.html">All&nbsp;Packages</a><span class="vertical-separator">|</span><a href="serialized-form.html">Serialized&nbsp;Form</a></main>
+<a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:F">F</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:W">W</a>&nbsp;<br><a href="allclasses-index.html">All&nbsp;Classes&nbsp;and&nbsp;Interfaces</a><span class="vertical-separator">|</span><a href="allpackages-index.html">All&nbsp;Packages</a><span class="vertical-separator">|</span><a href="serialized-form.html">Serialized&nbsp;Form</a></main>
 <footer role="contentinfo">
 <hr>
 <p class="legal-copy"><small>Copyright &#169; 2026 <a href="https://www.eclipse.org/">Eclipse Foundation</a>. All rights reserved.</small></p>

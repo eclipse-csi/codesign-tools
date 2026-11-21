@@ -439,7 +439,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h1>codesign-sign(1) Manual Page</h1>
 <h2 id="_name">Name</h2>
 <div class="sectionbody">
-<p>codesign-sign - Sign one or more artifact files via the SignPath REST API.</p>
+<p>codesign-sign - Sign one or more artifact files with SignPath.</p>
 </div>
 </div>
 <div id="content">
@@ -449,8 +449,10 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div class="paragraph">
 <p><strong>codesign sign</strong> [<strong>-hvV</strong>] [<strong>--force-overwrite</strong>] [<strong>--artifact-configuration</strong>=<em>&lt;slug&gt;</em>]
               [<strong>--base-url</strong>=<em>&lt;url&gt;</em>] [<strong>--config-file</strong>=<em>&lt;file&gt;</em>] [<strong>--description</strong>=<em>&lt;text&gt;</em>]
-              <strong>-O</strong>=<em>&lt;id&gt;</em> [<strong>--output</strong>=<em>&lt;file&gt;</em>] [<strong>--output-dir</strong>=<em>&lt;dir&gt;</em>] <strong>-p</strong>=<em>&lt;slug&gt;</em>
-              <strong>-s</strong>=<em>&lt;slug&gt;</em> [<strong>--wait-for-completion-timeout</strong>=<em>&lt;seconds&gt;</em>]
+              [<strong>--github-connector-url</strong>=<em>&lt;url&gt;</em>] <strong>-O</strong>=<em>&lt;id&gt;</em> [<strong>--output</strong>=<em>&lt;file&gt;</em>]
+              [<strong>--output-dir</strong>=<em>&lt;dir&gt;</em>] <strong>-p</strong>=<em>&lt;slug&gt;</em> <strong>-s</strong>=<em>&lt;slug&gt;</em>
+              [<strong>--submission-mode</strong>=<em>&lt;mode&gt;</em>]
+              [<strong>--wait-for-completion-timeout</strong>=<em>&lt;seconds&gt;</em>]
               [<strong>--param</strong>=<em>&lt;key&gt;=&lt;value&gt;</em>]&#8230;&#8203; <em>&lt;file&gt;</em>&#8230;&#8203;</p>
 </div>
 </div>
@@ -459,7 +461,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <h2 id="_description">Description</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Sign one or more artifact files via the SignPath REST API.</p>
+<p>Sign one or more artifact files with SignPath.</p>
 </div>
 </div>
 </div>
@@ -510,11 +512,19 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 </dd>
 <dt class="hdlist1"><strong>--wait-for-completion-timeout</strong>=<em>&lt;seconds&gt;</em></dt>
 <dd>
-<p>Maximum seconds to wait for each file&#8217;s signing to complete (default: 600). Poll interval, HTTP timeouts, and retry limits are derived automatically from this value.</p>
+<p>Maximum seconds to wait for each signing request to complete (default: 600). Poll interval, HTTP timeouts, and retry limits are derived automatically from this value.</p>
 </dd>
 <dt class="hdlist1"><strong>--base-url</strong>=<em>&lt;url&gt;</em></dt>
 <dd>
 <p>SignPath API base URL (default: <a href="https://app.signpath.io/Api" class="bare">https://app.signpath.io/Api</a>).</p>
+</dd>
+<dt class="hdlist1"><strong>--submission-mode</strong>=<em>&lt;mode&gt;</em></dt>
+<dd>
+<p>How signing requests are submitted: 'direct' uploads each file to the SignPath REST API; 'github-actions' submits the files in one request through the SignPath GitHub connector, as required by signing policies with trusted build system verification: a single file as is, several files at the root of a zip file (default: direct).</p>
+</dd>
+<dt class="hdlist1"><strong>--github-connector-url</strong>=<em>&lt;url&gt;</em></dt>
+<dd>
+<p>GitHub Actions endpoint of the SignPath pipeline connector, used with --submission-mode github-actions (default: <a href="https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom" class="bare">https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom</a>).</p>
 </dd>
 <dt class="hdlist1"><strong>-v</strong>, <strong>--verbose</strong></dt>
 <dd>
@@ -549,7 +559,7 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
 <div id="footer">
 <div id="footer-text">
 Version <br>
-Last updated 2026-11-21 15:16:44 UTC
+Last updated 2026-11-21 17:04:31 UTC
 </div>
 </div>
 </body>

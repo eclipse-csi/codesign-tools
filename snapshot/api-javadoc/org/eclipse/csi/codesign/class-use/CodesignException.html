@@ -65,10 +65,27 @@ loadScripts(document, 'script');</script>
 <div class="col-last even-row-color">
 <div class="block">Downloads the signed artifact to the given output path.</div>
 </div>
-<div class="col-first odd-row-color"><code><a href="../SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
-<div class="col-second odd-row-color"><span class="type-name-label">CodesignClient.</span><code><a href="../CodesignClient.html#getStatus(org.eclipse.csi.codesign.SigningRequest)" class="member-name-link">getStatus</a><wbr>(<a href="../SigningRequest.html" title="class in org.eclipse.csi.codesign">SigningRequest</a>&nbsp;signingRequest)</code></div>
+<div class="col-first odd-row-color"><code>static <a href="../GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">GitHubActionsContext.</span><code><a href="../GitHubActionsContext.html#fromEnvironment(java.util.function.Function)" class="member-name-link">fromEnvironment</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/function/Function.html" title="class or interface in java.util.function" class="external-link">Function</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;environment)</code></div>
 <div class="col-last odd-row-color">
+<div class="block">Reads the context from environment variables.</div>
+</div>
+<div class="col-first even-row-color"><code><a href="../SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
+<div class="col-second even-row-color"><span class="type-name-label">CodesignClient.</span><code><a href="../CodesignClient.html#getStatus(org.eclipse.csi.codesign.SigningRequest)" class="member-name-link">getStatus</a><wbr>(<a href="../SigningRequest.html" title="class in org.eclipse.csi.codesign">SigningRequest</a>&nbsp;signingRequest)</code></div>
+<div class="col-last even-row-color">
 <div class="block">Polls the status of a signing request.</div>
+</div>
+<div class="col-first odd-row-color"><code><a href="../SigningRequestStatus.html" title="class in org.eclipse.csi.codesign">SigningRequestStatus</a></code></div>
+<div class="col-second odd-row-color"><span class="type-name-label">SigningWorkflow.</span><code><a href="../SigningWorkflow.html#signViaGitHubActions(org.eclipse.csi.codesign.GitHubActionsContext,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.util.Map)" class="member-name-link">signViaGitHubActions</a><wbr>(<a href="../GitHubActionsContext.html" title="class in org.eclipse.csi.codesign">GitHubActionsContext</a>&nbsp;context,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;connectorUrl,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;signingPolicy,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;artifactConfiguration,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&gt;&nbsp;parameters,
+ <a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/util/Map.html" title="class or interface in java.util" class="external-link">Map</a>&lt;<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>,<wbr><a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/nio/file/Path.html" title="class or interface in java.nio.file" class="external-link">Path</a>&gt;&nbsp;inputToOutput)</code></div>
+<div class="col-last odd-row-color">
+<div class="block">Signs files through the SignPath GitHub connector, as required by signing policies with trusted
+ build system verification, and writes the signed files.</div>
 </div>
 <div class="col-first even-row-color"><code><a href="../SigningRequest.html" title="class in org.eclipse.csi.codesign">SigningRequest</a></code></div>
 <div class="col-second even-row-color"><span class="type-name-label">CodesignClient.</span><code><a href="../CodesignClient.html#submit(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.util.Map,java.nio.file.Path)" class="member-name-link">submit</a><wbr>(<a href="https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/String.html" title="class or interface in java.lang" class="external-link">String</a>&nbsp;projectId,
