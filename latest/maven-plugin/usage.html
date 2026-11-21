@@ -31,7 +31,7 @@
           <ul class="breadcrumb">
         <li id="publishDate">Last Published: 2026-11-21<span class="divider">|</span>
 </li>
-          <li id="projectVersion">Version: 0.9.0</li>
+          <li id="projectVersion">Version: 0.10.1</li>
           </ul>
         </div>
       </header>
@@ -160,7 +160,7 @@
 </code></pre>
 <p>Alternatively, set the environment variable <code>CSI_CODESIGN_SKIP_SIGNING</code> to <code>1</code>, <code>true</code>, or <code>yes</code> (case-insensitive) to skip signing unconditionally (useful in CI pipelines where signing credentials are absent).</p></section><section><a id="Passing_Additional_Parameters_to_SignPath"></a>
 <h2>Passing Additional Parameters to SignPath</h2>
-<p>Use the <code>&lt;parameters&gt;</code> map to attach arbitrary key/value metadata to the signing request (e.g. build number, Git commit SHA):</p>
+<p>Use the <code>&lt;parameters&gt;</code> map to pass user-defined parameters to the signing request (e.g. build number, Git commit SHA):</p>
 
 <pre class="prettyprint"><code class="language-xml">&lt;configuration&gt;
   &lt;parameters&gt;
@@ -168,7 +168,8 @@
     &lt;gitCommit&gt;${env.GIT_COMMIT}&lt;/gitCommit&gt;
   &lt;/parameters&gt;
 &lt;/configuration&gt;
-</code></pre></section><section><a id="Complete_Goal_Reference"></a>
+</code></pre>
+<p>SignPath only keeps parameters that the artifact configuration declares in its <code>&lt;parameters&gt;</code> block (e.g. <code>&lt;parameter name=&quot;buildNumber&quot; /&gt;</code>); undeclared parameters are silently dropped. See <a href="https://docs.signpath.io/artifact-configuration/syntax#user-defined-parameters" class="externalLink">User-defined parameters</a>.</p></section><section><a id="Complete_Goal_Reference"></a>
 <h2>Complete Goal Reference</h2>
 <p>See the <a href="./codesign-mojo.html">codesign:codesign goal documentation</a> for the full list of configuration parameters and their defaults.</p>
 <p>For authentication options, output modes, retry behaviour, failure conditions, and troubleshooting guidance, see <a href="https://github.com/eclipse-csi/codesign-tools/blob/main/USAGE.md" class="externalLink">USAGE.md</a>.</p></section></section>        </main>

@@ -31,7 +31,7 @@
           <ul class="breadcrumb">
         <li id="publishDate">Last Published: 2026-11-21<span class="divider">|</span>
 </li>
-          <li id="projectVersion">Version: 0.9.0</li>
+          <li id="projectVersion">Version: 0.10.1</li>
           </ul>
         </div>
       </header>
@@ -60,7 +60,7 @@
 <section><a id="codesign.3Acodesign"></a>
 <h1>codesign:codesign</h1>
 <p><strong>Full name</strong>:</p>
-<p>org.eclipse.csi:codesign-maven-plugin:0.9.0:codesign</p>
+<p>org.eclipse.csi:codesign-maven-plugin:0.10.1:codesign</p>
 <p><strong>Description</strong>:</p>
 <p>Maven goal that signs build artifacts via the SignPath REST API.
 <p>The mojo scans the configured build directory using include/exclude glob patterns, submits matching files for signing, polls each request until a final status is reached, and downloads the signed artifact (either in-place or to the configured output directory).</p>
@@ -151,78 +151,95 @@
 <td>Fails the build when no files are found to sign.
 <p>Optional. Mapped to <code>-Dcsi.codesign.failOnNoFilesFound</code>. Default is <code>false</code>.</p><br /><strong>Default</strong>: <code>false</code><br /><strong>User Property</strong>: <code>csi.codesign.failOnNoFilesFound</code></td></tr>
 <tr class="b">
+<td><a href="#gitHubConnectorUrl"><code>&lt;gitHubConnectorUrl&gt;</code></a></td>
+<td><code>String</code></td>
+<td><code>-</code></td>
+<td>GitHub Actions endpoint of the SignPath pipeline connector, used when <code>submissionMode</code> is <code>github-actions</code>.
+<p>Optional. Mapped to <code>-Dcsi.codesign.gitHubConnectorUrl</code>. Default targets the hosted SignPath connector for github.com.</p><br /><strong>Default</strong>: <code>https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom</code><br /><strong>User Property</strong>: <code>csi.codesign.gitHubConnectorUrl</code></td></tr>
+<tr class="a">
 <td><a href="#httpTimeout"><code>&lt;httpTimeout&gt;</code></a></td>
 <td><code>int</code></td>
 <td><code>-</code></td>
 <td>Read/write HTTP timeout in seconds for SignPath API calls.
 <p>Optional. Mapped to <code>-Dcsi.codesign.httpTimeout</code>. Default is 300.</p><br /><strong>Default</strong>: <code>300</code><br /><strong>User Property</strong>: <code>csi.codesign.httpTimeout</code></td></tr>
-<tr class="a">
+<tr class="b">
 <td><a href="#includes"><code>&lt;includes&gt;</code></a></td>
 <td><code>String[]</code></td>
 <td><code>-</code></td>
 <td>Include glob patterns used to select files under <code>baseDirectory</code><!-- no javadoc sites associated -->
 .
 <p>Optional. If empty, no files are selected by the file scan; use <code>signProjectArtifact</code><!-- no javadoc sites associated --> or <code>signAttachedArtifacts</code><!-- no javadoc sites associated --> to sign Maven artifacts explicitly.</p></td></tr>
-<tr class="b">
+<tr class="a">
 <td><a href="#maxRetries"><code>&lt;maxRetries&gt;</code></a></td>
 <td><code>int</code></td>
 <td><code>-</code></td>
 <td>Maximum number of retry attempts for transient HTTP failures.
 <p>Optional. Mapped to <code>-Dcsi.codesign.maxRetries</code>. Default is 10.</p><br /><strong>Default</strong>: <code>10</code><br /><strong>User Property</strong>: <code>csi.codesign.maxRetries</code></td></tr>
-<tr class="a">
+<tr class="b">
 <td><a href="#outputDirectory"><code>&lt;outputDirectory&gt;</code></a></td>
 <td><code>String</code></td>
 <td><code>-</code></td>
 <td>Optional output directory for signed artifacts.
 <p>If unset, signed files overwrite original files in place.</p><br /><strong>User Property</strong>: <code>csi.codesign.outputDirectory</code></td></tr>
-<tr class="b">
+<tr class="a">
 <td><a href="#parameters"><code>&lt;parameters&gt;</code></a></td>
 <td><code>Map&lt;String,String&gt;</code></td>
 <td><code>-</code></td>
-<td>Optional custom key/value parameters forwarded to SignPath in the submit request.</td></tr>
-<tr class="a">
+<td>Optional user-defined key/value parameters forwarded to SignPath in the submit request.
+<p>SignPath only keeps parameters declared in the artifact configuration's <code>&lt;parameters&gt;</code> block; undeclared parameters are silently dropped.</p></td></tr>
+<tr class="b">
 <td><a href="#pollInterval"><code>&lt;pollInterval&gt;</code></a></td>
 <td><code>int</code></td>
 <td><code>-</code></td>
 <td>Polling interval in seconds when checking signing request status.
 <p>Optional. Mapped to <code>-Dcsi.codesign.pollInterval</code>. Default is 5.</p><br /><strong>Default</strong>: <code>5</code><br /><strong>User Property</strong>: <code>csi.codesign.pollInterval</code></td></tr>
-<tr class="b">
+<tr class="a">
 <td><a href="#retryInterval"><code>&lt;retryInterval&gt;</code></a></td>
 <td><code>int</code></td>
 <td><code>-</code></td>
 <td>Delay in seconds between HTTP retry attempts.
 <p>Optional. Mapped to <code>-Dcsi.codesign.retryInterval</code>. Default is 30.</p><br /><strong>Default</strong>: <code>30</code><br /><strong>User Property</strong>: <code>csi.codesign.retryInterval</code></td></tr>
-<tr class="a">
+<tr class="b">
 <td><a href="#retryTimeout"><code>&lt;retryTimeout&gt;</code></a></td>
 <td><code>int</code></td>
 <td><code>-</code></td>
 <td>Maximum retry time window in seconds for transient HTTP failures.
 <p>Optional. Mapped to <code>-Dcsi.codesign.retryTimeout</code>. Default is 600.</p><br /><strong>Default</strong>: <code>600</code><br /><strong>User Property</strong>: <code>csi.codesign.retryTimeout</code></td></tr>
-<tr class="b">
+<tr class="a">
 <td><a href="#serverId"><code>&lt;serverId&gt;</code></a></td>
 <td><code>String</code></td>
 <td><code>-</code></td>
 <td>Maven server ID used to resolve the API token from <code>settings.xml</code> server password.
 <p>Optional. Default is <code>codesign</code>.</p><br /><strong>Default</strong>: <code>codesign</code><br /><strong>User Property</strong>: <code>csi.codesign.serverId</code></td></tr>
-<tr class="a">
+<tr class="b">
 <td><a href="#signAttachedArtifacts"><code>&lt;signAttachedArtifacts&gt;</code></a></td>
 <td><code>boolean</code></td>
 <td><code>-</code></td>
 <td>Whether to include Maven attached artifacts in signing.
 <p>Optional. Mapped to <code>-Dcsi.codesign.signAttachedArtifacts</code>. Default is <code>false</code>.</p><br /><strong>Default</strong>: <code>false</code><br /><strong>User Property</strong>: <code>csi.codesign.signAttachedArtifacts</code></td></tr>
-<tr class="b">
+<tr class="a">
 <td><a href="#signProjectArtifact"><code>&lt;signProjectArtifact&gt;</code></a></td>
 <td><code>String</code></td>
 <td><code>-</code></td>
 <td>Controls whether the Maven project's main artifact is included in signing.
 <p>Optional. Mapped to <code>-Dcsi.codesign.signProjectArtifact</code>. Accepted values: <code>auto</code>, <code>true</code>, <code>false</code> (case-insensitive). Default is <code>auto</code>.</p>
 <p>When <code>auto</code>, signing is enabled for packaging types that produce signable binary artifacts (<code>jar</code>, <code>war</code>, <code>ear</code>, <code>rar</code>, <code>ejb</code>, <code>maven-plugin</code>) and disabled for <code>pom</code> packaging and any other unrecognised type.</p><br /><strong>Default</strong>: <code>auto</code><br /><strong>User Property</strong>: <code>csi.codesign.signProjectArtifact</code></td></tr>
-<tr class="a">
+<tr class="b">
 <td><a href="#skip"><code>&lt;skip&gt;</code></a></td>
 <td><code>boolean</code></td>
 <td><code>-</code></td>
 <td>Skips plugin execution.
-<p>Optional. Mapped to <code>-Dcsi.codesign.skip</code>. Default is <code>false</code>.</p><br /><strong>Default</strong>: <code>false</code><br /><strong>User Property</strong>: <code>csi.codesign.skip</code></td></tr></table></section><section><a id="Parameter_Details"></a>
+<p>Optional. Mapped to <code>-Dcsi.codesign.skip</code>. Default is <code>false</code>.</p><br /><strong>Default</strong>: <code>false</code><br /><strong>User Property</strong>: <code>csi.codesign.skip</code></td></tr>
+<tr class="a">
+<td><a href="#submissionMode"><code>&lt;submissionMode&gt;</code></a></td>
+<td><code>String</code></td>
+<td><code>-</code></td>
+<td>How signing requests are submitted to SignPath.
+<p>Optional. Mapped to <code>-Dcsi.codesign.submissionMode</code>. Accepted values:</p>
+<ul>
+ <li><code>direct</code> (default): each file is uploaded to the SignPath REST API in its own signing request.</li>
+ <li><code>github-actions</code>: the files of the execution are stored as an artifact of the running GitHub Actions job and submitted in one signing request through the SignPath GitHub connector. Signing policies with trusted build system verification require this mode. A single file is uploaded as is (the artifact configuration is the same as in <code>direct</code> mode), under an artifact named after it, which must be unique within the workflow run. Several files are packed at the root of a zip file, so the artifact configuration must have a <code>&lt;zip-file&gt;</code> root element matching files at the zip root, and the files must have distinct names. The build needs the <code>ACTIONS_RESULTS_URL</code>, <code>ACTIONS_RUNTIME_TOKEN</code>, <code>GITHUB_RUN_ID</code>, <code>GITHUB_REPOSITORY</code> and <code>GITHUB_TOKEN</code> environment variables; see the usage documentation. <code> description</code> is ignored.</li>
+</ul><br /><strong>Default</strong>: <code>direct</code><br /><strong>User Property</strong>: <code>csi.codesign.submissionMode</code></td></tr></table></section><section><a id="Parameter_Details"></a>
 <h2>Parameter Details</h2><a id="artifactConfiguration"></a><section><a id="a.3CartifactConfiguration.3E"></a>
 <h3>&lt;artifactConfiguration&gt;</h3>
 <div>Optional SignPath artifact configuration slug.
@@ -282,7 +299,15 @@
 <li><strong>Type</strong>: <code>boolean</code></li>
 <li><strong>Required</strong>: <code>No</code></li>
 <li><strong>User Property</strong>: <code>csi.codesign.failOnNoFilesFound</code></li>
-<li><strong>Default</strong>: <code>false</code></li></ul><hr /></section><a id="httpTimeout"></a><section><a id="a.3ChttpTimeout.3E"></a>
+<li><strong>Default</strong>: <code>false</code></li></ul><hr /></section><a id="gitHubConnectorUrl"></a><section><a id="a.3CgitHubConnectorUrl.3E"></a>
+<h3>&lt;gitHubConnectorUrl&gt;</h3>
+<div>GitHub Actions endpoint of the SignPath pipeline connector, used when <code>submissionMode</code> is <code>github-actions</code>.
+<p>Optional. Mapped to <code>-Dcsi.codesign.gitHubConnectorUrl</code>. Default targets the hosted SignPath connector for github.com.</p></div>
+<ul>
+<li><strong>Type</strong>: <code>java.lang.String</code></li>
+<li><strong>Required</strong>: <code>No</code></li>
+<li><strong>User Property</strong>: <code>csi.codesign.gitHubConnectorUrl</code></li>
+<li><strong>Default</strong>: <code>https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom</code></li></ul><hr /></section><a id="httpTimeout"></a><section><a id="a.3ChttpTimeout.3E"></a>
 <h3>&lt;httpTimeout&gt;</h3>
 <div>Read/write HTTP timeout in seconds for SignPath API calls.
 <p>Optional. Mapped to <code>-Dcsi.codesign.httpTimeout</code>. Default is 300.</p></div>
@@ -321,7 +346,8 @@
 <li><strong>Required</strong>: <code>No</code></li>
 <li><strong>User Property</strong>: <code>csi.codesign.outputDirectory</code></li></ul><hr /></section><a id="parameters"></a><section><a id="a.3Cparameters.3E"></a>
 <h3>&lt;parameters&gt;</h3>
-<div>Optional custom key/value parameters forwarded to SignPath in the submit request.</div>
+<div>Optional user-defined key/value parameters forwarded to SignPath in the submit request.
+<p>SignPath only keeps parameters declared in the artifact configuration's <code>&lt;parameters&gt;</code> block; undeclared parameters are silently dropped.</p></div>
 <ul>
 <li><strong>Type</strong>: <code>java.util.Map&lt;java.lang.String, java.lang.String&gt;</code></li>
 <li><strong>Required</strong>: <code>No</code></li></ul><hr /></section><a id="pollInterval"></a><section><a id="a.3CpollInterval.3E"></a>
@@ -395,7 +421,19 @@
 <li><strong>Type</strong>: <code>boolean</code></li>
 <li><strong>Required</strong>: <code>No</code></li>
 <li><strong>User Property</strong>: <code>csi.codesign.skip</code></li>
-<li><strong>Default</strong>: <code>false</code></li></ul></section></section></section>        </main>
+<li><strong>Default</strong>: <code>false</code></li></ul><hr /></section><a id="submissionMode"></a><section><a id="a.3CsubmissionMode.3E"></a>
+<h3>&lt;submissionMode&gt;</h3>
+<div>How signing requests are submitted to SignPath.
+<p>Optional. Mapped to <code>-Dcsi.codesign.submissionMode</code>. Accepted values:</p>
+<ul>
+ <li><code>direct</code> (default): each file is uploaded to the SignPath REST API in its own signing request.</li>
+ <li><code>github-actions</code>: the files of the execution are stored as an artifact of the running GitHub Actions job and submitted in one signing request through the SignPath GitHub connector. Signing policies with trusted build system verification require this mode. A single file is uploaded as is (the artifact configuration is the same as in <code>direct</code> mode), under an artifact named after it, which must be unique within the workflow run. Several files are packed at the root of a zip file, so the artifact configuration must have a <code>&lt;zip-file&gt;</code> root element matching files at the zip root, and the files must have distinct names. The build needs the <code>ACTIONS_RESULTS_URL</code>, <code>ACTIONS_RUNTIME_TOKEN</code>, <code>GITHUB_RUN_ID</code>, <code>GITHUB_REPOSITORY</code> and <code>GITHUB_TOKEN</code> environment variables; see the usage documentation. <code> description</code> is ignored.</li>
+</ul></div>
+<ul>
+<li><strong>Type</strong>: <code>java.lang.String</code></li>
+<li><strong>Required</strong>: <code>No</code></li>
+<li><strong>User Property</strong>: <code>csi.codesign.submissionMode</code></li>
+<li><strong>Default</strong>: <code>direct</code></li></ul></section></section></section>        </main>
       </div>
     </div>
     <hr/>
