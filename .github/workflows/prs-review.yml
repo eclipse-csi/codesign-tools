@@ -39,7 +39,13 @@ jobs:
       - name: Install actionlint
         shell: bash
         run: |
-          rev="$(python3 -I -c 'import tomllib; repos = tomllib.load(open("prek.toml", "rb"))["repos"]; print(next(r["rev"] for r in repos if r["repo"] == "https://github.com/astral-sh/actionlint"))')"
+          # Read the pin line-by-line: prek.toml uses TOML 1.1 multi-line inline
+          # tables, which the runner's Python tomllib (TOML 1.0) rejects.
+          rev="$(grep -A1 -Fx 'repo = "https://github.com/astral-sh/actionlint"' prek.toml | sed -nE 's/^rev = "([0-9a-f]{40})".*/\1/p')"
+          if [[ ! "${rev}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error file=prek.toml::Could not find the astral-sh/actionlint rev (expected right after its repo line)"
+            exit 1
+          fi
           go install "github.com/astral-sh/actionlint/cmd/actionlint@${rev}"
           actionlint -version
 
