@@ -318,15 +318,17 @@ signs each hash the tools send. `csi-codesign macos sign` runs the whole sequenc
 export CSI_CODESIGN_API_TOKEN=...
 csi-codesign macos sign build/MyApp.app \
   --organization-id <ORG_ID> --project-id <PROJECT_SLUG> --signing-policy <POLICY_SLUG> \
-  --identity "Developer ID Application: Example AISBL (TEAMID)" \
   --entitlements MyApp.entitlements \
   --output-dir signed/
 
 hdiutil create -format UDZO -srcfolder signed/MyApp.app signed/MyApp.dmg
 csi-codesign macos sign signed/MyApp.dmg --force-overwrite \
-  --organization-id <ORG_ID> --project-id <PROJECT_SLUG> --signing-policy <POLICY_SLUG> \
-  --identity "Developer ID Application: Example AISBL (TEAMID)"
+  --organization-id <ORG_ID> --project-id <PROJECT_SLUG> --signing-policy <POLICY_SLUG>
 ```
+
+Without `--identity` (or `--installer-identity` for `.pkg` files), `macos sign` signs with the
+certificate of the signing policy: it looks the certificate up with the SignPath API before
+starting the CryptoTokenKit, and selects it in the keychain by its SHA-1 hash.
 
 Requirements on the SignPath side:
 

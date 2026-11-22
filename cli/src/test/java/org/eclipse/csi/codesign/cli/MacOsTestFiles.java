@@ -11,8 +11,11 @@
 package org.eclipse.csi.codesign.cli;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.KeyStore;
+import java.util.UUID;
 
 /** Builds fake macOS files and bundles for tests. */
 final class MacOsTestFiles {
@@ -29,6 +32,47 @@ final class MacOsTestFiles {
   };
 
   private MacOsTestFiles() {}
+
+  /**
+   * Generates a self-signed certificate with the JDK's {@code keytool}, and returns it DER-encoded.
+   */
+  static byte[] selfSignedCertificate(Path dir, String commonName) throws Exception {
+    Path keyStore = dir.resolve("test-" + System.nanoTime() + ".p12");
+    // A throwaway keystore: a random password per run.
+    String storePassword = UUID.randomUUID().toString();
+    Path keytool = Path.of(System.getProperty("java.home"), "bin", "keytool");
+    Process process =
+        new ProcessBuilder(
+                keytool.toString(),
+                "-genkeypair",
+                "-alias",
+                "test",
+                "-keyalg",
+                "RSA",
+                "-keysize",
+                "2048",
+                "-validity",
+                "1",
+                "-dname",
+                "CN=" + commonName,
+                "-storetype",
+                "PKCS12",
+                "-keystore",
+                keyStore.toString(),
+                "-storepass",
+                storePassword)
+            .redirectErrorStream(true)
+            .start();
+    String output = new String(process.getInputStream().readAllBytes());
+    if (process.waitFor() != 0) {
+      throw new IllegalStateException("keytool failed: " + output);
+    }
+    KeyStore store = KeyStore.getInstance("PKCS12");
+    try (InputStream in = Files.newInputStream(keyStore)) {
+      store.load(in, storePassword.toCharArray());
+    }
+    return store.getCertificate("test").getEncoded();
+  }
 
   static Path write(Path file, byte[] header) throws IOException {
     Files.createDirectories(file.getParent());

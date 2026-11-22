@@ -10,14 +10,21 @@
 
 package org.eclipse.csi.codesign.cli;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -84,16 +91,19 @@ class MacOsSignCommand implements Callable<Integer> {
       paramLabel = "<name|sha1>",
       description =
           "Code signing identity (Developer ID Application certificate): a substring of its name,"
-              + " or the SHA-1 hash of the certificate, as for codesign -s. Required to sign"
-              + " bundles, binaries and disk images. '-' signs ad hoc (testing only).")
+              + " or the SHA-1 hash of the certificate, as for codesign -s. With --token-provider"
+              + " signpath, defaults to the certificate of the signing policy; with keychain, it is"
+              + " required to sign bundles, binaries and disk images. '-' signs ad hoc (testing"
+              + " only).")
   String identity;
 
   @Option(
       names = "--installer-identity",
       paramLabel = "<name|sha1>",
       description =
-          "Installer signing identity (Developer ID Installer certificate), required to sign"
-              + " .pkg files.")
+          "Installer signing identity (Developer ID Installer certificate) for .pkg files. With"
+              + " --token-provider signpath, defaults to the certificate of the signing policy;"
+              + " with keychain, it is required.")
   String installerIdentity;
 
   @Option(
@@ -236,14 +246,25 @@ class MacOsSignCommand implements Callable<Integer> {
     SignPathTokenSession session = null;
     try {
       if (viaSignPath) {
-        session = newTokenSession(runner, signPathSettings());
+        SignPathTokenSession.Settings settings = signPathSettings();
+        identitiesFromSigningPolicy(settings, targets);
+        session = newTokenSession(runner, settings);
         session.start();
       }
-      awaitIdentities(runner, targets, session);
-      for (Map.Entry<Path, Kind> target : targets.entrySet()) {
-        Path signed = prepareOutput(runner, target.getKey());
-        sign(runner, signed, target.getValue());
-        out("Signed: " + signed);
+      try {
+        awaitIdentities(runner, targets, session != null);
+        for (Map.Entry<Path, Kind> target : targets.entrySet()) {
+          Path signed = prepareOutput(runner, target.getKey());
+          sign(runner, signed, target.getValue());
+          out("Signed: " + signed);
+        }
+      } catch (ToolException e) {
+        if (session == null) {
+          throw e;
+        }
+        // SignPath may refuse to sign only when codesign asks it to: its reason is in the
+        // CryptoTokenKit log, not in the codesign output.
+        throw new ToolException(e.getMessage() + session.diagnostics());
       }
     } finally {
       if (session != null) {
@@ -314,10 +335,12 @@ class MacOsSignCommand implements Callable<Integer> {
     }
     boolean signsCode = targets.values().stream().anyMatch(kind -> kind != Kind.INSTALLER_PACKAGE);
     boolean signsPackages = targets.containsValue(Kind.INSTALLER_PACKAGE);
-    if (signsCode && identity == null) {
+    if (signsCode && identity == null && !viaSignPath) {
       throw new ParameterException(
           spec.commandLine(),
-          "Signing bundles, Mach-O binaries and disk images requires --identity.");
+          "Signing bundles, Mach-O binaries and disk images with --token-provider "
+              + PROVIDER_KEYCHAIN
+              + " requires --identity.");
     }
     if (signsCode && signsPackages && viaSignPath) {
       // The CryptoTokenKit publishes the certificate of one signing policy, and a policy has one
@@ -328,9 +351,12 @@ class MacOsSignCommand implements Callable<Integer> {
               + " certificate, so the Developer ID Installer certificate has its own policy.");
     }
     if (signsPackages) {
-      if (installerIdentity == null) {
+      if (installerIdentity == null && !viaSignPath) {
         throw new ParameterException(
-            spec.commandLine(), "Signing a .pkg requires --installer-identity.");
+            spec.commandLine(),
+            "Signing a .pkg with --token-provider "
+                + PROVIDER_KEYCHAIN
+                + " requires --installer-identity.");
       }
       if (AD_HOC_IDENTITY.equals(installerIdentity)) {
         throw new ParameterException(
@@ -395,9 +421,48 @@ class MacOsSignCommand implements Callable<Integer> {
         organizationId, projectId, signingPolicy, baseUrl, token, ctkUrl, ctkSha256, ctkApp);
   }
 
+  /**
+   * Defaults {@code --identity} and {@code --installer-identity} to the SHA-1 hash of the signing
+   * policy's certificate, the only one the CryptoTokenKit publishes for that policy.
+   */
+  private void identitiesFromSigningPolicy(
+      SignPathTokenSession.Settings settings, Map<Path, Kind> targets)
+      throws IOException, ToolException {
+    boolean signsCode = targets.values().stream().anyMatch(kind -> kind != Kind.INSTALLER_PACKAGE);
+    boolean signsPackages = targets.containsValue(Kind.INSTALLER_PACKAGE);
+    if (!(signsCode && identity == null) && !(signsPackages && installerIdentity == null)) {
+      return;
+    }
+    byte[] der = signingPolicyCertificate(settings);
+    String sha1;
+    String subject;
+    try {
+      X509Certificate certificate =
+          (X509Certificate)
+              CertificateFactory.getInstance("X.509")
+                  .generateCertificate(new ByteArrayInputStream(der));
+      subject = certificate.getSubjectX500Principal().getName();
+      sha1 =
+          HexFormat.of().withUpperCase().formatHex(MessageDigest.getInstance("SHA-1").digest(der));
+    } catch (CertificateException | NoSuchAlgorithmException e) {
+      throw new ToolException(
+          "SignPath returned an invalid certificate for signing policy '"
+              + signingPolicy
+              + "': "
+              + e.getMessage());
+    }
+    verboseOut(
+        "Certificate of signing policy " + signingPolicy + ": " + subject + " (" + sha1 + ")");
+    if (signsCode && identity == null) {
+      identity = sha1;
+    }
+    if (signsPackages && installerIdentity == null) {
+      installerIdentity = sha1;
+    }
+  }
+
   /** Waits for the identities the targets need; the CryptoTokenKit takes a while to publish. */
-  private void awaitIdentities(
-      ProcessRunner runner, Map<Path, Kind> targets, SignPathTokenSession session)
+  private void awaitIdentities(ProcessRunner runner, Map<Path, Kind> targets, boolean viaSignPath)
       throws IOException, InterruptedException, ToolException {
     codesignIdentity = identity;
     productsignIdentity = installerIdentity;
@@ -416,16 +481,9 @@ class MacOsSignCommand implements Callable<Integer> {
       return;
     }
     Duration timeout =
-        session != null ? Duration.ofSeconds(Math.max(1, identityTimeout)) : Duration.ZERO;
-    Map<String, KeychainIdentities.Identity> found;
-    try {
-      found = KeychainIdentities.await(runner, pauser(), wanted, timeout, this::verboseOut);
-    } catch (ToolException e) {
-      if (session == null) {
-        throw e;
-      }
-      throw new ToolException(e.getMessage() + session.diagnostics());
-    }
+        viaSignPath ? Duration.ofSeconds(Math.max(1, identityTimeout)) : Duration.ZERO;
+    Map<String, KeychainIdentities.Identity> found =
+        KeychainIdentities.await(runner, pauser(), wanted, timeout, this::verboseOut);
     for (KeychainIdentities.Identity selected : found.values()) {
       verboseOut("Signing identity: " + selected.describe());
       if (selected.untrusted()) {
@@ -600,6 +658,12 @@ class MacOsSignCommand implements Callable<Integer> {
   /** Waits between two keychain lookups. Visible for testing. */
   KeychainIdentities.Pauser pauser() {
     return duration -> Thread.sleep(duration.toMillis());
+  }
+
+  /** Fetches the signing policy's certificate from SignPath. Visible for testing. */
+  byte[] signingPolicyCertificate(SignPathTokenSession.Settings settings)
+      throws IOException, ToolException {
+    return SignPathTokenSession.fetchPolicyCertificate(settings);
   }
 
   /** Creates the CryptoTokenKit session. Visible for testing. */

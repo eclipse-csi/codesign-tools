@@ -19,8 +19,10 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -68,6 +70,11 @@ class MacOsSignCommandTest {
   private final StringWriter err = new StringWriter();
   private boolean macOs = true;
 
+  /** What SignPath answers for the signing policy's certificate; null fails the lookup. */
+  private byte[] policyCertificate;
+
+  private final List<SignPathTokenSession.Settings> certificateLookups = new ArrayList<>();
+
   private CommandLine cli() {
     MacOsSignCommand command =
         new MacOsSignCommand() {
@@ -89,6 +96,16 @@ class MacOsSignCommandTest {
           @Override
           String resolveToken() {
             return TOKEN;
+          }
+
+          @Override
+          byte[] signingPolicyCertificate(SignPathTokenSession.Settings settings)
+              throws ToolException {
+            certificateLookups.add(settings);
+            if (policyCertificate == null) {
+              throw new ToolException("SignPath does not list the signing policy");
+            }
+            return policyCertificate;
           }
 
           @Override
@@ -643,6 +660,118 @@ class MacOsSignCommandTest {
     assertEquals(
         List.of("hdiutil", "detach", mountPoint.toString()), commands.get(commands.size() - 1));
     assertFalse(Files.exists(mountPoint.getParent()), "download directory deleted");
+  }
+
+  @Test
+  void signPathProvider_withoutIdentity_signsWithThePolicyCertificate() throws Exception {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    policyCertificate = MacOsTestFiles.selfSignedCertificate(tempDir, "Example policy");
+    String sha1 =
+        HexFormat.of()
+            .withUpperCase()
+            .formatHex(MessageDigest.getInstance("SHA-1").digest(policyCertificate));
+    fakeDiskImage();
+    runner.on(
+        List.of("security", "find-identity"),
+        0,
+        """
+          1) %s "Example policy" (CSSMERR_TP_NOT_TRUSTED)
+             1 identities found
+        """
+            .formatted(sha1));
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "test-signing",
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(0, exit, err.toString());
+    assertEquals(1, certificateLookups.size());
+    assertEquals("test-signing", certificateLookups.get(0).signingPolicySlug());
+    assertEquals(
+        List.of(
+            codesign(sha1, "--options", "runtime", binary.toAbsolutePath().normalize().toString())),
+        runner.commands("codesign", "--force"));
+  }
+
+  @Test
+  void signPathProvider_withIdentity_doesNotLookUpThePolicyCertificate() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    fakeDiskImage();
+    runner.on(List.of("security", "find-identity"), 0, IDENTITIES);
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "release-signing",
+            "--identity",
+            APP_IDENTITY,
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(0, exit, err.toString());
+    assertTrue(certificateLookups.isEmpty());
+  }
+
+  @Test
+  void signPathProvider_unknownPolicy_failsBeforeStartingTheCryptoTokenKit() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "no-such-policy",
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(1, exit);
+    assertTrue(err.toString().contains("does not list the signing policy"), err.toString());
+    assertTrue(runner.commands().isEmpty());
+  }
+
+  @Test
+  void signPathProvider_codesignFailure_includesTheCryptoTokenKitLog() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    fakeDiskImage();
+    runner.on(List.of("security", "find-identity"), 0, IDENTITIES);
+    runner.on(List.of("security", "list-smartcards"), 0, "No smartcards found.");
+    runner.on(List.of("codesign", "--force"), 1, "tool: errSecInternalComponent");
+    Files.createDirectories(tempDir.resolve("logs"));
+    Files.writeString(tempDir.resolve("logs/ctk.log"), "SignHash failed: origin not verified\n");
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "release-signing",
+            "--identity",
+            APP_IDENTITY,
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(1, exit);
+    String error = err.toString();
+    assertTrue(error.contains("errSecInternalComponent"), error);
+    assertTrue(error.contains("SignHash failed: origin not verified"), error);
+    assertEquals(1, runner.commands("pkill").size());
+    assertEquals(1, runner.commands("hdiutil", "detach").size());
   }
 
   @Test

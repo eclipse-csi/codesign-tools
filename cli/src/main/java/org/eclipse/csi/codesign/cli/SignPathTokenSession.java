@@ -10,6 +10,11 @@
 
 package org.eclipse.csi.codesign.cli;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -19,6 +24,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
@@ -28,6 +34,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -356,6 +363,101 @@ final class SignPathTokenSession implements AutoCloseable {
       quoted.append(c);
     }
     return quoted.toString();
+  }
+
+  /**
+   * Fetches the X.509 certificate of the signing policy of {@code settings}, DER-encoded, from the
+   * SignPath API endpoint the Crypto Providers use ({@code GET Cryptoki/MySigningPolicies}). It
+   * only lists the policies the API token's user can submit to.
+   */
+  static byte[] fetchPolicyCertificate(Settings settings) throws IOException, ToolException {
+    String base = settings.apiUrl() != null ? settings.apiUrl() : DEFAULT_API_URL;
+    HttpUrl endpoint =
+        HttpUrl.parse(base + "/v1/" + settings.organizationId() + "/Cryptoki/MySigningPolicies");
+    if (endpoint == null || !endpoint.isHttps()) {
+      throw new ToolException("Invalid SignPath API URL (HTTPS required): " + base);
+    }
+    HttpUrl url =
+        endpoint
+            .newBuilder()
+            .addQueryParameter("projectSlug", settings.projectSlug())
+            .addQueryParameter("signingPolicySlug", settings.signingPolicySlug())
+            .build();
+    Request request =
+        new Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer " + settings.apiToken())
+            .header("Accept", "application/json")
+            .build();
+    OkHttpClient client = new OkHttpClient.Builder().callTimeout(Duration.ofMinutes(1)).build();
+    String body;
+    int code;
+    try (Response response = client.newCall(request).execute()) {
+      code = response.code();
+      body = response.body().string();
+    } finally {
+      client.dispatcher().executorService().shutdown();
+      client.connectionPool().evictAll();
+    }
+    return parsePolicyCertificate(code, body, settings);
+  }
+
+  /** Extracts the certificate from a {@code Cryptoki/MySigningPolicies} response. */
+  static byte[] parsePolicyCertificate(int code, String body, Settings settings)
+      throws ToolException {
+    String policy =
+        "signing policy '"
+            + settings.signingPolicySlug()
+            + "' of project '"
+            + settings.projectSlug()
+            + "'";
+    if (code == 401 || code == 403) {
+      throw new ToolException(
+          "SignPath rejected the API token (HTTP " + code + ") while looking up " + policy + ".");
+    }
+    if (code != 200) {
+      throw new ToolException(
+          "SignPath answered HTTP "
+              + code
+              + " while looking up "
+              + policy
+              + "."
+              + ProcessRunner.quote(body));
+    }
+    try {
+      JsonArray policies =
+          JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("signingPolicies");
+      if (policies != null) {
+        for (JsonElement element : policies) {
+          JsonObject candidate = element.getAsJsonObject();
+          if (settings.signingPolicySlug().equals(string(candidate, "signingPolicySlug"))
+              && settings.projectSlug().equals(string(candidate, "projectSlug"))) {
+            String certificate = string(candidate, "certificateBytes");
+            if (certificate == null || certificate.isBlank()) {
+              throw new ToolException("The " + policy + " has no X.509 certificate.");
+            }
+            return Base64.getDecoder().decode(certificate);
+          }
+        }
+      }
+    } catch (IllegalStateException | IllegalArgumentException | JsonParseException e) {
+      throw new ToolException(
+          "Unexpected answer from SignPath while looking up "
+              + policy
+              + ": "
+              + e.getMessage()
+              + ProcessRunner.quote(body));
+    }
+    throw new ToolException(
+        "SignPath does not list the "
+            + policy
+            + " for this API token: check the slugs, and that the token's user is a submitter"
+            + " of the policy.");
+  }
+
+  private static String string(JsonObject object, String member) {
+    JsonElement value = object.get(member);
+    return value == null || value.isJsonNull() ? null : value.getAsString();
   }
 
   static String sha256(Path file) throws IOException {

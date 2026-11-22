@@ -15,6 +15,13 @@ on:
         required: false
         type: string
         default: ''
+      macos-signing-policy:
+        description: >-
+          SignPath signing policy the macOS binary is signed with through the SignPath macOS
+          CryptoTokenKit (e.g. apple-application-release). Empty leaves it unsigned.
+        required: false
+        type: string
+        default: ''
     secrets:
       SIGNPATH_API_TOKEN:
         description: SignPath API token of the CI user, required when signing-policy is set.
@@ -157,6 +164,41 @@ jobs:
           if ($env:SIGNING_POLICY -eq 'release-signing' -and $signature.Status -ne 'Valid') {
             throw "Release signature of csi-codesign.exe is not valid: $($signature.StatusMessage)"
           }
+
+      # The binary signs itself with codesign, through the SignPath macOS CryptoTokenKit (hash
+      # signing, the default artifact configuration of the project). Without --identity, it uses
+      # the certificate of the signing policy. It writes elsewhere, so that codesign never
+      # rewrites the running executable.
+      - name: Sign macOS binary with SignPath
+        if: runner.os == 'macOS' && inputs.macos-signing-policy != ''
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNING_POLICY: ${{ inputs.macos-signing-policy }}
+        run: |
+          cli/target/csi-codesign macos sign \
+            --organization-id 46624a66-6595-48fd-85c3-64bdee7fecc9 \
+            --project-id technology.csi \
+            --signing-policy "${SIGNING_POLICY}" \
+            --output-dir cli/target/signed \
+            --verbose \
+            cli/target/csi-codesign
+          mv -f cli/target/signed/csi-codesign cli/target/csi-codesign
+
+      - name: Verify macOS signature
+        if: runner.os == 'macOS' && inputs.macos-signing-policy != ''
+        env:
+          SIGNING_POLICY: ${{ inputs.macos-signing-policy }}
+        run: |
+          codesign --verify --strict --verbose=2 cli/target/csi-codesign
+          details=$(codesign -dvv cli/target/csi-codesign 2>&1)
+          echo "${details}"
+          grep -q '^Timestamp=' <<< "${details}" || { echo "::error::No secure timestamp"; exit 1; }
+          grep -q 'flags=.*runtime' <<< "${details}" || { echo "::error::No hardened runtime"; exit 1; }
+          if [ "${SIGNING_POLICY}" = apple-application-release ] \
+            && ! grep -q '^Authority=Developer ID Application:' <<< "${details}"; then
+            echo "::error::Not signed with a Developer ID Application certificate"
+            exit 1
+          fi
 
       - name: Upload native binary artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -318,7 +318,7 @@ Configure these repository/environment secrets before running the release workfl
 
 The project signs its own artifacts with SignPath (project `technology.csi`, configured in
 [sealform-configuration](https://github.com/EclipseFdn/sealform-configuration/blob/main/ef-projects/projects/technology.csi.yaml)).
-Both of its signing policies require trusted build system verification. The tools therefore
+All of its signing policies require trusted build system verification. The tools therefore
 submit through the SignPath GitHub connector (`--submission-mode github-actions` for the CLI,
 `<submissionMode>github-actions</submissionMode>` for the plugin); a direct REST upload would
 be rejected. Each file is uploaded on its own (not zipped), with the `jar-file` and `pe-file`
@@ -327,10 +327,17 @@ artifact configurations of the project.
 | Workflow | Event | Signed | Policy |
 | --- | --- | --- | --- |
 | `ci-native.yml` | push to `main`, dispatch | `csi-codesign.exe` (signed by itself, artifact configuration `pe-file`) | `test-signing` |
+| `ci-native.yml` | dispatch, with a macOS signing policy chosen | the macOS `csi-codesign` (signed by itself with `macos sign`, through the SignPath macOS CryptoTokenKit) | `test-signing` or `apple-application-release` |
 | `ci.yml` | push to `main`, dispatch | the jars, by the Maven build (`codesign` profile, artifact configuration `jar-file`; not published) | `test-signing` |
 | `release.yml` | release tag | the jars deployed to Maven Central, the CLI fat JAR and `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
 | `release.yml` | dry run dispatched from a branch | the jars (not published) | `test-signing` |
 | any | pull request | nothing (forks and Dependabot cannot read the secret) | — |
+
+The macOS binary cannot go through the GitHub connector: `codesign` sends SignPath the hashes
+to sign through the SignPath macOS CryptoTokenKit, under the project's default artifact
+configuration, `hash-sign`. It is only signed when the workflow is run by hand with a macOS
+signing policy, until it is established how SignPath applies trusted build system verification
+to these requests.
 
 The jars are signed inside the Maven build by the `codesign` profile of the root `pom.xml`, in
 place, at `pre-integration-test`: after they are packaged (and the CLI fat JAR shaded), before

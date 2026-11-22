@@ -8,6 +8,15 @@ on:
       - 'v*'
   pull_request:
   workflow_dispatch:
+    inputs:
+      macos-signing-policy:
+        description: SignPath signing policy for the macOS binary (none leaves it unsigned)
+        type: choice
+        options:
+          - none
+          - test-signing
+          - apple-application-release
+        default: none
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,5 +34,8 @@ jobs:
       artifact-retention-days: 7
       # Pull requests are not signed: forks and Dependabot have no access to the secret.
       signing-policy: ${{ github.event_name != 'pull_request' && 'test-signing' || '' }}
+      # Only on demand for now: the macOS binary is signed through the SignPath macOS
+      # CryptoTokenKit (hash signing) when a policy is chosen when running the workflow by hand.
+      macos-signing-policy: ${{ inputs.macos-signing-policy != 'none' && inputs.macos-signing-policy || '' }}
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
