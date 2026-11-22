@@ -8,15 +8,6 @@ on:
       - 'v*'
   pull_request:
   workflow_dispatch:
-    inputs:
-      macos-signing-policy:
-        description: SignPath signing policy for the macOS binary (none leaves it unsigned)
-        type: choice
-        options:
-          - none
-          - untrusted-test-signing
-          - apple-application-release
-        default: untrusted-test-signing
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,15 +23,13 @@ jobs:
       contents: read
     with:
       artifact-retention-days: 7
-      # Pull requests are not signed: forks and Dependabot have no access to the secret.
-      signing-policy: ${{ github.event_name != 'pull_request' && 'test-signing' || '' }}
+      # Only a run by hand signs the binaries, to spare SignPath signing requests on each push
+      # (pull requests could not anyway: forks and Dependabot have no access to the secret).
+      signing-policy: ${{ github.event_name == 'workflow_dispatch' && 'test-signing' || '' }}
       # The macOS binary is signed through the SignPath macOS CryptoTokenKit (hash signing).
-      # SignPath does not offer policies with origin verification for hash signing, so a push
-      # signs it with untrusted-test-signing: a self-signed certificate, without trusted build
-      # system verification. A run by hand can choose another policy, or none.
-      macos-signing-policy: >-
-        ${{ github.event_name == 'push' && 'untrusted-test-signing'
-        || (github.event_name == 'workflow_dispatch' && inputs.macos-signing-policy != 'none'
-        && inputs.macos-signing-policy || '') }}
+      # SignPath does not offer policies with origin verification for hash signing, hence
+      # untrusted-test-signing: a self-signed certificate, without trusted build system
+      # verification. Developer ID signing belongs to the release workflow, not to CI.
+      macos-signing-policy: ${{ github.event_name == 'workflow_dispatch' && 'untrusted-test-signing' || '' }}
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}

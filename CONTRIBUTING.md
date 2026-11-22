@@ -327,11 +327,12 @@ artifact configurations of the project.
 
 | Workflow | Event | Signed | Policy |
 | --- | --- | --- | --- |
-| `ci-native.yml` | push to `main`, dispatch | `csi-codesign.exe` (signed by itself, artifact configuration `pe-file`) | `test-signing` |
-| `ci-native.yml` | push to `main`, dispatch (unless the macOS signing policy `none` is chosen) | the macOS `csi-codesign` (signed by itself with `macos sign`, through the SignPath macOS CryptoTokenKit) | `untrusted-test-signing`, or `apple-application-release` when chosen |
-| `ci.yml` | push to `main`, dispatch | the jars, by the Maven build (`codesign` profile, artifact configuration `jar-file`; not published) | `test-signing` |
+| `ci-native.yml` | dispatch | `csi-codesign.exe` (signed by itself, artifact configuration `pe-file`) | `test-signing` |
+| `ci-native.yml` | dispatch | the macOS `csi-codesign` (signed by itself with `macos sign`, through the SignPath macOS CryptoTokenKit) | `untrusted-test-signing` |
+| `ci.yml` | dispatch | the jars, by the Maven build (`codesign` profile, artifact configuration `jar-file`; not published) | `test-signing` |
 | `release.yml` | release tag | the jars deployed to Maven Central, the CLI fat JAR and `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
 | `release.yml` | dry run dispatched from a branch | the jars (not published) | `test-signing` |
+| any | push to `main` | nothing, to spare SignPath signing requests: run the workflow by hand to test signing | — |
 | any | pull request | nothing (forks and Dependabot cannot read the secret) | — |
 
 The macOS binary cannot go through the GitHub connector: `codesign` sends SignPath the hashes

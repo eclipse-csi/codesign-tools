@@ -59,17 +59,18 @@ jobs:
 
       - name: Expose Actions runtime for signing
         id: actions-runtime
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch'
         uses: $/.github/actions/expose-actions-runtime
 
       # The jars are signed by the Maven build itself (codesign profile in pom.xml, with the
       # released codesign-maven-plugin), as release.yml does with release-signing. This is a
       # separate Maven invocation, after the tests, so that the SignPath token and the job's
       # artifact credentials never reach the test JVMs. The build is reproducible, so the jars
-      # are those just tested. Pull requests are not signed: forks and Dependabot have no
-      # access to the secret.
+      # are those just tested. Only a run by hand signs them, to spare SignPath a signing
+      # request on each push (pull requests could not anyway: forks and Dependabot have no
+      # access to the secret).
       - name: Sign the jars with SignPath
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch'
         env:
           CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
@@ -78,7 +79,7 @@ jobs:
         run: ./mvnw -B -ntp -P codesign -DskipTests verify
 
       - name: Check the jar signatures
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch'
         run: |
           shopt -s failglob
           .github/scripts/check-jars-signed.sh \
