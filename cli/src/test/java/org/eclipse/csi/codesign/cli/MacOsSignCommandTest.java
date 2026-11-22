@@ -153,7 +153,10 @@ class MacOsSignCommandTest {
         List.of("hdiutil", "attach"),
         command -> {
           Path mountPoint = Path.of(command.get(command.indexOf("-mountpoint") + 1));
-          Files.createDirectories(mountPoint.resolve(SignPathTokenSession.APP_NAME));
+          Files.createDirectories(
+              mountPoint
+                  .resolve(SignPathTokenSession.APP_NAME)
+                  .resolve("Contents/PlugIns/ctk.appex"));
           return new ProcessRunner.Result(0, "/dev/disk9 " + mountPoint);
         });
   }
@@ -644,7 +647,11 @@ class MacOsSignCommandTest {
 
     // The token goes in a configuration file that only the user can read, never on a command
     // line: open does not pass its environment to the app.
-    FakeProcessRunner.Call open = runner.calls().get(3);
+    // macOS must use the token extension of this disk image, not one of an earlier session.
+    Path extension = app.resolve("Contents/PlugIns/ctk.appex");
+    assertEquals(List.of("pluginkit", "-m", "-v", "-p", "com.apple.ctk-tokens"), commands.get(3));
+    assertEquals(List.of("pluginkit", "-a", extension.toString()), commands.get(4));
+    FakeProcessRunner.Call open = runner.calls().get(5);
     Path configFile = mountPoint.resolveSibling(SignPathTokenSession.CONFIG_FILE);
     assertEquals(
         List.of(
@@ -681,7 +688,9 @@ class MacOsSignCommandTest {
     // Teardown: stop the app, unmount, delete the download.
     assertEquals(
         List.of("pkill", "-f", SignPathTokenSession.extendedRegexQuote(app.toString())),
-        commands.get(commands.size() - 2));
+        commands.get(commands.size() - 3));
+    assertEquals(
+        List.of("pluginkit", "-r", extension.toString()), commands.get(commands.size() - 2));
     assertEquals(
         List.of("hdiutil", "detach", mountPoint.toString()), commands.get(commands.size() - 1));
     assertFalse(Files.exists(mountPoint.getParent()), "download directory deleted");

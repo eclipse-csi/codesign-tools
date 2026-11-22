@@ -91,6 +91,13 @@ final class SignPathTokenSession implements AutoCloseable {
 
   private static final int LOG_SEARCH_DEPTH = 4;
 
+  /** The pluginkit protocol of CryptoTokenKit token extensions. */
+  static final String TOKEN_EXTENSION_PROTOCOL = "com.apple.ctk-tokens";
+
+  /** The path of a plug-in, at the end of a {@code pluginkit -m -v} line. */
+  private static final Pattern PLUGIN_PATH =
+      Pattern.compile("(?m)\\s(/[^\\r\\n]*\\.appex)[ \\t]*$");
+
   /** Prefix of the sandbox containers of the CryptoTokenKit app and of its token extension. */
   static final String CONTAINER_PREFIX = "io.signpath.";
 
@@ -164,6 +171,10 @@ final class SignPathTokenSession implements AutoCloseable {
   private Path workDir;
   private Path mountPoint;
   private Path app;
+
+  /** The token extensions of the mounted app that this session registered with pluginkit. */
+  private final List<Path> registeredExtensions = new ArrayList<>();
+
   private boolean mounted;
   private boolean launched;
 
@@ -244,6 +255,9 @@ final class SignPathTokenSession implements AutoCloseable {
       }
     }
     verifySignature(app);
+    if (mounted) {
+      registerTokenExtensions();
+    }
     Path config = writeConfig(workDir.resolve(CONFIG_FILE));
 
     List<String> command =
@@ -381,6 +395,12 @@ final class SignPathTokenSession implements AutoCloseable {
       if (launched) {
         runner.run(List.of("pkill", "-f", extendedRegexQuote(app.toString())));
       }
+      // A registration left behind would point to the unmounted disk image: macOS would then
+      // keep electing that extension, which cannot start, over the one of the next session.
+      for (Path extension : registeredExtensions) {
+        runner.run(List.of("pluginkit", "-r", extension.toString()));
+      }
+      registeredExtensions.clear();
       if (mounted) {
         mounted = !unmount();
       }
@@ -396,6 +416,50 @@ final class SignPathTokenSession implements AutoCloseable {
     } else if (workDir != null) {
       deleteRecursively(workDir);
     }
+  }
+
+  /**
+   * Makes macOS use the token extension of the mounted app. Each session mounts the disk image at a
+   * new path, and macOS keeps the registration of an extension after its disk image is unmounted:
+   * it would elect that stale extension, which cannot start, and the token of the session would
+   * stay empty. Registrations of the SignPath extension whose path no longer exists are removed,
+   * and those of the mounted app are added.
+   */
+  private void registerTokenExtensions() throws IOException, InterruptedException {
+    ProcessRunner.Result listed =
+        runner.run(List.of("pluginkit", "-m", "-v", "-p", TOKEN_EXTENSION_PROTOCOL));
+    for (Path stale : staleTokenExtensions(listed.output(), app)) {
+      log.accept("Removing the stale registration of " + stale);
+      runner.run(List.of("pluginkit", "-r", stale.toString()));
+    }
+    Path plugIns = app.resolve("Contents/PlugIns");
+    if (Files.isDirectory(plugIns)) {
+      try (Stream<Path> entries = Files.list(plugIns)) {
+        for (Path extension :
+            entries.filter(path -> path.getFileName().toString().endsWith(".appex")).toList()) {
+          runner.run(List.of("pluginkit", "-a", extension.toString()));
+          registeredExtensions.add(extension);
+        }
+      }
+    }
+  }
+
+  /**
+   * The SignPath CryptoTokenKit extensions that {@code pluginkit -m -v} lists, outside {@code app},
+   * whose path no longer exists.
+   */
+  static List<Path> staleTokenExtensions(String pluginkitOutput, Path app) {
+    List<Path> stale = new ArrayList<>();
+    Matcher matcher = PLUGIN_PATH.matcher(pluginkitOutput == null ? "" : pluginkitOutput);
+    while (matcher.find()) {
+      Path extension = Path.of(matcher.group(1));
+      if (matcher.group(1).contains("/" + APP_NAME + "/Contents/PlugIns/")
+          && !extension.startsWith(app)
+          && !Files.exists(extension)) {
+        stale.add(extension);
+      }
+    }
+    return stale;
   }
 
   /** Unmounts the disk image, by force if needed. Returns whether it is unmounted. */
