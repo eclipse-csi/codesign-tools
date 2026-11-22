@@ -217,6 +217,13 @@ to:
    `CHANGELOG.md` (see [Release Notes](#release-notes)).
 3. **The documentation site**, last, so that a release that failed never reaches it.
 
+Once the GitHub release is out, the `update-demo-versions` job opens a pull request
+(`ci/update-demo-versions`) that points the demos at the new version: the CLI, the Maven plugin
+and the commit of the release tag for the actions
+(`.github/scripts/update-demo-versions.py`). The release commit cannot make that change itself:
+it cannot name its own SHA, and nothing it would pin is published yet. Pull requests opened
+with `GITHUB_TOKEN` do not trigger the pull request workflows: close and reopen it to run them.
+
 Build provenance attestations are stored by GitHub and checked with `gh attestation verify`;
 they are not uploaded as files. Each release's notes show how to verify all of the above.
 
