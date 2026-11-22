@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    One signing request per <execution>. Each execution has its own file selection, artifact
+    configuration and, if needed, signing policy. Here:
+      - sign-main:  the main jar, alone, with the "jar" configuration;
+      - sign-tools: the -tools and -cli jars together, with "jars-in-zip", and a policy that can
+                    differ (-Dtools.signingPolicy=...).
+    Use this when files need different configurations or policies, or one request each.
+  -->
+  <groupId>org.eclipse.csi.demo</groupId>
+  <artifactId>multi-execution</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <codesign-maven-plugin.version>0.11.0</codesign-maven-plugin.version>
+    <tools.signingPolicy>${env.SIGNPATH_SIGNING_POLICY}</tools.signingPolicy>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- Two more jars, with the "tools" and "cli" classifiers. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <id>tools-jar</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>tools</classifier>
+            </configuration>
+          </execution>
+          <execution>
+            <id>cli-jar</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>cli</classifier>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.csi</groupId>
+        <artifactId>codesign-maven-plugin</artifactId>
+        <version>${codesign-maven-plugin.version}</version>
+        <!-- Shared by all executions. -->
+        <configuration>
+          <organizationId>${env.SIGNPATH_ORGANIZATION_ID}</organizationId>
+          <projectId>${env.SIGNPATH_PROJECT_ID}</projectId>
+          <signingPolicy>${env.SIGNPATH_SIGNING_POLICY}</signingPolicy>
+          <failOnNoFilesFound>true</failOnNoFilesFound>
+        </configuration>
+        <executions>
+          <execution>
+            <id>sign-main</id>
+            <goals>
+              <goal>codesign</goal>
+            </goals>
+            <configuration>
+              <!-- signProjectArtifact=auto selects the main jar; one file, sent as is. -->
+              <artifactConfiguration>jar</artifactConfiguration>
+            </configuration>
+          </execution>
+          <execution>
+            <id>sign-tools</id>
+            <goals>
+              <goal>codesign</goal>
+            </goals>
+            <configuration>
+              <signingPolicy>${tools.signingPolicy}</signingPolicy>
+              <!-- Two files: a zip, so a <zip-file> artifact configuration. -->
+              <artifactConfiguration>jars-in-zip</artifactConfiguration>
+              <signProjectArtifact>false</signProjectArtifact>
+              <includes>
+                <include>*-tools.jar</include>
+                <include>*-cli.jar</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

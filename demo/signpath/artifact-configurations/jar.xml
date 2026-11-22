@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One jar, sent as is: the root element describes the file itself.
+  Used when a CLI invocation, a Maven plugin execution or a codesign-action step signs a single jar.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <jar-file>
+    <jar-sign />
+  </jar-file>
+</artifact-configuration>

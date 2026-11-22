@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Selects the files to sign with glob patterns, and writes the signed copies to a separate
+    directory, leaving the originals untouched. The build produces three jars (main, -tools,
+    -sources); the patterns pick the main and -tools jars, which are signed in ONE request,
+    packed at the root of a zip file.
+  -->
+  <groupId>org.eclipse.csi.demo</groupId>
+  <artifactId>includes-output-dir</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <codesign-maven-plugin.version>0.11.0</codesign-maven-plugin.version>
+    <!-- Recorded on the signing request. Override from CI, e.g. -Dbuild.number=$BUILD_NUMBER. -->
+    <build.number>local</build.number>
+    <git.commit>unknown</git.commit>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- A second jar, with the "tools" classifier. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <id>tools-jar</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>tools</classifier>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- A -sources jar, which must not be signed: excluded below. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>3.4.0</version>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- Declared after the plugins that make the jars, so it runs after them in `package`. -->
+        <groupId>org.eclipse.csi</groupId>
+        <artifactId>codesign-maven-plugin</artifactId>
+        <version>${codesign-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>sign</id>
+            <goals>
+              <goal>codesign</goal>
+            </goals>
+            <configuration>
+              <organizationId>${env.SIGNPATH_ORGANIZATION_ID}</organizationId>
+              <projectId>${env.SIGNPATH_PROJECT_ID}</projectId>
+              <signingPolicy>${env.SIGNPATH_SIGNING_POLICY}</signingPolicy>
+              <!-- Several files: a zip, so a <zip-file> artifact configuration. -->
+              <artifactConfiguration>binaries-in-zip</artifactConfiguration>
+
+              <!-- Shown on the signing request in SignPath. -->
+              <description>${project.artifactId} ${project.version}</description>
+              <!-- Kept only if the artifact configuration declares them. -->
+              <parameters>
+                <buildNumber>${build.number}</buildNumber>
+                <gitCommit>${git.commit}</gitCommit>
+              </parameters>
+
+              <!--
+                Patterns are matched against paths relative to <baseDirectory>, which defaults
+                to ${project.build.directory}. A pattern that matches nothing is fine (there is
+                no .exe here); the selection as a whole must not be empty, because of
+                <failOnNoFilesFound>.
+              -->
+              <includes>
+                <include>*.jar</include>
+                <include>*.exe</include>
+              </includes>
+              <excludes>
+                <exclude>*-sources.jar</exclude>
+                <exclude>*-javadoc.jar</exclude>
+              </excludes>
+              <!-- Select by pattern only. The main jar matches *.jar anyway. -->
+              <signProjectArtifact>false</signProjectArtifact>
+
+              <!-- Signed copies go to target/signed/, under their original names. -->
+              <outputDirectory>${project.build.directory}/signed</outputDirectory>
+              <failOnNoFilesFound>true</failOnNoFilesFound>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

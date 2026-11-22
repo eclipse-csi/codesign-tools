@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One jar, with user-defined parameters. SignPath only keeps the parameters declared here: the
+  ones a request sends but this file does not declare are silently dropped, and a request that
+  lacks a required one is rejected with HTTP 400.
+
+  "version" is required and restricts what can be signed: the file must be named
+  hello-<version>.jar. "buildNumber" and "gitCommit" are optional and only recorded on the
+  signing request, where they help trace a signature back to its build.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+    <parameter name="buildNumber" default-value="local" />
+    <parameter name="gitCommit" default-value="unknown" />
+  </parameters>
+  <jar-file path="hello-${version}.jar">
+    <jar-sign />
+  </jar-file>
+</artifact-configuration>

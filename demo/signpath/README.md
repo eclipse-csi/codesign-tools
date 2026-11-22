@@ -1,0 +1,44 @@
+# SignPath setup for the demos
+
+The demos sign through a SignPath **project**, with a **signing policy** and an **artifact
+configuration**. Both are configured in the SignPath web application, not by the tools. This
+folder has the artifact configurations the demos expect.
+
+## Artifact configurations
+
+Create each one in your SignPath project (*Project → Artifact configurations → Add*), paste the
+XML, and give it the slug shown below, which is the file name without `.xml`:
+
+| Slug | File | What it accepts | Used by |
+| --- | --- | --- | --- |
+| `jar` | [`jar.xml`](artifact-configurations/jar.xml) | One jar, sent as is | CLI 01, 03, 05, 06; Maven `adhoc`, `project-artifact`, `multi-execution`, `profile-and-skip`; GitHub Actions `sign-with-action.yml`, `maven-plugin-trusted-build.yml` |
+| `jars-in-zip` | [`jars-in-zip.xml`](artifact-configurations/jars-in-zip.xml) | Several jars, packed at the root of a zip | CLI 02; Maven `attached-artifacts`, `multi-execution`; GitHub Actions `cli-direct-mode.yml` |
+| `binaries-in-zip` | [`binaries-in-zip.xml`](artifact-configurations/binaries-in-zip.xml) | Any mix of `*.jar`, `*.exe` and `*.dll`, packed at the root of a zip | Maven `includes-output-dir`; GitHub Actions `sign-with-action.yml` |
+| `jar-with-parameters` | [`jar-with-parameters.xml`](artifact-configurations/jar-with-parameters.xml) | One jar named `hello-<version>.jar`, with user-defined parameters | CLI 04 |
+
+Which one you need depends on **how many files one invocation signs**, not on the tool or the
+submission mode:
+
+- **One file** is sent as is, so the artifact configuration describes the file itself
+  (`<jar-file>`, `<pe-file>`, …).
+- **Several files** are packed at the root of a zip file and signed in one request, so the
+  artifact configuration has a `<zip-file>` root element. A wildcard `path` matches exactly one
+  file unless you add `max-matches="unbounded"`.
+
+See [Signing Requests](../../USAGE.md#signing-requests) in USAGE.md and the
+[artifact configuration syntax](https://docs.signpath.io/artifact-configuration/syntax).
+
+## Signing policy
+
+Any policy whose certificate can sign jars works, e.g. a `test-signing` policy backed by a
+self-signed test certificate. Make the CI user that owns your API token a **submitter** of the
+policy.
+
+Policies with **trusted build system verification**, which all Eclipse Foundation policies use,
+reject files uploaded directly to the REST API: only the GitHub Actions demos, which submit
+through the SignPath GitHub connector, work with them.
+
+## API token
+
+Create a CI user (*Users and groups → CI users*), make it a submitter of the policy, and use its
+API token as `CSI_CODESIGN_API_TOKEN`.

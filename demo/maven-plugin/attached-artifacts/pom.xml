@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Signs the main artifact AND the attached artifacts (here a jar with the "tools" classifier)
+    in place, in ONE request. Since the Maven artifacts themselves are replaced, `mvn install`
+    and `mvn deploy` publish the signed jars, with checksums computed after signing.
+  -->
+  <groupId>org.eclipse.csi.demo</groupId>
+  <artifactId>attached-artifacts</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <codesign-maven-plugin.version>0.11.0</codesign-maven-plugin.version>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- The attached artifact: a second jar, with the "tools" classifier. -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <id>tools-jar</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>tools</classifier>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.eclipse.csi</groupId>
+        <artifactId>codesign-maven-plugin</artifactId>
+        <version>${codesign-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>sign</id>
+            <goals>
+              <goal>codesign</goal>
+            </goals>
+            <configuration>
+              <organizationId>${env.SIGNPATH_ORGANIZATION_ID}</organizationId>
+              <projectId>${env.SIGNPATH_PROJECT_ID}</projectId>
+              <signingPolicy>${env.SIGNPATH_SIGNING_POLICY}</signingPolicy>
+              <!-- Two jars: a zip, so a <zip-file> artifact configuration. -->
+              <artifactConfiguration>jars-in-zip</artifactConfiguration>
+              <signProjectArtifact>true</signProjectArtifact>
+              <!--
+                Every attached artifact is selected, whatever its type: don't attach artifacts
+                that must not be signed (e.g. -sources jars) before this execution runs, or
+                select files with <includes> instead (see ../includes-output-dir/).
+              -->
+              <signAttachedArtifacts>true</signAttachedArtifacts>
+              <failOnNoFilesFound>true</failOnNoFilesFound>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

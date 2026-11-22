@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Signs only when asked: the plugin is bound in a "codesign" profile, so that local builds
+    and pull request builds, which have no token, don't sign. Release builds enable it with
+    -Pcodesign. The signing policy is a property, so that CI can pick test-signing or
+    release-signing: -Dcodesign.signingPolicy=release-signing.
+
+    Signing can also be turned off for a build that has the profile enabled, with
+    -Dcsi.codesign.skip=true or CSI_CODESIGN_SKIP_SIGNING=true in the environment.
+  -->
+  <groupId>org.eclipse.csi.demo</groupId>
+  <artifactId>profile-and-skip</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>21</maven.compiler.release>
+    <codesign-maven-plugin.version>0.11.0</codesign-maven-plugin.version>
+    <codesign.signingPolicy>${env.SIGNPATH_SIGNING_POLICY}</codesign.signingPolicy>
+  </properties>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <!-- The version lives here, so that `mvn versions:*` and Dependabot see it. -->
+        <plugin>
+          <groupId>org.eclipse.csi</groupId>
+          <artifactId>codesign-maven-plugin</artifactId>
+          <version>${codesign-maven-plugin.version}</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+
+  <profiles>
+    <profile>
+      <id>codesign</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.eclipse.csi</groupId>
+            <artifactId>codesign-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>sign</id>
+                <goals>
+                  <goal>codesign</goal>
+                </goals>
+                <configuration>
+                  <organizationId>${env.SIGNPATH_ORGANIZATION_ID}</organizationId>
+                  <projectId>${env.SIGNPATH_PROJECT_ID}</projectId>
+                  <signingPolicy>${codesign.signingPolicy}</signingPolicy>
+                  <artifactConfiguration>jar</artifactConfiguration>
+                  <failOnNoFilesFound>true</failOnNoFilesFound>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>

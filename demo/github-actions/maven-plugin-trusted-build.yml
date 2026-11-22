@@ -1,0 +1,62 @@
+# Signs inside a Maven build, through SignPath's GitHub trusted build system, as Eclipse
+# Foundation signing policies require. The build is configured like
+# demo/maven-plugin/profile-and-skip/: the codesign plugin runs with -Pcodesign, and reads the
+# SignPath coordinates from the environment.
+#
+# Copy to .github/workflows/ of your repository, and define:
+#   - repository variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_ID, SIGNPATH_SIGNING_POLICY
+#   - repository secret SIGNPATH_API_TOKEN (API token of the SignPath CI user)
+# The signing policy's origin verification must accept this repository, workflow and branch.
+name: Maven build with trusted-build signing
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # SignPath downloads the files to sign, a workflow artifact, with GITHUB_TOKEN
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # The plugin uploads the files to sign as an artifact of this job, which needs the Actions
+      # results URL and runtime token. GitHub only gives them to JavaScript actions: this one
+      # hands them over as step outputs.
+      - id: actions-runtime
+        uses: eclipse-csi/codesign-tools/.github/actions/expose-actions-runtime@d6bceb9b3eec30fd8726a86d0a3c4ec6b5f8b8e9 # v0.11.0
+
+      # submissionMode=github-actions can also be set in the POM's <configuration>, as
+      # <submissionMode>github-actions</submissionMode>; a <description> is ignored in this mode.
+      - name: Build and sign
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT_ID: ${{ vars.SIGNPATH_PROJECT_ID }}
+          SIGNPATH_SIGNING_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          # Only for this step: the runtime token can upload artifacts and caches for the job.
+          ACTIONS_RESULTS_URL: ${{ steps.actions-runtime.outputs.actions-results-url }}
+          ACTIONS_RUNTIME_TOKEN: ${{ steps.actions-runtime.outputs.actions-runtime-token }}
+        run: mvn -B -ntp -Pcodesign -Dcsi.codesign.submissionMode=github-actions package
+
+      - name: Verify signature
+        # jarsigner -verify also succeeds on unsigned jars: check that it says "jar verified."
+        run: |
+          for jar in target/*.jar; do
+            out="$(jarsigner -verify "$jar")"
+            echo "$jar: $out"
+            grep -qF 'jar verified.' <<< "$out"
+          done

@@ -5,6 +5,9 @@ This guide covers both tools in the Eclipse CSI Codesign project:
 - **Maven Plugin** (`codesign-maven-plugin`) — integrates artifact signing into Maven builds
 - **CLI** (`csi-codesign`) — standalone binary for signing in any pipeline or shell
 
+> For runnable examples of each way to sign (CLI scripts, Maven projects, GitHub Actions
+> workflows and the matching SignPath artifact configurations), see [demo/](demo/).
+>
 > For contributor and developer documentation, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---

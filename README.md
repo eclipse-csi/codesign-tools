@@ -47,7 +47,8 @@ Replace `VERSION` with the latest release from
 [Maven Central](https://central.sonatype.com/artifact/org.eclipse.csi/codesign-maven-plugin).
 
 For full installation, authentication, configuration, and troubleshooting documentation,
-see **[USAGE.md](USAGE.md)**.
+see **[USAGE.md](USAGE.md)**. Runnable examples of each way to sign, with the CLI, the Maven
+plugin and GitHub Actions, are in **[demo/](demo/)**.
 
 ## Contributing
 

@@ -1,0 +1,95 @@
+# Signs files with the eclipse-csi/codesign-action GitHub Action, through SignPath's GitHub
+# trusted build system, as Eclipse Foundation signing policies require.
+#
+# Copy to .github/workflows/ of your repository, and define:
+#   - repository variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_ID, SIGNPATH_SIGNING_POLICY
+#   - repository secret SIGNPATH_API_TOKEN (API token of the SignPath CI user)
+# The signing policy's origin verification must accept this repository, workflow and branch.
+name: Sign with codesign-action
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  build-and-sign:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read # SignPath downloads the files to sign, a workflow artifact, with GITHUB_TOKEN
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Stands in for your build: makes three unsigned jars in dist/.
+      - name: Build
+        run: |
+          mkdir -p dist content
+          echo "Sample file signed by the Eclipse CSI codesign demos." > content/README.txt
+          for name in app tools cli; do
+            jar --create --file "dist/${name}.jar" -C content README.txt
+          done
+
+      # One file, sent to SignPath as is, and signed in place.
+      - name: Sign app.jar in place
+        uses: eclipse-csi/codesign-action@19d76d81a1317f89dbdb779e592112fc7cf9ec0c # main, pin a v1 release once published
+        with:
+          files: dist/app.jar
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-id: ${{ vars.SIGNPATH_PROJECT_ID }}
+          signing-policy: ${{ vars.SIGNPATH_SIGNING_POLICY }}
+          artifact-configuration: jar
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+
+      # Several files (one path or glob per line) in ONE request: packed at the root of a zip
+      # file, hence a <zip-file> artifact configuration. Written to signed/, with user-defined
+      # parameters recorded on the request.
+      - name: Sign tools.jar and cli.jar to signed/
+        id: sign-several
+        uses: eclipse-csi/codesign-action@19d76d81a1317f89dbdb779e592112fc7cf9ec0c # main, pin a v1 release once published
+        with:
+          files: |
+            dist/tools.jar
+            dist/cli.jar
+          output-dir: signed
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-id: ${{ vars.SIGNPATH_PROJECT_ID }}
+          signing-policy: ${{ vars.SIGNPATH_SIGNING_POLICY }}
+          artifact-configuration: binaries-in-zip
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          params: |
+            buildNumber=${{ github.run_number }}
+            gitCommit=${{ github.sha }}
+          timeout: 900 # seconds, e.g. to leave time for a manual approval
+
+      - name: Verify signatures
+        env:
+          SIGNED_FILES: ${{ steps.sign-several.outputs.signed-files }}
+        # jarsigner -verify also succeeds on unsigned jars: check that it says "jar verified."
+        run: |
+          verify() {
+            local out
+            out="$(jarsigner -verify "$1")"
+            echo "$1: $out"
+            grep -qF 'jar verified.' <<< "$out"
+          }
+          verify dist/app.jar
+          while IFS= read -r file; do
+            verify "$file"
+          done <<< "$SIGNED_FILES"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-jars
+          path: |
+            dist/app.jar
+            signed/

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Several jars signed in one request: the tools pack them at the root of a zip file, so the root
+  element is <zip-file> and the rules match files at the zip root.
+  A wildcard path matches exactly one file unless max-matches says otherwise.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <zip-file>
+    <jar-file path="*.jar" max-matches="unbounded">
+      <jar-sign />
+    </jar-file>
+  </zip-file>
+</artifact-configuration>

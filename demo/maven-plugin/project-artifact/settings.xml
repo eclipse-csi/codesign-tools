@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Maven settings that hold the SignPath API token, as the password of the server "codesign".
+
+  For the demo, the password is read from the environment so that no token is written to disk.
+  In real use, put the server entry in ~/.m2/settings.xml (or the settings file of your CI) with
+  the token itself, preferably encrypted as described in
+  https://maven.apache.org/guides/mini/guide-encryption.html.
+
+  settings.xml takes precedence over CSI_CODESIGN_API_TOKEN and the config file.
+-->
+<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
+  <servers>
+    <server>
+      <id>codesign</id>
+      <password>${env.CSI_CODESIGN_API_TOKEN}</password>
+    </server>
+  </servers>
+</settings>

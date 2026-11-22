@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+* A [`demo/`](demo/) folder with runnable examples of each way to sign: CLI scripts (one file, several files in one request, in place, parameters, token from a file, the JVM fat jar), standalone Maven projects (ad-hoc invocation, project and attached artifacts, file patterns, several executions, signing behind a profile), GitHub Actions workflows (`eclipse-csi/codesign-action`, the Maven plugin with the trusted build system, direct mode), and the SignPath artifact configurations they use.
+
 ## [v0.11.0] - 2026-11-22
 
 ### Added
