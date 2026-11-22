@@ -48,7 +48,8 @@ API token as `CSI_CODESIGN_API_TOKEN`.
 Apple code signing does not go through artifact configurations: SignPath has none for apps,
 Mach-O binaries, disk images or installer packages. `csi-codesign macos sign` runs the
 [SignPath macOS CryptoTokenKit](https://docs.signpath.io/crypto-providers/macos) instead. It
-publishes the certificate of a signing policy in the keychain, and `codesign` and `productsign`
+publishes the certificate of a signing policy as a signing identity of a smart card token, and
+`codesign` and `productsign`
 send SignPath the hashes to sign. For the [`07-macos-app.sh`](../cli/07-macos-app.sh) and
 [`macos-sign-and-notarize.yml`](../github-actions/macos-sign-and-notarize.yml) demos:
 
