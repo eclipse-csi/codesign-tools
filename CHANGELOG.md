@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.12.0] - 2026-11-22
+
 ### Added
 
 * Signing and notarization of macOS apps and installers with the CLI, on macOS.
