@@ -4,13 +4,13 @@
 # every signature and stops the CryptoTokenKit again.
 #
 # The SignPath project needs a default artifact configuration of type "hash signing data", and
-# the signing policy a Developer ID Application certificate: see
-# ../signpath/README.md#macos-hash-signing.
+# the signing policy a Developer ID Application certificate and no trusted build system
+# verification: see ../signpath/README.md#macos-hash-signing.
 #
 # Copy to .github/workflows/ of your repository, and define:
-#   - repository variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_ID, SIGNPATH_SIGNING_POLICY
-#     and MACOS_SIGNING_IDENTITY (name of the certificate, e.g.
-#     "Developer ID Application: Example AISBL (TEAMID)")
+#   - repository variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_ID and
+#     SIGNPATH_SIGNING_POLICY. macos sign signs with the certificate of the signing policy; add
+#     --identity to select another one by name or SHA-1 hash.
 #   - repository secret SIGNPATH_API_TOKEN (API token of the SignPath CI user)
 #   - repository secrets APPLE_NOTARY_KEY (content of the App Store Connect API key .p8 file),
 #     APPLE_NOTARY_KEY_ID and APPLE_NOTARY_ISSUER, for notarization
@@ -76,20 +76,19 @@ jobs:
           echo "$RUNNER_TEMP/csi-codesign" >> "$GITHUB_PATH"
 
       # Nested code first, the bundle last, with the hardened runtime and a secure timestamp.
-      # The token reaches the CryptoTokenKit through its environment, never a command line.
+      # The token reaches the CryptoTokenKit in a configuration file only the job's user can
+      # read, never on a command line.
       - name: Sign the app
         env:
           CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
           SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           SIGNPATH_PROJECT_ID: ${{ vars.SIGNPATH_PROJECT_ID }}
           SIGNPATH_SIGNING_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY }}
-          MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
         run: |
           csi-codesign macos sign build/Sample.app \
             --organization-id "$SIGNPATH_ORGANIZATION_ID" \
             --project-id "$SIGNPATH_PROJECT_ID" \
             --signing-policy "$SIGNPATH_SIGNING_POLICY" \
-            --identity "$MACOS_SIGNING_IDENTITY" \
             --output-dir signed
 
       - name: Create the disk image
@@ -101,13 +100,11 @@ jobs:
           SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           SIGNPATH_PROJECT_ID: ${{ vars.SIGNPATH_PROJECT_ID }}
           SIGNPATH_SIGNING_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY }}
-          MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
         run: |
           csi-codesign macos sign signed/Sample.dmg \
             --organization-id "$SIGNPATH_ORGANIZATION_ID" \
             --project-id "$SIGNPATH_PROJECT_ID" \
             --signing-policy "$SIGNPATH_SIGNING_POLICY" \
-            --identity "$MACOS_SIGNING_IDENTITY" \
             --force-overwrite
 
       # Notarization covers the app inside the disk image. On rejection, the log lists each issue

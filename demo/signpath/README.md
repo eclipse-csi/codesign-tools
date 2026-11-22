@@ -59,6 +59,11 @@ send SignPath the hashes to sign. For the [`07-macos-app.sh`](../cli/07-macos-ap
 - **Signing policy:** one with the **Developer ID Application** certificate, for apps, binaries
   and disk images. A policy has a single certificate, so `.pkg` installers need a second policy
   with the **Developer ID Installer** certificate, signed in a separate `macos sign` invocation.
+  SignPath refuses hash signing under policies with **trusted build system
+  verification**, and does not offer policies with origin verification to the CryptoTokenKit at
+  all: the policy must have neither. With trusted build system verification, `macos sign` fails
+  with SignPath's 403 "The selected signing policy requires that the signing request is
+  submitted via a trusted build system."
 - **Submitter:** the CI user that owns the API token.
 - **Identity:** without `--identity`, `macos sign` uses the certificate of the signing policy.
   Otherwise, pass the common name of the certificate, a distinctive part of it such as the Team

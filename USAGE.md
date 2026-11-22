@@ -348,6 +348,11 @@ Requirements on the SignPath side:
   and notarization reject such signatures.
 - A policy has a single certificate, so `.pkg` installers (Developer ID Installer) are signed
   in a separate invocation, with their own policy and `--installer-identity`.
+- SignPath refuses hash signing under policies with **trusted build system
+  verification**, and does not offer policies with origin verification to the CryptoTokenKit at
+  all: the policy must have neither. With trusted build system verification, `macos sign` fails
+  with SignPath's 403 "The selected signing policy requires that the signing request is
+  submitted via a trusted build system."
 
 `--identity` selects the certificate the way `codesign -s` does: by its SHA-1 hash, or by a part
 of its name, preferring an exact match. Certificates that cannot sign, for example expired ones,

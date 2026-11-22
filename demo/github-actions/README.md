@@ -8,7 +8,7 @@ Example workflows that sign files in GitHub Actions. They don't run from here: c
 | [`sign-with-action.yml`](sign-with-action.yml) | [`eclipse-csi/codesign-action`](https://github.com/eclipse-csi/codesign-action) | GitHub connector (trusted build system) | You sign files outside of a Maven build. **Recommended for Eclipse Foundation projects.** |
 | [`maven-plugin-trusted-build.yml`](maven-plugin-trusted-build.yml) | `codesign-maven-plugin` | GitHub connector (trusted build system) | You build with Maven and want the jars signed before `install`/`deploy`. |
 | [`cli-direct-mode.yml`](cli-direct-mode.yml) | `csi-codesign` | Direct upload to the REST API | Your signing policy has no trusted build system verification (not Eclipse Foundation). |
-| [`macos-sign-and-notarize.yml`](macos-sign-and-notarize.yml) | `csi-codesign macos` | SignPath macOS CryptoTokenKit (hash signing) | You ship a macOS app, disk image or installer that must be signed with a Developer ID and notarized. |
+| [`macos-sign-and-notarize.yml`](macos-sign-and-notarize.yml) | `csi-codesign macos` | SignPath macOS CryptoTokenKit (hash signing) | You ship a macOS app, disk image or installer that must be signed with a Developer ID and notarized. Needs a policy without trusted build system verification. |
 
 ## Setup
 

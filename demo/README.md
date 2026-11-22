@@ -52,6 +52,8 @@ repository variables and secrets instead.
 Signing policies with **trusted build system verification**, as used by Eclipse Foundation
 projects, only accept requests submitted from GitHub Actions through the SignPath GitHub
 connector: with them, only the GitHub Actions demos work. The others need a policy that accepts
-direct uploads, e.g. a test-signing policy.
+direct uploads, e.g. a test-signing policy. The macOS demos need a policy without trusted build
+system verification in any case: SignPath refuses hash signing under such policies (see
+[`signpath/`](signpath/README.md#macos-hash-signing)).
 
 For every option, see [USAGE.md](../USAGE.md).
