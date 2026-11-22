@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.11.0] - 2026-11-22
+
 ### Added
 
 * The jars of this project are now signed by the Eclipse Foundation through SignPath: `codesign-api`, `codesign-maven-plugin` and `codesign-cli` (including the `-bin` fat JAR) on Maven Central, and the CLI fat JAR on the GitHub release. Check them with `jarsigner -verify`. The build signs them with the previous release of `codesign-maven-plugin`, in `github-actions` submission mode.
