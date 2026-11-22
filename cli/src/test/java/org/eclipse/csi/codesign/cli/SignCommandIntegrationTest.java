@@ -245,9 +245,12 @@ class SignCommandIntegrationTest {
   }
 
   private static byte[] zipOf(String... namesAndContents) throws IOException {
+    if (namesAndContents.length % 2 != 0) {
+      throw new IllegalArgumentException("zipOf expects name/content pairs");
+    }
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
     try (ZipOutputStream out = new ZipOutputStream(bytes)) {
-      for (int i = 0; i < namesAndContents.length; i += 2) {
+      for (int i = 0; i + 1 < namesAndContents.length; i += 2) {
         out.putNextEntry(new ZipEntry(namesAndContents[i]));
         out.write(namesAndContents[i + 1].getBytes(StandardCharsets.UTF_8));
         out.closeEntry();
