@@ -120,7 +120,8 @@ class MacOsSignCommandTest {
                 (url, destination) -> Files.writeString(destination, "dmg from " + url),
                 message -> {},
                 settings,
-                tempDir.resolve("logs"));
+                tempDir.resolve("logs"),
+                tempDir.resolve("containers"));
           }
         };
     return new CommandLine(
@@ -835,6 +836,15 @@ class MacOsSignCommandTest {
     runner.on(List.of("security", "list-smartcards"), 0, "No smartcards found.");
     Files.createDirectories(tempDir.resolve("logs"));
     Files.writeString(tempDir.resolve("logs/ctk.log"), "auth failed for token " + TOKEN + "\n");
+    // The token extension logs in its sandbox container.
+    Path extensionLogs =
+        tempDir.resolve("containers/io.signpath.apps.Example.ctk/Data/Library/Logs/ctk");
+    Files.createDirectories(extensionLogs);
+    Files.writeString(extensionLogs.resolve("ctk.log"), "certificate sync failed\n");
+    Files.createDirectories(tempDir.resolve("containers/com.example.Other/Data/Library/Logs"));
+    Files.writeString(
+        tempDir.resolve("containers/com.example.Other/Data/Library/Logs/other.log"), "unrelated\n");
+    runner.on(List.of("pluginkit"), 0, "+    io.signpath.apps.Example.ctk(2.0)");
 
     int exit =
         sign(
@@ -856,6 +866,10 @@ class MacOsSignCommandTest {
     assertTrue(error.contains("not found in the keychain after 3s"), error);
     assertTrue(error.contains("No smartcards found."), error);
     assertTrue(error.contains("auth failed for token ***"), error);
+    assertTrue(error.contains("certificate sync failed"), error);
+    assertFalse(error.contains("unrelated"), error);
+    assertTrue(error.contains("security find-identity:"), error);
+    assertTrue(error.contains("io.signpath.apps.Example.ctk(2.0)"), error);
     assertFalse(error.contains(TOKEN), "token masked in the log excerpt");
     assertEquals(List.of(Duration.ofSeconds(1), Duration.ofSeconds(2)), pauses);
     assertTrue(runner.commands("codesign", "--force").isEmpty());

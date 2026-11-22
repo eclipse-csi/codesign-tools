@@ -17,6 +17,8 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -78,7 +80,14 @@ final class SignPathTokenSession implements AutoCloseable {
   /** Name of the configuration file of the CryptoTokenKit, in the private work directory. */
   static final String CONFIG_FILE = "config.json";
 
-  private static final int LOG_TAIL_LINES = 30;
+  private static final int LOG_TAIL_LINES = 40;
+
+  private static final int OUTPUT_TAIL_LINES = 40;
+
+  private static final int LOG_SEARCH_DEPTH = 4;
+
+  /** Prefix of the sandbox containers of the CryptoTokenKit app and of its token extension. */
+  static final String CONTAINER_PREFIX = "io.signpath.";
 
   /**
    * Settings of the session.
@@ -135,6 +144,7 @@ final class SignPathTokenSession implements AutoCloseable {
   private final Consumer<String> log;
   private final Settings settings;
   private final Path logDirectory;
+  private final Path containersDirectory;
 
   private final AtomicBoolean closed = new AtomicBoolean();
   private Thread shutdownHook;
@@ -149,17 +159,24 @@ final class SignPathTokenSession implements AutoCloseable {
       Downloader downloader,
       Consumer<String> log,
       Settings settings,
-      Path logDirectory) {
+      Path logDirectory,
+      Path containersDirectory) {
     this.runner = runner;
     this.downloader = downloader;
     this.log = log;
     this.settings = settings;
     this.logDirectory = logDirectory;
+    this.containersDirectory = containersDirectory;
   }
 
-  /** Where the CryptoTokenKit writes its logs. */
+  /** Where the CryptoTokenKit app writes its logs. */
   static Path defaultLogDirectory() {
     return Path.of(System.getProperty("user.home"), "Library", "Logs", "SignPathCryptoTokenKit");
+  }
+
+  /** Where the sandbox containers of apps are, among them that of the token extension. */
+  static Path defaultContainersDirectory() {
+    return Path.of(System.getProperty("user.home"), "Library", "Containers");
   }
 
   /** Installs the CryptoTokenKit if needed, verifies it and launches it. */
@@ -272,37 +289,74 @@ final class SignPathTokenSession implements AutoCloseable {
   }
 
   /**
-   * Describes the state of the CryptoTokenKit, for an error message: the smart card tokens the
-   * system knows, and the end of the latest CryptoTokenKit log.
+   * Describes the state of the CryptoTokenKit, for an error message: the signing identities and
+   * smart card tokens the system knows, the registered token extensions, and the end of the latest
+   * logs of the app and of its token extension.
    */
   String diagnostics() {
     StringBuilder text = new StringBuilder();
+    appendCommand(text, List.of("security", "find-identity"));
+    appendCommand(text, List.of("security", "list-smartcards"));
+    appendCommand(text, List.of("system_profiler", "SPSmartCardsDataType"));
+    appendCommand(text, List.of("pluginkit", "-m", "-v", "-p", "com.apple.ctk-tokens"));
+    List<Path> logs = new ArrayList<>();
+    latestFile(logDirectory).ifPresent(logs::add);
+    // The token extension is sandboxed: it logs in its container.
+    if (Files.isDirectory(containersDirectory)) {
+      try (Stream<Path> containers = Files.list(containersDirectory)) {
+        containers
+            .filter(dir -> dir.getFileName().toString().startsWith(CONTAINER_PREFIX))
+            .sorted()
+            .forEach(dir -> latestFile(dir.resolve("Data/Library/Logs")).ifPresent(logs::add));
+      } catch (IOException e) {
+        text.append("\nCould not list ").append(containersDirectory).append(": ").append(e);
+      }
+    }
+    if (logs.isEmpty()) {
+      text.append("\nNo CryptoTokenKit log in ")
+          .append(logDirectory)
+          .append(" or in ")
+          .append(containersDirectory)
+          .append('/')
+          .append(CONTAINER_PREFIX)
+          .append('*');
+    }
+    for (Path log : logs) {
+      try {
+        text.append("\nEnd of ").append(log).append(':').append(indent(mask(tail(log))));
+      } catch (IOException e) {
+        text.append("\nCould not read ").append(log).append(": ").append(e.getMessage());
+      }
+    }
+    return text.toString();
+  }
+
+  private void appendCommand(StringBuilder text, List<String> command) {
+    text.append('\n').append(String.join(" ", command)).append(':');
     try {
-      ProcessRunner.Result tokens = runner.run(List.of("security", "list-smartcards"));
-      text.append("\nsecurity list-smartcards:").append(indent(tokens.output()));
+      ProcessRunner.Result result = runner.run(command);
+      text.append(indent(mask(lastLines(result.output(), OUTPUT_TAIL_LINES))));
+      if (result.exitCode() != 0) {
+        text.append("\n  (exit code ").append(result.exitCode()).append(')');
+      }
     } catch (IOException e) {
-      text.append("\nsecurity list-smartcards failed: ").append(e.getMessage());
+      text.append(" failed: ").append(e.getMessage());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
-    Optional<Path> latestLog = latestLog();
-    if (latestLog.isPresent()) {
-      try {
-        List<String> lines = Files.readAllLines(latestLog.get());
-        String tail =
-            String.join(
-                "\n", lines.subList(Math.max(0, lines.size() - LOG_TAIL_LINES), lines.size()));
-        text.append("\nEnd of ").append(latestLog.get()).append(':').append(indent(mask(tail)));
-      } catch (IOException e) {
-        text.append("\nCould not read ")
-            .append(latestLog.get())
-            .append(": ")
-            .append(e.getMessage());
-      }
-    } else {
-      text.append("\nNo CryptoTokenKit log in ").append(logDirectory);
+  }
+
+  private static String tail(Path file) throws IOException {
+    // Lenient decoding: a log that is not valid UTF-8 must not hide the rest of the diagnostics.
+    return lastLines(new String(Files.readAllBytes(file), StandardCharsets.UTF_8), LOG_TAIL_LINES);
+  }
+
+  private static String lastLines(String text, int count) {
+    if (text == null) {
+      return "";
     }
-    return text.toString();
+    List<String> lines = text.strip().lines().toList();
+    return String.join("\n", lines.subList(Math.max(0, lines.size() - count), lines.size()));
   }
 
   /** Stops the CryptoTokenKit, unmounts its disk image and deletes the download. Idempotent. */
@@ -358,15 +412,16 @@ final class SignPathTokenSession implements AutoCloseable {
     }
   }
 
-  private Optional<Path> latestLog() {
-    if (!Files.isDirectory(logDirectory)) {
+  /** The most recently modified file under {@code directory}, searched recursively. */
+  private static Optional<Path> latestFile(Path directory) {
+    if (!Files.isDirectory(directory)) {
       return Optional.empty();
     }
-    try (Stream<Path> files = Files.list(logDirectory)) {
+    try (Stream<Path> files = Files.walk(directory, LOG_SEARCH_DEPTH)) {
       return files
           .filter(Files::isRegularFile)
           .max(Comparator.comparing(SignPathTokenSession::lastModified));
-    } catch (IOException e) {
+    } catch (IOException | UncheckedIOException e) {
       return Optional.empty();
     }
   }

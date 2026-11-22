@@ -675,7 +675,8 @@ class MacOsSignCommand implements Callable<Integer> {
         SignPathTokenSession::httpsDownload,
         log,
         settings,
-        SignPathTokenSession.defaultLogDirectory());
+        SignPathTokenSession.defaultLogDirectory(),
+        SignPathTokenSession.defaultContainersDirectory());
   }
 
   /** Resolves the API token, as {@code sign} does. Visible for testing. */
