@@ -36,7 +36,7 @@ jobs:
       # results URL and runtime token. GitHub only gives them to JavaScript actions: this one
       # hands them over as step outputs.
       - id: actions-runtime
-        uses: eclipse-csi/codesign-tools/.github/actions/expose-actions-runtime@d6bceb9b3eec30fd8726a86d0a3c4ec6b5f8b8e9 # v0.11.0
+        uses: eclipse-csi/codesign-tools/.github/actions/expose-actions-runtime@1239b9c2eebf9c596d4d4492dd67809e9b991a5e # v0.12.0
 
       # submissionMode=github-actions can also be set in the POM's <configuration>, as
       # <submissionMode>github-actions</submissionMode>; a <description> is ignored in this mode.

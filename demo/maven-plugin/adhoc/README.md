@@ -11,7 +11,7 @@ or to sign an existing project without editing its POM.
 which runs:
 
 ```bash
-mvn package org.eclipse.csi:codesign-maven-plugin:0.11.0:codesign \
+mvn package org.eclipse.csi:codesign-maven-plugin:0.12.0:codesign \
   -Dcsi.codesign.organizationId="$SIGNPATH_ORGANIZATION_ID" \
   -Dcsi.codesign.projectId="$SIGNPATH_PROJECT_ID" \
   -Dcsi.codesign.signingPolicy="$SIGNPATH_SIGNING_POLICY" \

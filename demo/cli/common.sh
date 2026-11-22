@@ -3,7 +3,7 @@
 # Helpers shared by the CLI demos. Sourced, not run.
 #
 # The csi-codesign command defaults to the native binary on the PATH. Set CSI_CODESIGN to run
-# another one, e.g. CSI_CODESIGN="java -jar /path/to/codesign-cli-0.11.0-bin.jar".
+# another one, e.g. CSI_CODESIGN="java -jar /path/to/codesign-cli-0.12.0-bin.jar".
 
 set -euo pipefail
 

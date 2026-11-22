@@ -7,14 +7,14 @@
 # SHA-256 against Maven Central, then its jar signature, before running it.
 #
 # Usage: ./06-jvm-fat-jar.sh [FILE]    (default: a generated sample jar)
-#        CODESIGN_VERSION=0.11.0 ./06-jvm-fat-jar.sh
+#        CODESIGN_VERSION=0.12.0 ./06-jvm-fat-jar.sh
 
 # shellcheck source-path=SCRIPTDIR source=common.sh
 source "$(dirname "$0")/common.sh"
 require_env CSI_CODESIGN_API_TOKEN SIGNPATH_ORGANIZATION_ID SIGNPATH_PROJECT_ID SIGNPATH_SIGNING_POLICY
 command -v java >/dev/null || die "java (21 or later) is needed"
 
-version="${CODESIGN_VERSION:-0.11.0}"
+version="${CODESIGN_VERSION:-0.12.0}"
 fat_jar="$WORK_DIR/codesign-cli-$version-bin.jar"
 url="https://repo1.maven.org/maven2/org/eclipse/csi/codesign-cli/$version/codesign-cli-$version-bin.jar"
 

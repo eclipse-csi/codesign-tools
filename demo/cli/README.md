@@ -6,7 +6,7 @@ does, so the same commands fit any CI system (Jenkins, GitLab CI, …).
 ## Setup
 
 1. Install `csi-codesign` ([installation](../../USAGE.md#cli)), or set `CSI_CODESIGN` to the
-   command to run instead, e.g. `CSI_CODESIGN="java -jar codesign-cli-0.11.0-bin.jar"`.
+   command to run instead, e.g. `CSI_CODESIGN="java -jar codesign-cli-0.12.0-bin.jar"`.
 2. Create the artifact configurations of [`../signpath/`](../signpath/) in your SignPath project.
 3. Export the environment variables listed in [`../README.md`](../README.md#prerequisites).
 
