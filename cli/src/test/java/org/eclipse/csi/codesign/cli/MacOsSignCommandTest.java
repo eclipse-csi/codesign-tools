@@ -842,6 +842,38 @@ class MacOsSignCommandTest {
   }
 
   @Test
+  void signPathProvider_codesignTimeout_stopsAndIncludesTheCryptoTokenKitLog() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    fakeDiskImage();
+    runner.on(List.of("security", "find-identity"), 0, IDENTITIES);
+    runner.on(
+        List.of("codesign", "--force"), command -> new ProcessRunner.Result(-1, "partial", true));
+    Files.createDirectories(tempDir.resolve("logs"));
+    Files.writeString(tempDir.resolve("logs/ctk.log"), "SignHash: waiting for build data\n");
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "release-signing",
+            "--identity",
+            APP_IDENTITY,
+            "--signing-timeout",
+            "42",
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(1, exit);
+    String error = err.toString();
+    assertTrue(error.contains("codesign did not finish within 42s and was stopped"), error);
+    assertTrue(error.contains("SignHash: waiting for build data"), error);
+    assertEquals(1, runner.commands("pkill").size());
+  }
+
+  @Test
   void signPathProvider_customApiUrlIsPassedToCryptoTokenKit() throws IOException {
     Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
     fakeDiskImage();

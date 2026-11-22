@@ -313,6 +313,10 @@ card token, and SignPath signs each hash the tools send. `csi-codesign macos sig
    - **Mach-O binaries** the same way.
    - **Disk images** with a timestamp only.
    - **`.pkg` files** with `productsign`.
+
+   SignPath signs each hash while `codesign` or `productsign` waits, so each call is stopped
+   after `--signing-timeout` (default 300 s). A policy that holds the requests, for example
+   for approval, would otherwise make them wait for ever.
 5. It verifies every signature (`codesign --verify --strict`, `pkgutil --check-signature`).
 6. It stops the CryptoTokenKit and unmounts the disk image, including on failure.
 

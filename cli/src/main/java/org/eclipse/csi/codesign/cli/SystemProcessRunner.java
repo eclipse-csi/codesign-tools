@@ -10,11 +10,15 @@
 
 package org.eclipse.csi.codesign.cli;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /** Runs commands as child processes of this one. */
 class SystemProcessRunner implements ProcessRunner {
@@ -22,12 +26,7 @@ class SystemProcessRunner implements ProcessRunner {
   @Override
   public Result run(List<String> command, Map<String, String> environment)
       throws IOException, InterruptedException {
-    ProcessBuilder builder =
-        new ProcessBuilder(command)
-            .redirectErrorStream(true)
-            .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
-    builder.environment().putAll(environment);
-    Process process = builder.start();
+    Process process = start(command, environment);
     try {
       byte[] output = process.getInputStream().readAllBytes();
       int exitCode = process.waitFor();
@@ -35,5 +34,49 @@ class SystemProcessRunner implements ProcessRunner {
     } finally {
       process.destroy();
     }
+  }
+
+  @Override
+  public Result run(List<String> command, Map<String, String> environment, Duration timeout)
+      throws IOException, InterruptedException {
+    Process process = start(command, environment);
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+    // The output is read on another thread, so that a silent process cannot block the timeout.
+    Thread reader =
+        Thread.ofVirtual()
+            .start(
+                () -> {
+                  try (InputStream in = process.getInputStream()) {
+                    in.transferTo(output);
+                  } catch (IOException e) {
+                    // The process was stopped: keep the output so far.
+                  }
+                });
+    try {
+      boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      if (!finished) {
+        process.descendants().forEach(ProcessHandle::destroyForcibly);
+        process.destroyForcibly();
+        process.waitFor(5, TimeUnit.SECONDS);
+      }
+      reader.join(Duration.ofSeconds(5));
+      String text;
+      synchronized (output) {
+        text = output.toString(StandardCharsets.UTF_8);
+      }
+      return finished ? new Result(process.exitValue(), text) : new Result(-1, text, true);
+    } finally {
+      process.destroyForcibly();
+    }
+  }
+
+  private static Process start(List<String> command, Map<String, String> environment)
+      throws IOException {
+    ProcessBuilder builder =
+        new ProcessBuilder(command)
+            .redirectErrorStream(true)
+            .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")));
+    builder.environment().putAll(environment);
+    return builder.start();
   }
 }

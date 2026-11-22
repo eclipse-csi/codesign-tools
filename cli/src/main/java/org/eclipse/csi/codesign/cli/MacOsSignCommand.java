@@ -173,6 +173,19 @@ class MacOsSignCommand implements Callable<Integer> {
   int identityTimeout;
 
   @Option(
+      names = "--signing-timeout",
+      paramLabel = "<seconds>",
+      defaultValue = "300",
+      description =
+          "Maximum seconds each codesign or productsign call may take with the SignPath"
+              + " CryptoTokenKit, which waits for SignPath to sign each hash"
+              + " (default: ${DEFAULT-VALUE}).")
+  int signingTimeout;
+
+  /** The time limit of each signing call; {@code null} without the CryptoTokenKit. */
+  private Duration signingCallTimeout;
+
+  @Option(
       names = "--ctk-url",
       paramLabel = "<url>",
       defaultValue = SignPathTokenSession.DEFAULT_DMG_URL,
@@ -248,6 +261,7 @@ class MacOsSignCommand implements Callable<Integer> {
         identitiesFromSigningPolicy(settings, targets);
         session = newTokenSession(runner, settings);
         session.start();
+        signingCallTimeout = Duration.ofSeconds(Math.max(1, signingTimeout));
       }
       try {
         awaitIdentities(runner, targets, session != null);
@@ -537,23 +551,47 @@ class MacOsSignCommand implements Callable<Integer> {
         List<Path> order = MacOsCodeScanner.signingOrder(target);
         Path top = order.get(order.size() - 1);
         for (Path code : order) {
-          runner.runChecked(codesignCode(code, code.equals(top)));
+          runSigningTool(runner, codesignCode(code, code.equals(top)));
         }
         verifyCode(runner, target, true);
       }
       case MACH_O -> {
-        runner.runChecked(codesignCode(target, true));
+        runSigningTool(runner, codesignCode(target, true));
         verifyCode(runner, target, false);
       }
       case DISK_IMAGE -> {
         List<String> command = codesignBase();
         command.add(target.toString());
         verboseOut(String.join(" ", command));
-        runner.runChecked(command);
+        runSigningTool(runner, command);
         verifyCode(runner, target, false);
       }
       case INSTALLER_PACKAGE -> signInstallerPackage(runner, target);
     }
+  }
+
+  /**
+   * Runs {@code codesign} or {@code productsign}. With the CryptoTokenKit, each call waits for
+   * SignPath to sign its hashes, so it is stopped after {@code --signing-timeout}.
+   */
+  private void runSigningTool(ProcessRunner runner, List<String> command)
+      throws IOException, InterruptedException, ToolException {
+    if (signingCallTimeout == null) {
+      runner.runChecked(command);
+      return;
+    }
+    ProcessRunner.Result result = runner.run(command, Map.of(), signingCallTimeout);
+    if (result.timedOut()) {
+      throw new ToolException(
+          command.get(0)
+              + " did not finish within "
+              + signingCallTimeout.toSeconds()
+              + "s and was stopped: SignPath did not sign its hashes in time. Check the signing"
+              + " request in SignPath, and that the signing policy does not hold it, for example"
+              + " for approval or build verification."
+              + ProcessRunner.quote(result.output()));
+    }
+    ProcessRunner.check(command, result);
   }
 
   private List<String> codesignBase() {
@@ -608,7 +646,7 @@ class MacOsSignCommand implements Callable<Integer> {
             signed.toString());
     verboseOut(String.join(" ", command));
     try {
-      runner.runChecked(command);
+      runSigningTool(runner, command);
       Files.move(
           signed, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     } finally {

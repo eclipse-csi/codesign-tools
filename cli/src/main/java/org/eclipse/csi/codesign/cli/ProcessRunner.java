@@ -11,6 +11,7 @@
 package org.eclipse.csi.codesign.cli;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +41,16 @@ interface ProcessRunner {
   }
 
   /**
+   * Runs {@code command} like {@link #run(List, Map)}, but stops it, with the processes it started,
+   * if it is still running after {@code timeout}: the result is then {@linkplain Result#timedOut()
+   * timed out}, with the output so far.
+   */
+  default Result run(List<String> command, Map<String, String> environment, Duration timeout)
+      throws IOException, InterruptedException {
+    return run(command, environment);
+  }
+
+  /**
    * Runs {@code command} and fails when it exits with a non-zero code.
    *
    * @return the output of the command
@@ -48,7 +59,15 @@ interface ProcessRunner {
    */
   default String runChecked(List<String> command, Map<String, String> environment)
       throws IOException, InterruptedException, ToolException {
-    Result result = run(command, environment);
+    return check(command, run(command, environment));
+  }
+
+  /**
+   * Fails when {@code result} has a non-zero exit code.
+   *
+   * @return the output of the command
+   */
+  static String check(List<String> command, Result result) throws ToolException {
     if (result.exitCode() != 0) {
       throw new ToolException(
           String.join(" ", command.subList(0, Math.min(2, command.size())))
@@ -82,6 +101,13 @@ interface ProcessRunner {
    *
    * @param exitCode the exit code of the process
    * @param output stdout and stderr, merged
+   * @param timedOut whether the process was stopped because it ran out of time
    */
-  record Result(int exitCode, String output) {}
+  record Result(int exitCode, String output, boolean timedOut) {
+
+    /** The result of a process that ran to completion. */
+    Result(int exitCode, String output) {
+      this(exitCode, output, false);
+    }
+  }
 }
