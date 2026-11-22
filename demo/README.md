@@ -25,6 +25,7 @@ repository. Each folder is self-contained: copy the one that matches your setup 
 | Sign only when asked, skip otherwise | — | [`profile-and-skip/`](maven-plugin/profile-and-skip/) | — |
 | Trusted build system (GitHub connector) | — | [`maven-plugin-trusted-build.yml`](github-actions/maven-plugin-trusted-build.yml) | [`sign-with-action.yml`](github-actions/sign-with-action.yml) |
 | Direct REST API upload from GitHub Actions | — | — | [`cli-direct-mode.yml`](github-actions/cli-direct-mode.yml) |
+| Sign and notarize a macOS app and disk image | [`07-macos-app.sh`](cli/07-macos-app.sh) | — | [`macos-sign-and-notarize.yml`](github-actions/macos-sign-and-notarize.yml) |
 
 ## Prerequisites
 

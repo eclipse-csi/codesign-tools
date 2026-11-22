@@ -288,6 +288,83 @@ in a step that has the same `env:` block. If SignPath rejects the request, for e
 the branch is not allowed by the policy's origin verification, the error lists each policy
 violation together with SignPath's hint on how to fix it.
 
+### macOS: Sign and Notarize
+
+SignPath has no artifact configuration for Apple formats. Apps, Mach-O binaries, disk images
+and installer packages are signed on a macOS machine by `codesign` and `productsign`, through
+the [SignPath macOS CryptoTokenKit](https://docs.signpath.io/crypto-providers/macos). The
+CryptoTokenKit publishes the certificate of a signing policy in the keychain, and SignPath
+signs each hash the tools send. `csi-codesign macos sign` runs the whole sequence:
+
+1. It downloads `SignPathCryptoTokenKit.dmg` and checks that it carries a valid Developer ID
+   signature of SignPath GmbH (Team ID `PDP2N2TC2T`). With `--ctk-sha256`, it also checks the
+   download's SHA-256.
+2. It mounts the disk image read-only and starts the CryptoTokenKit for your project and
+   signing policy. The API token reaches the CryptoTokenKit through its environment, never a
+   command line.
+3. It waits until the certificate shows up in the keychain (`--identity-timeout`, default 60 s).
+4. It signs each input:
+   - **Bundles** (`.app`, `.framework`, …) from the inside out: every nested Mach-O binary and
+     bundle comes before the bundle that contains it, with the hardened runtime and a secure
+     timestamp, as notarization requires. `--entitlements` applies to the top-level bundle
+     only.
+   - **Mach-O binaries** the same way.
+   - **Disk images** with a timestamp only.
+   - **`.pkg` files** with `productsign`.
+5. It verifies every signature (`codesign --verify --strict`, `pkgutil --check-signature`).
+6. It stops the CryptoTokenKit and unmounts the disk image, including on failure.
+
+```bash
+export CSI_CODESIGN_API_TOKEN=...
+csi-codesign macos sign build/MyApp.app \
+  --organization-id <ORG_ID> --project-id <PROJECT_SLUG> --signing-policy <POLICY_SLUG> \
+  --identity "Developer ID Application: Example AISBL (TEAMID)" \
+  --entitlements MyApp.entitlements \
+  --output-dir signed/
+
+hdiutil create -format UDZO -srcfolder signed/MyApp.app signed/MyApp.dmg
+csi-codesign macos sign signed/MyApp.dmg --force-overwrite \
+  --organization-id <ORG_ID> --project-id <PROJECT_SLUG> --signing-policy <POLICY_SLUG> \
+  --identity "Developer ID Application: Example AISBL (TEAMID)"
+```
+
+Requirements on the SignPath side:
+
+- The project's **default** artifact configuration must be of type *hash signing data*, because
+  the CryptoTokenKit has no setting to choose another one. File-based configurations can live in
+  the same project: `csi-codesign sign` selects them with `--artifact-configuration`.
+- The signing policy's certificate is a Developer ID Application certificate. A policy for
+  testing can use a self-signed SignPath certificate with the *Code Signing* extended key
+  usage. macOS does not trust it, so `macos sign` prints a warning and signs anyway; Gatekeeper
+  and notarization reject such signatures.
+- A policy has a single certificate, so `.pkg` installers (Developer ID Installer) are signed
+  in a separate invocation, with their own policy and `--installer-identity`.
+
+`--identity` selects the certificate the way `codesign -s` does: by its SHA-1 hash, or by a part
+of its name, preferring an exact match. Certificates that cannot sign, for example expired ones,
+are ignored. `codesign` then receives the SHA-1 hash of the certificate found, so an older
+certificate with the same name in the keychain does not make the choice ambiguous.
+
+`--token-provider keychain` skips the CryptoTokenKit and uses identities already in the
+keychain, e.g. a local certificate, or `--identity -` for an ad-hoc signature when testing.
+
+**Notarization** is a separate step. It submits each input to Apple's notary service and waits
+for the verdict. If Apple rejects a submission, the error lists each issue from the
+notarization log. Otherwise the ticket is stapled (`--no-staple` skips this) and Gatekeeper
+(`spctl --assess`) must accept the result. An app is zipped for submission, and the app itself
+is stapled.
+
+```bash
+export CSI_CODESIGN_NOTARY_KEY="$(cat AuthKey_ABC123DEFG.p8)"   # or --notary-key <file>
+export CSI_CODESIGN_NOTARY_KEY_ID=ABC123DEFG
+export CSI_CODESIGN_NOTARY_ISSUER=69a6de7e-0000-47e3-e053-5b8c7c11a4d1   # team keys only
+csi-codesign macos notarize signed/MyApp.dmg
+```
+
+It authenticates with an App Store Connect API key, or with a `notarytool` keychain profile
+(`--keychain-profile`). Apple ID passwords are not supported. Both commands run on macOS only;
+the native binary is released for Apple Silicon (see [Installation](#cli)).
+
 ---
 
 ## Configuration Reference
@@ -308,6 +385,8 @@ Reference documentation is published on the [project site](https://eclipse-csi.g
 | `CSI_CODESIGN_API_TOKEN` | Both | SignPath API token. Lower priority than `settings.xml` (plugin); higher priority than the config file. |
 | `CSI_CODESIGN_SKIP_SIGNING` | Plugin only | Set to `1`, `true`, or `yes` (case-insensitive) to skip signing unconditionally. |
 | `ACTIONS_RESULTS_URL`, `ACTIONS_RUNTIME_TOKEN`, `GITHUB_RUN_ID`, `GITHUB_REPOSITORY`, `GITHUB_TOKEN` | Both | Required by the `github-actions` submission mode; see [GitHub Actions: Trusted Build System](#github-actions-trusted-build-system). |
+| `CSI_CODESIGN_NOTARY_KEY` | CLI only | `macos notarize`: content of the App Store Connect API private key (`.p8`). Ignored when `--notary-key` is given. |
+| `CSI_CODESIGN_NOTARY_KEY_ID`, `CSI_CODESIGN_NOTARY_ISSUER` | CLI only | `macos notarize`: key ID and issuer ID of the App Store Connect API key. Ignored when `--notary-key-id` or `--notary-issuer` is given. |
 
 ---
 

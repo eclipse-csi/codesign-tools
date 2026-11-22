@@ -22,7 +22,7 @@ import picocli.CommandLine.Command;
 @Command(
     name = "codesign",
     description = "Sign artifacts via the SignPath REST API.",
-    subcommands = {SignCommand.class, CommandLine.HelpCommand.class},
+    subcommands = {SignCommand.class, MacOsCommand.class, CommandLine.HelpCommand.class},
     mixinStandardHelpOptions = true,
     versionProvider = VersionProvider.class,
     sortOptions = false,

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Signing and notarization of macOS apps and installers with the CLI, on macOS.
+  * `csi-codesign macos sign` signs apps and other bundles, Mach-O binaries, disk images and `.pkg` installers with the Developer ID certificate of a SignPath signing policy, through the SignPath macOS CryptoTokenKit. It downloads the CryptoTokenKit and checks its Developer ID signature, starts it, and waits until the certificate is in the keychain. It signs bundles from the inside out, with the hardened runtime and a secure timestamp, as notarization requires. It verifies every signature and stops the CryptoTokenKit afterwards. The self-signed certificate of a SignPath test signing policy also works, with a warning that the result is for testing only.
+  * `csi-codesign macos notarize` submits apps, disk images and installers to Apple's notary service with an App Store Connect API key. If Apple rejects them, it prints the issues from the notarization log. Otherwise it staples the ticket and checks the result with Gatekeeper.
+  * The SignPath project needs a default artifact configuration of type *hash signing data*. See "macOS: Sign and Notarize" in USAGE.md and the new `07-macos-app.sh` and `macos-sign-and-notarize.yml` demos.
+
 * A [`demo/`](demo/) folder with runnable examples of each way to sign: CLI scripts (one file, several files in one request, in place, parameters, token from a file, the JVM fat jar), standalone Maven projects (ad-hoc invocation, project and attached artifacts, file patterns, several executions, signing behind a profile), GitHub Actions workflows (`eclipse-csi/codesign-action`, the Maven plugin with the trusted build system, direct mode), and the SignPath artifact configurations they use.
 
 ## [v0.11.0] - 2026-11-22

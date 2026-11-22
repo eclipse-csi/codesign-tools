@@ -26,6 +26,7 @@ script's default.
 | [`04-description-and-params.sh`](04-description-and-params.sh) | `--description` and `--param key=value` | `jar-with-parameters` |
 | [`05-config-file-token.sh`](05-config-file-token.sh) | API token from `--config-file` instead of the environment | `jar` |
 | [`06-jvm-fat-jar.sh`](06-jvm-fat-jar.sh) | The `-bin` fat jar from Maven Central, verified, run with `java -jar` | `jar` |
+| [`07-macos-app.sh`](07-macos-app.sh) | macOS only: `macos sign` on an app and its disk image, then `macos notarize` | A hash signing project, see [`../signpath/`](../signpath/README.md#macos-hash-signing) |
 
 ```bash
 ./01-single-file.sh                      # sign a sample jar

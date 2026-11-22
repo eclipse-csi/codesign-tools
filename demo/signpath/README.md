@@ -42,3 +42,28 @@ through the SignPath GitHub connector, work with them.
 
 Create a CI user (*Users and groups → CI users*), make it a submitter of the policy, and use its
 API token as `CSI_CODESIGN_API_TOKEN`.
+
+## macOS hash signing
+
+Apple code signing does not go through artifact configurations: SignPath has none for apps,
+Mach-O binaries, disk images or installer packages. `csi-codesign macos sign` runs the
+[SignPath macOS CryptoTokenKit](https://docs.signpath.io/crypto-providers/macos) instead. It
+publishes the certificate of a signing policy in the keychain, and `codesign` and `productsign`
+send SignPath the hashes to sign. For the [`07-macos-app.sh`](../cli/07-macos-app.sh) and
+[`macos-sign-and-notarize.yml`](../github-actions/macos-sign-and-notarize.yml) demos:
+
+- **Project:** its *default* artifact configuration must be of type *hash signing data*. The
+  CryptoTokenKit always submits to the default configuration: it has no setting to choose
+  another one. The file-based configurations above can stay in the same project, since every
+  other demo selects its configuration by slug.
+- **Signing policy:** one with the **Developer ID Application** certificate, for apps, binaries
+  and disk images. A policy has a single certificate, so `.pkg` installers need a second policy
+  with the **Developer ID Installer** certificate, signed in a separate `macos sign` invocation.
+- **Submitter:** the CI user that owns the API token.
+- **Identity:** pass the name of the certificate (or a distinctive part of it, such as the Team
+  ID) as `--identity`, as `security find-identity` shows it once the CryptoTokenKit runs. A
+  self-signed test certificate works too: it is listed with `CSSMERR_TP_NOT_TRUSTED`, and
+  `macos sign` warns that the result is for testing only.
+
+Notarization is a separate, optional step (`csi-codesign macos notarize`). It needs an App Store
+Connect API key of the Apple developer team that owns the certificates.
