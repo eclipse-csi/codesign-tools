@@ -33,8 +33,10 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Spec;
 
 /**
- * Notarizes signed macOS apps, disk images and installer packages with Apple's notary service, then
- * staples the ticket to them and checks that Gatekeeper accepts them.
+ * Notarizes signed macOS apps, disk images, installer packages and Mach-O binaries with Apple's
+ * notary service, then staples the ticket to them and checks that Gatekeeper accepts them. A Mach-O
+ * binary (such as a command-line tool) is submitted in a zip; Apple cannot staple a ticket to it,
+ * and Gatekeeper looks the ticket up online instead.
  *
  * <p>Authenticates with an App Store Connect API key (from the {@code CSI_CODESIGN_NOTARY_KEY*}
  * environment variables or options) or with a {@code notarytool} keychain profile. Apple ID
@@ -43,8 +45,8 @@ import picocli.CommandLine.Spec;
 @Command(
     name = "notarize",
     description = {
-      "Notarize signed macOS apps, disk images and installer packages, staple the tickets and"
-          + " check them with Gatekeeper.",
+      "Notarize signed macOS apps, disk images, installer packages and Mach-O binaries, staple"
+          + " the tickets and check them with Gatekeeper.",
       "Authenticates with an App Store Connect API key, or a notarytool keychain profile."
     },
     sortOptions = false,
@@ -130,6 +132,7 @@ class MacOsNotarizeCommand implements Callable<Integer> {
     APP,
     DISK_IMAGE,
     INSTALLER_PACKAGE,
+    MACH_O,
     ZIP
   }
 
@@ -174,12 +177,24 @@ class MacOsNotarizeCommand implements Callable<Integer> {
       if (name.endsWith(".zip")) {
         return Kind.ZIP;
       }
+      if (isMachO(path)) {
+        return Kind.MACH_O;
+      }
     }
     if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
       throw new ParameterException(spec.commandLine(), "Not found: " + path);
     }
     throw new ParameterException(
-        spec.commandLine(), "Cannot notarize " + path + ": not a .app, .dmg, .pkg or .zip.");
+        spec.commandLine(),
+        "Cannot notarize " + path + ": not a .app, .dmg, .pkg, .zip or Mach-O binary.");
+  }
+
+  private static boolean isMachO(Path path) {
+    try {
+      return MacOsCodeScanner.isMachO(path);
+    } catch (IOException e) {
+      return false;
+    }
   }
 
   /** The notarytool authentication options. Writes the API key from the environment to a file. */
@@ -229,7 +244,8 @@ class MacOsNotarizeCommand implements Callable<Integer> {
       ProcessRunner runner, Path workDir, List<String> credentials, Path target, Kind kind)
       throws IOException, InterruptedException, ToolException {
     Path submission = target;
-    if (kind == Kind.APP) {
+    // notarytool takes zips, disk images and packages: an app or a binary goes in a zip.
+    if (kind == Kind.APP || kind == Kind.MACH_O) {
       submission = workDir.resolve(target.getFileName() + ".zip");
       runner.runChecked(
           List.of(
@@ -282,8 +298,10 @@ class MacOsNotarizeCommand implements Callable<Integer> {
     }
     out("Notarized: " + target + " (submission " + id + ")");
 
-    if (kind == Kind.ZIP) {
-      return; // Apple cannot staple zip files, and Gatekeeper does not assess them.
+    if (kind == Kind.ZIP || kind == Kind.MACH_O) {
+      // Apple cannot staple a ticket to a zip or a bare binary, and Gatekeeper does not assess
+      // them: it looks the ticket up online when the binary first runs.
+      return;
     }
     if (!noStaple) {
       runner.runChecked(List.of(XCRUN, "stapler", "staple", target.toString()));
@@ -296,7 +314,7 @@ class MacOsNotarizeCommand implements Callable<Integer> {
           case APP -> List.of("execute");
           case DISK_IMAGE -> List.of("open", "--context", "context:primary-signature");
           case INSTALLER_PACKAGE -> List.of("install");
-          case ZIP -> throw new IllegalStateException();
+          case MACH_O, ZIP -> throw new IllegalStateException();
         });
     command.add("--verbose=2");
     command.add(target.toString());

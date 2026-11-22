@@ -1,0 +1,164 @@
+name: macOS Signing Test
+
+# Tests Developer ID signing and notarization of every format `csi-codesign macos` handles, with
+# the Eclipse Foundation's Developer ID certificates: the project ships only a bare binary, so it
+# signs a sample app (with a nested helper), the disk image of it, an installer package of it and
+# a command-line tool, notarizes them, staples the tickets and checks them with Gatekeeper.
+# Run by hand only: each run makes Developer ID signatures and notarization submissions. Nothing
+# is published; the signed files are kept as a workflow artifact for a week.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  SIGNPATH_ORGANIZATION_ID: 46624a66-6595-48fd-85c3-64bdee7fecc9
+  SIGNPATH_PROJECT_ID: technology.csi
+
+jobs:
+  sign-and-notarize:
+    name: Sign and notarize samples
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        with:
+          disable-sudo-and-containers: true
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history and tags: the project version is derived from the closest vX.Y.Z tag.
+          fetch-depth: 0
+
+      - name: Set up Java
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Maven wrapper distribution
+        uses: $/.github/actions/install-maven-wrapper
+
+      # The CLI fat JAR is quicker to build than the native binary, which the release signs and
+      # notarizes itself.
+      - name: Build csi-codesign
+        run: |
+          ./mvnw -B -ntp -pl cli --also-make -DskipTests package
+          shopt -s failglob
+          jar=$(echo "${PWD}"/cli/target/codesign-cli-*-bin.jar)
+          mkdir -p "${RUNNER_TEMP}/bin"
+          printf '#!/bin/sh\nexec java -jar "%s" "$@"\n' "${jar}" > "${RUNNER_TEMP}/bin/csi-codesign"
+          chmod +x "${RUNNER_TEMP}/bin/csi-codesign"
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+
+      - name: Build the samples
+        run: |
+          app=build/Sample.app
+          mkdir -p "${app}/Contents/MacOS"
+          cat > "${app}/Contents/Info.plist" <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key><string>Sample</string>
+              <key>CFBundleIdentifier</key><string>org.eclipse.csi.codesign.sample</string>
+              <key>CFBundleName</key><string>Sample</string>
+              <key>CFBundlePackageType</key><string>APPL</string>
+              <key>CFBundleShortVersionString</key><string>1.0</string>
+          </dict>
+          </plist>
+          EOF
+          echo 'print("Sample app signed by the Eclipse CSI codesign tests.")' > build/main.swift
+          swiftc -O -o "${app}/Contents/MacOS/Sample" build/main.swift
+          # Nested code, which must be signed before the bundle that contains it.
+          echo 'print("Helper of the sample app.")' > build/helper.swift
+          swiftc -O -o "${app}/Contents/MacOS/helper" build/helper.swift
+          echo 'print("Sample command-line tool.")' > build/tool.swift
+          swiftc -O -o build/sample-tool build/tool.swift
+
+      - name: Sign the app and the tool
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          csi-codesign macos sign build/Sample.app build/sample-tool \
+            --organization-id "${SIGNPATH_ORGANIZATION_ID}" \
+            --project-id "${SIGNPATH_PROJECT_ID}" \
+            --signing-policy apple-application-release \
+            --output-dir signed \
+            --verbose
+
+      - name: Create and sign the disk image
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          hdiutil create -quiet -format UDZO -volname Sample -srcfolder signed/Sample.app build/Sample.dmg
+          csi-codesign macos sign build/Sample.dmg \
+            --organization-id "${SIGNPATH_ORGANIZATION_ID}" \
+            --project-id "${SIGNPATH_PROJECT_ID}" \
+            --signing-policy apple-application-release \
+            --output-dir signed \
+            --verbose
+
+      # A signing policy has a single certificate: the installer package is signed with the
+      # Developer ID Installer certificate of another policy, in its own invocation.
+      - name: Create and sign the installer package
+        env:
+          CSI_CODESIGN_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          pkgbuild --quiet --component signed/Sample.app --install-location /Applications build/Sample.pkg
+          csi-codesign macos sign build/Sample.pkg \
+            --organization-id "${SIGNPATH_ORGANIZATION_ID}" \
+            --project-id "${SIGNPATH_PROJECT_ID}" \
+            --signing-policy apple-installer-release \
+            --output-dir signed \
+            --verbose
+
+      - name: Check the signatures
+        run: |
+          for file in signed/Sample.app signed/sample-tool signed/Sample.dmg; do
+            details=$(codesign -dvv "${file}" 2>&1)
+            echo "${details}"
+            grep -q '^Authority=Developer ID Application:' <<< "${details}" \
+              || { echo "::error::${file} is not signed with a Developer ID Application certificate"; exit 1; }
+            grep -q '^Timestamp=' <<< "${details}" \
+              || { echo "::error::${file} has no secure timestamp"; exit 1; }
+          done
+          pkgutil --check-signature signed/Sample.pkg | tee pkg-signature.txt
+          grep -q 'Developer ID Installer:' pkg-signature.txt \
+            || { echo "::error::Sample.pkg is not signed with a Developer ID Installer certificate"; exit 1; }
+
+      # The disk image carries the app, which is notarized with it. Tickets are stapled to the
+      # disk image and the package; the bare tool can have none, Gatekeeper looks it up online.
+      - name: Notarize, staple and assess
+        env:
+          CSI_CODESIGN_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_ASC_KEY_ID }}
+          CSI_CODESIGN_NOTARY_ISSUER: ${{ secrets.APPLE_NOTARIZATION_ASC_ISSUER_ID }}
+          NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARIZATION_ASC_KEY_P8_BASE64 }}
+        run: |
+          CSI_CODESIGN_NOTARY_KEY="$(base64 --decode <<< "${NOTARY_KEY_P8_BASE64}")"
+          export CSI_CODESIGN_NOTARY_KEY
+          unset NOTARY_KEY_P8_BASE64
+          csi-codesign macos notarize signed/Sample.dmg signed/Sample.pkg signed/sample-tool --verbose
+
+      - name: Upload the signed samples
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: macos-signed-samples
+          path: |
+            signed/Sample.dmg
+            signed/Sample.pkg
+            signed/sample-tool
+          if-no-files-found: error
+          retention-days: 7

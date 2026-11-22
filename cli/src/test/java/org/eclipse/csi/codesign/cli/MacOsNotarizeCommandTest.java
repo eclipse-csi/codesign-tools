@@ -292,13 +292,33 @@ class MacOsNotarizeCommandTest {
   }
 
   @Test
-  void unsupportedInput_isAUsageError() throws IOException {
+  void machOBinary_isSubmittedInAZipAndNeitherStapledNorAssessed() throws IOException {
     Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    runner.on(List.of("xcrun", "notarytool", "submit"), 0, ACCEPTED);
 
     int exit = notarize("--keychain-profile", "ci", binary.toString());
 
+    assertEquals(0, exit, err.toString());
+    List<String> ditto = runner.commands("ditto").get(0);
+    assertEquals(
+        List.of("ditto", "-c", "-k", "--sequesterRsrc", "--keepParent"), ditto.subList(0, 5));
+    assertEquals(binary.toAbsolutePath().normalize().toString(), ditto.get(5));
+    String zip = ditto.get(6);
+    assertTrue(zip.endsWith("tool.zip"), zip);
+    assertEquals(zip, runner.commands("xcrun", "notarytool", "submit").get(0).get(3));
+    assertTrue(runner.commands("xcrun", "stapler").isEmpty());
+    assertTrue(runner.commands("spctl").isEmpty());
+  }
+
+  @Test
+  void unsupportedInput_isAUsageError() throws IOException {
+    Path text = Files.writeString(tempDir.resolve("notes.txt"), "not code");
+
+    int exit = notarize("--keychain-profile", "ci", text.toString());
+
     assertEquals(2, exit);
-    assertTrue(err.toString().contains("not a .app, .dmg, .pkg or .zip"), err.toString());
+    assertTrue(
+        err.toString().contains("not a .app, .dmg, .pkg, .zip or Mach-O binary"), err.toString());
   }
 
   @Test

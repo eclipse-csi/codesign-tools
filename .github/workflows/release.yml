@@ -193,8 +193,15 @@ jobs:
     with:
       artifact-retention-days: 7
       signing-policy: release-signing
+      # Developer ID Application certificate. SignPath refuses hash signing under policies with
+      # trusted build system verification, so this policy has none (nor origin verification).
+      macos-signing-policy: apple-application-release
+      macos-notarize: true
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      APPLE_NOTARIZATION_ASC_ISSUER_ID: ${{ secrets.APPLE_NOTARIZATION_ASC_ISSUER_ID }}
+      APPLE_NOTARIZATION_ASC_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_ASC_KEY_ID }}
+      APPLE_NOTARIZATION_ASC_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARIZATION_ASC_KEY_P8_BASE64 }}
 
   # Publishing to Maven Central is irreversible, so it runs once everything is built. It is
   # safe to run again, as a re-run attempt or as a new run for the same tag:

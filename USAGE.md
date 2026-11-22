@@ -367,7 +367,9 @@ keychain, e.g. a local certificate, or `--identity -` for an ad-hoc signature wh
 for the verdict. If Apple rejects a submission, the error lists each issue from the
 notarization log. Otherwise the ticket is stapled (`--no-staple` skips this) and Gatekeeper
 (`spctl --assess`) must accept the result. An app is zipped for submission, and the app itself
-is stapled.
+is stapled. A Mach-O binary, such as a command-line tool, is zipped for submission too, but
+Apple cannot staple a ticket to it, and Gatekeeper does not assess it: it looks the ticket up
+online when the binary first runs.
 
 ```bash
 export CSI_CODESIGN_NOTARY_KEY="$(cat AuthKey_ABC123DEFG.p8)"   # or --notary-key <file>

@@ -313,13 +313,16 @@ Configure these repository/environment secrets before running the release workfl
 - `GPG_KEY_ID`
 - `GPG_PASSPHRASE`
 - `SIGNPATH_API_TOKEN` (API token of the SignPath CI user, see "Code Signing in CI" below)
+- `APPLE_NOTARIZATION_ASC_ISSUER_ID`, `APPLE_NOTARIZATION_ASC_KEY_ID` and
+  `APPLE_NOTARIZATION_ASC_KEY_P8_BASE64` (issuer ID, key ID and base64-encoded `.p8` file of the
+  App Store Connect API key that notarizes the macOS binary)
 
 ### Code Signing in CI
 
 The project signs its own artifacts with SignPath (project `technology.csi`, configured in
 [sealform-configuration](https://github.com/EclipseFdn/sealform-configuration/blob/main/ef-projects/projects/technology.csi.yaml)).
-All of its signing policies but `untrusted-test-signing` require trusted build system
-verification. The tools therefore
+All of its signing policies but `untrusted-test-signing`, `apple-application-release` and
+`apple-installer-release` require trusted build system verification. The tools therefore
 submit through the SignPath GitHub connector (`--submission-mode github-actions` for the CLI,
 `<submissionMode>github-actions</submissionMode>` for the plugin); a direct REST upload would
 be rejected. Each file is uploaded on its own (not zipped), with the `jar-file` and `pe-file`
@@ -331,16 +334,27 @@ artifact configurations of the project.
 | `ci-native.yml` | dispatch | the macOS `csi-codesign` (signed by itself with `macos sign`, through the SignPath macOS CryptoTokenKit) | `untrusted-test-signing` |
 | `ci.yml` | dispatch | the jars, by the Maven build (`codesign` profile, artifact configuration `jar-file`; not published) | `test-signing` |
 | `release.yml` | release tag | the jars deployed to Maven Central, the CLI fat JAR and `csi-codesign.exe` shipped in the Windows archive | `release-signing` |
+| `release.yml` | release tag | the macOS `csi-codesign` (signed by itself with `macos sign`, then notarized with `macos notarize`) | `apple-application-release` |
+| `macos-signing-test.yml` | dispatch | a sample app, its disk image and a command-line tool, and an installer package of the app, all notarized (not published) | `apple-application-release`, `apple-installer-release` |
 | `release.yml` | dry run dispatched from a branch | the jars (not published) | `test-signing` |
 | any | push to `main` | nothing, to spare SignPath signing requests: run the workflow by hand to test signing | — |
 | any | pull request | nothing (forks and Dependabot cannot read the secret) | — |
 
 The macOS binary cannot go through the GitHub connector: `codesign` sends SignPath the hashes
 to sign through the SignPath macOS CryptoTokenKit, under the project's default artifact
-configuration, `hash-sign`. SignPath does not offer policies with origin verification for hash
-signing, so CI signs it with `untrusted-test-signing`: a self-signed certificate, without
-trusted build system verification. Such a signature only proves that the signing round trip
-works; it is not trusted by macOS.
+configuration, `hash-sign`. SignPath refuses hash signing under policies with trusted build
+system verification, and does not offer policies with origin verification to the
+CryptoTokenKit, so the macOS policies have neither:
+
+- `untrusted-test-signing`, a self-signed certificate, for manual CI runs. Such a signature
+  only proves that the signing round trip works; it is not trusted by macOS.
+- `apple-application-release` (Developer ID Application) for the released binary, which is
+  then notarized. Apple cannot staple a ticket to a bare binary: Gatekeeper looks it up online.
+- `apple-installer-release` (Developer ID Installer), used by `macos-signing-test.yml` only:
+  the project ships no installer package.
+
+The release builds the native binaries only on a release tag, so run `macos-signing-test.yml`
+by hand to test Developer ID signing and notarization before a release.
 
 The jars are signed inside the Maven build by the `codesign` profile of the root `pom.xml`, in
 place, at `pre-integration-test`: after they are packaged (and the CLI fat JAR shaded), before
