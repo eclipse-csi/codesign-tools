@@ -380,8 +380,8 @@ final class SignPathTokenSession implements AutoCloseable {
     HttpUrl url =
         endpoint
             .newBuilder()
+            // All the policies of the project, so that an error can list the usable ones.
             .addQueryParameter("projectSlug", settings.projectSlug())
-            .addQueryParameter("signingPolicySlug", settings.signingPolicySlug())
             .build();
     Request request =
         new Request.Builder()
@@ -424,20 +424,23 @@ final class SignPathTokenSession implements AutoCloseable {
               + "."
               + ProcessRunner.quote(body));
     }
+    List<String> listed = new ArrayList<>();
     try {
       JsonArray policies =
           JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("signingPolicies");
       if (policies != null) {
         for (JsonElement element : policies) {
           JsonObject candidate = element.getAsJsonObject();
-          if (settings.signingPolicySlug().equals(string(candidate, "signingPolicySlug"))
-              && settings.projectSlug().equals(string(candidate, "projectSlug"))) {
+          String project = string(candidate, "projectSlug");
+          String slug = string(candidate, "signingPolicySlug");
+          if (settings.signingPolicySlug().equals(slug) && settings.projectSlug().equals(project)) {
             String certificate = string(candidate, "certificateBytes");
             if (certificate == null || certificate.isBlank()) {
               throw new ToolException("The " + policy + " has no X.509 certificate.");
             }
             return Base64.getDecoder().decode(certificate);
           }
+          listed.add(project + "/" + slug);
         }
       }
     } catch (IllegalStateException | IllegalArgumentException | JsonParseException e) {
@@ -448,11 +451,18 @@ final class SignPathTokenSession implements AutoCloseable {
               + e.getMessage()
               + ProcessRunner.quote(body));
     }
+    // Observed on 2026-11-22: SignPath leaves the policies with origin verification out of this
+    // list, so the CryptoTokenKit cannot use them, while trusted build system verification alone
+    // does not hide a policy.
     throw new ToolException(
         "SignPath does not list the "
             + policy
-            + " for this API token: check the slugs, and that the token's user is a submitter"
-            + " of the policy.");
+            + " for hash signing with this API token. Check the slugs, that the token's user is a"
+            + " submitter of the policy, and that the policy does not require origin"
+            + " verification: SignPath does not offer such policies to the CryptoTokenKit."
+            + " Policies listed for this token: "
+            + (listed.isEmpty() ? "none" : String.join(", ", listed))
+            + ".");
   }
 
   private static String string(JsonObject object, String member) {

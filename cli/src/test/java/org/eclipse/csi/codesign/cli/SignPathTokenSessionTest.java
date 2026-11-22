@@ -54,6 +54,9 @@ class SignPathTokenSessionTest {
                     200, policies("my-project", "release-signing"), SETTINGS));
     assertTrue(error.getMessage().contains("does not list the signing policy 'test-signing'"));
     assertTrue(error.getMessage().contains("submitter"));
+    assertTrue(error.getMessage().contains("origin verification"));
+    assertTrue(
+        error.getMessage().contains("Policies listed for this token: my-project/release-signing."));
   }
 
   @Test
