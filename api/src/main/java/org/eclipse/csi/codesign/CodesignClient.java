@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import okhttp3.MediaType;
@@ -185,6 +186,9 @@ public class CodesignClient implements AutoCloseable {
    * @throws CodesignException if the connector rejects the request, including policy violations
    * @throws IOException on transport-level failures
    */
+  // The parameters mirror those of the public SigningWorkflow.signViaGitHubActions, its only
+  // caller.
+  @SuppressWarnings("java:S107")
   SigningRequest submitViaGitHubConnector(
       String connectorUrl,
       GitHubActionsContext context,
@@ -294,19 +298,26 @@ public class CodesignClient implements AutoCloseable {
     if (json.get("validationResult") instanceof JsonObject validation
         && validation.get("errors") instanceof JsonArray errors) {
       for (JsonElement element : errors) {
-        if (element instanceof JsonObject violation) {
-          String message = stringMember(violation, "error");
-          String howToFix = stringMember(violation, "howToFix");
-          if (message != null) {
-            problems.add(
-                "Policy violation: "
-                    + sentence(message)
-                    + (howToFix != null ? " How to fix: " + sentence(howToFix) : ""));
-          }
-        }
+        policyViolation(element).ifPresent(problems::add);
       }
     }
     return problems;
+  }
+
+  /** Describes a policy violation of the connector, with its fix hint. */
+  private static Optional<String> policyViolation(JsonElement element) {
+    if (!(element instanceof JsonObject violation)) {
+      return Optional.empty();
+    }
+    String message = stringMember(violation, "error");
+    if (message == null) {
+      return Optional.empty();
+    }
+    String howToFix = stringMember(violation, "howToFix");
+    return Optional.of(
+        "Policy violation: "
+            + sentence(message)
+            + (howToFix != null ? " How to fix: " + sentence(howToFix) : ""));
   }
 
   private static String sentence(String text) {

@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import mockwebserver3.Dispatcher;
 import mockwebserver3.MockResponse;
 import mockwebserver3.MockWebServer;
@@ -104,10 +105,13 @@ class SigningWorkflowTest {
     server.enqueue(statusResponse("Completed", "Completed", true));
     workflow.submitAndWait("proj", "policy", null, null, null, first);
 
-    // Outlast the timeout between requests: a shared deadline would already be expired
-    Thread.sleep(400);
-
-    enqueueSubmit(2);
+    // The second submission outlasts the timeout: a deadline shared with the first request
+    // would already be expired when the second one starts polling.
+    server.enqueue(
+        SignPathResponses.submitted(apiBaseUrl(), "test-org-id", "2")
+            .newBuilder()
+            .headersDelay(400, TimeUnit.MILLISECONDS)
+            .build());
     server.enqueue(statusResponse("InProgress", "QueuedForMalwareScanning", false));
     server.enqueue(statusResponse("Completed", "Completed", true));
     SigningRequestStatus status =

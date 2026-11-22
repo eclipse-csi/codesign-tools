@@ -12,6 +12,8 @@ package org.eclipse.csi.codesign.cli;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Spec;
 
 /**
  * Root command for the {@code codesign} CLI.
@@ -29,6 +31,8 @@ import picocli.CommandLine.Command;
     usageHelpAutoWidth = true)
 public class CodesignCli implements Runnable {
 
+  @Spec CommandSpec spec;
+
   /**
    * Entry point for the {@code codesign} CLI.
    *
@@ -45,6 +49,6 @@ public class CodesignCli implements Runnable {
   @Override
   public void run() {
     // Print usage when called without a subcommand
-    new CommandLine(this).usage(System.err);
+    spec.commandLine().usage(spec.commandLine().getErr());
   }
 }

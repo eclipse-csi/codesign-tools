@@ -161,10 +161,42 @@ final class KeychainIdentities {
     Duration waited = Duration.ZERO;
     Duration pause = FIRST_PAUSE;
     while (true) {
-      List<Identity> available = list(runner);
-      Map<String, Identity> found = new LinkedHashMap<>();
-      List<String> missing = new ArrayList<>();
-      List<Identity> unusable = new ArrayList<>();
+      Lookup lookup = Lookup.of(list(runner), wanted);
+      if (lookup.missing().isEmpty()) {
+        return lookup.found();
+      }
+      if (waited.compareTo(timeout) >= 0) {
+        throw lookup.notFound(timeout);
+      }
+      Duration next = min(pause, timeout.minus(waited));
+      log.accept("Waiting for signing identity: " + String.join(", ", lookup.missing()));
+      pauser.pause(next);
+      waited = waited.plus(next);
+      pause = min(pause.multipliedBy(2), MAX_PAUSE);
+    }
+  }
+
+  private static Duration min(Duration a, Duration b) {
+    return a.compareTo(b) < 0 ? a : b;
+  }
+
+  /**
+   * The result of looking up the wanted identities among the available ones.
+   *
+   * @param available the identities of the keychain
+   * @param found the usable identity each wanted name selects
+   * @param missing the wanted names that select no usable identity
+   * @param unusable the identities the missing names select, which cannot sign
+   */
+  private record Lookup(
+      List<Identity> available,
+      Map<String, Identity> found,
+      List<String> missing,
+      List<Identity> unusable) {
+
+    static Lookup of(List<Identity> available, Collection<String> wanted) throws ToolException {
+      Lookup lookup =
+          new Lookup(available, new LinkedHashMap<>(), new ArrayList<>(), new ArrayList<>());
       for (String identity : wanted) {
         List<Identity> matching = select(available, identity);
         List<Identity> usable = matching.stream().filter(Identity::usable).toList();
@@ -177,34 +209,28 @@ final class KeychainIdentities {
                   + ". Give the full name or the SHA-1 hash of the certificate.");
         }
         if (usable.isEmpty()) {
-          missing.add(identity);
-          unusable.addAll(matching);
+          lookup.missing().add(identity);
+          lookup.unusable().addAll(matching);
         } else {
-          found.put(identity, usable.get(0));
+          lookup.found().put(identity, usable.get(0));
         }
       }
-      if (missing.isEmpty()) {
-        return found;
-      }
-      if (waited.compareTo(timeout) >= 0) {
-        throw new ToolException(
-            "Signing identity "
-                + missing.stream().map(m -> "'" + m + "'").collect(Collectors.joining(", "))
-                + " not found in the keychain"
-                + (timeout.isZero() ? "" : " after " + timeout.toSeconds() + "s")
-                + "."
-                + (unusable.isEmpty()
-                    ? ""
-                    : " Matching identities that cannot sign: " + describe(unusable) + ".")
-                + " Available identities: "
-                + (available.isEmpty() ? "none" : describe(available))
-                + ".");
-      }
-      Duration next = pause.compareTo(timeout.minus(waited)) < 0 ? pause : timeout.minus(waited);
-      log.accept("Waiting for signing identity: " + String.join(", ", missing));
-      pauser.pause(next);
-      waited = waited.plus(next);
-      pause = pause.multipliedBy(2).compareTo(MAX_PAUSE) < 0 ? pause.multipliedBy(2) : MAX_PAUSE;
+      return lookup;
+    }
+
+    ToolException notFound(Duration timeout) {
+      return new ToolException(
+          "Signing identity "
+              + missing.stream().map(m -> "'" + m + "'").collect(Collectors.joining(", "))
+              + " not found in the keychain"
+              + (timeout.isZero() ? "" : " after " + timeout.toSeconds() + "s")
+              + "."
+              + (unusable.isEmpty()
+                  ? ""
+                  : " Matching identities that cannot sign: " + describe(unusable) + ".")
+              + " Available identities: "
+              + (available.isEmpty() ? "none" : describe(available))
+              + ".");
     }
   }
 

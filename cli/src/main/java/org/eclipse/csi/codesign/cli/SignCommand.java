@@ -259,7 +259,7 @@ class SignCommand implements Callable<Integer> {
     Duration httpTimeout = deriveHttpTimeout(timeout);
     Duration connectTimeout = Duration.ofSeconds(Math.min(30, timeout));
     Duration retryTimeout = Duration.ofSeconds(Math.max(10, timeout / 4));
-    Duration retryInterval = Duration.ofSeconds(Math.min(30, Math.max(2, timeout / 20)));
+    Duration retryInterval = Duration.ofSeconds(Math.clamp(timeout / 20, 2, 30));
     int maxRetries = 5;
 
     if (verbose) {
@@ -319,7 +319,7 @@ class SignCommand implements Callable<Integer> {
    * gitHubActionsContext} is set and the REST API otherwise, and writes the signed files.
    */
   private void signFiles(SigningWorkflow workflow, GitHubActionsContext gitHubActionsContext)
-      throws CodesignException, IOException {
+      throws CodesignException, IOException, ToolException {
     if (gitHubActionsContext != null && description != null) {
       spec.commandLine()
           .getErr()
@@ -351,7 +351,7 @@ class SignCommand implements Callable<Integer> {
                 projectId, signingPolicy, artifactConfiguration, description, parameters, files);
 
     if (!status.isCompleted()) {
-      throw new RuntimeException(
+      throw new ToolException(
           "Signing did not complete successfully for "
               + files.keySet().stream()
                   .map(path -> "'" + path.getFileName() + "'")
@@ -362,8 +362,8 @@ class SignCommand implements Callable<Integer> {
               + status.workflowStatus()
               + (status.webLink() != null ? ". See " + status.webLink() : ""));
     }
-    for (Path output : files.values()) {
-      spec.commandLine().getOut().println("Signed: " + output);
+    for (Path signedFile : files.values()) {
+      spec.commandLine().getOut().println("Signed: " + signedFile);
     }
   }
 
@@ -393,43 +393,50 @@ class SignCommand implements Callable<Integer> {
 
   private void validateOutputOptions() {
     if (inputFiles.size() > 1) {
-      if (output != null) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "--output cannot be used when multiple input files are provided;"
-                + " use --output-dir instead.");
-      }
-      if (outputDir == null && !forceOverwrite) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "Multiple input files require either --output-dir <dir>"
-                + " or --force-overwrite for in-place replacement.");
-      }
+      validateOutputOptionsForSeveralFiles();
     } else {
-      // Single file
-      if (output != null && outputDir != null) {
-        throw new ParameterException(
-            spec.commandLine(), "--output and --output-dir are mutually exclusive.");
-      }
-      Path absInput = inputFiles.get(0).toAbsolutePath().normalize();
-      boolean samePathAsInput =
-          output != null && output.toAbsolutePath().normalize().equals(absInput);
-      boolean isInPlace = output == null && outputDir == null;
+      validateOutputOptionsForOneFile();
+    }
+  }
 
-      if (samePathAsInput && !forceOverwrite) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "--output '"
-                + output
-                + "' resolves to the same path as the input file."
-                + " Use --force-overwrite to allow in-place replacement.");
-      }
-      if (isInPlace && !forceOverwrite) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "No output specified. Use --output <path>, --output-dir <dir>,"
-                + " or --force-overwrite for in-place replacement.");
-      }
+  private void validateOutputOptionsForSeveralFiles() {
+    if (output != null) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "--output cannot be used when multiple input files are provided;"
+              + " use --output-dir instead.");
+    }
+    if (outputDir == null && !forceOverwrite) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "Multiple input files require either --output-dir <dir>"
+              + " or --force-overwrite for in-place replacement.");
+    }
+  }
+
+  private void validateOutputOptionsForOneFile() {
+    if (output != null && outputDir != null) {
+      throw new ParameterException(
+          spec.commandLine(), "--output and --output-dir are mutually exclusive.");
+    }
+    Path absInput = inputFiles.get(0).toAbsolutePath().normalize();
+    boolean samePathAsInput =
+        output != null && output.toAbsolutePath().normalize().equals(absInput);
+    boolean isInPlace = output == null && outputDir == null;
+
+    if (samePathAsInput && !forceOverwrite) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "--output '"
+              + output
+              + "' resolves to the same path as the input file."
+              + " Use --force-overwrite to allow in-place replacement.");
+    }
+    if (isInPlace && !forceOverwrite) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "No output specified. Use --output <path>, --output-dir <dir>,"
+              + " or --force-overwrite for in-place replacement.");
     }
   }
 
@@ -474,7 +481,7 @@ class SignCommand implements Callable<Integer> {
    * </ul>
    */
   static Duration derivePollInterval(int timeoutSeconds) {
-    long seconds = Math.max(2L, Math.min(30L, timeoutSeconds / 20));
+    long seconds = Math.clamp(timeoutSeconds / 20, 2, 30);
     return Duration.ofSeconds(seconds);
   }
 
@@ -484,7 +491,7 @@ class SignCommand implements Callable<Integer> {
    * <p>Formula: {@code clamp(timeout / 10, 10, 60)} seconds.
    */
   static Duration deriveHttpTimeout(int timeoutSeconds) {
-    long seconds = Math.max(10L, Math.min(60L, timeoutSeconds / 10));
+    long seconds = Math.clamp(timeoutSeconds / 10, 10, 60);
     return Duration.ofSeconds(seconds);
   }
 }

@@ -87,10 +87,8 @@ class RetryInterceptor implements Interceptor {
       }
 
       retryCount++;
-      LOG.log(
-          Level.WARNING,
-          "Request returned HTTP {0}. Retrying...",
-          Integer.toString(response.code()));
+      int code = response.code();
+      LOG.log(Level.WARNING, () -> "Request returned HTTP " + code + ". Retrying...");
       response.close();
       sleep();
     }
@@ -99,9 +97,7 @@ class RetryInterceptor implements Interceptor {
   private void sleep() {
     try {
       LOG.log(
-          Level.INFO,
-          "Waiting {0} seconds before next retry",
-          Long.toString(retryInterval.toSeconds()));
+          Level.INFO, () -> "Waiting " + retryInterval.toSeconds() + " seconds before next retry");
       Thread.sleep(retryInterval.toMillis());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

@@ -22,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -76,6 +75,8 @@ final class SignPathTokenSession implements AutoCloseable {
       "anchor apple generic and certificate leaf[subject.OU] = \"" + SIGNPATH_TEAM_ID + "\"";
 
   static final String APP_NAME = "SignPathCryptoTokenKit.app";
+
+  private static final String HDIUTIL = "hdiutil";
 
   /** Name of the configuration file of the CryptoTokenKit, in the private work directory. */
   static final String CONFIG_FILE = "config.json";
@@ -184,7 +185,7 @@ final class SignPathTokenSession implements AutoCloseable {
     shutdownHook = new Thread(this::close, "csi-codesign-ctk-cleanup");
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
-    workDir = createPrivateTempDirectory();
+    workDir = PrivateFiles.createTempDirectory("csi-codesign-ctk-");
     if (settings.preinstalledApp() != null) {
       app = settings.preinstalledApp().toAbsolutePath().normalize();
       if (!Files.isDirectory(app)) {
@@ -212,7 +213,7 @@ final class SignPathTokenSession implements AutoCloseable {
       Files.createDirectories(mountPoint);
       runner.runChecked(
           List.of(
-              "hdiutil",
+              HDIUTIL,
               "attach",
               "-readonly",
               "-nobrowse",
@@ -268,24 +269,9 @@ final class SignPathTokenSession implements AutoCloseable {
     }
     config.addProperty("ProjectSlug", settings.projectSlug());
     config.addProperty("SigningPolicySlug", settings.signingPolicySlug());
-    try {
-      Files.createFile(
-          file, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
-    } catch (UnsupportedOperationException e) {
-      Files.createFile(file);
-    }
+    PrivateFiles.createFile(file);
     Files.writeString(file, config.toString());
     return file;
-  }
-
-  private static Path createPrivateTempDirectory() throws IOException {
-    try {
-      return Files.createTempDirectory(
-          "csi-codesign-ctk-",
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-    } catch (UnsupportedOperationException e) {
-      return Files.createTempDirectory("csi-codesign-ctk-");
-    }
   }
 
   /**
@@ -321,11 +307,11 @@ final class SignPathTokenSession implements AutoCloseable {
           .append(CONTAINER_PREFIX)
           .append('*');
     }
-    for (Path log : logs) {
+    for (Path logFile : logs) {
       try {
-        text.append("\nEnd of ").append(log).append(':').append(indent(mask(tail(log))));
+        text.append("\nEnd of ").append(logFile).append(':').append(indent(mask(tail(logFile))));
       } catch (IOException e) {
-        text.append("\nCould not read ").append(log).append(": ").append(e.getMessage());
+        text.append("\nCould not read ").append(logFile).append(": ").append(e.getMessage());
       }
     }
     return text.toString();
@@ -376,13 +362,8 @@ final class SignPathTokenSession implements AutoCloseable {
       if (launched) {
         runner.run(List.of("pkill", "-f", extendedRegexQuote(app.toString())));
       }
-      if (mounted
-          && (runner.run(List.of("hdiutil", "detach", mountPoint.toString())).exitCode() == 0
-              || runner
-                      .run(List.of("hdiutil", "detach", "-force", mountPoint.toString()))
-                      .exitCode()
-                  == 0)) {
-        mounted = false;
+      if (mounted) {
+        mounted = !unmount();
       }
     } catch (IOException e) {
       log.accept("[WARNING] Could not stop the SignPath CryptoTokenKit: " + e.getMessage());
@@ -396,6 +377,12 @@ final class SignPathTokenSession implements AutoCloseable {
     } else if (workDir != null) {
       deleteRecursively(workDir);
     }
+  }
+
+  /** Unmounts the disk image, by force if needed. Returns whether it is unmounted. */
+  private boolean unmount() throws IOException, InterruptedException {
+    return runner.run(List.of(HDIUTIL, "detach", mountPoint.toString())).exitCode() == 0
+        || runner.run(List.of(HDIUTIL, "detach", "-force", mountPoint.toString())).exitCode() == 0;
   }
 
   private void verifySignature(Path path) throws IOException, InterruptedException, ToolException {
@@ -502,45 +489,15 @@ final class SignPathTokenSession implements AutoCloseable {
             + "' of project '"
             + settings.projectSlug()
             + "'";
-    if (code == 401 || code == 403) {
-      throw new ToolException(
-          "SignPath rejected the API token (HTTP " + code + ") while looking up " + policy + ".");
-    }
-    if (code != 200) {
-      throw new ToolException(
-          "SignPath answered HTTP "
-              + code
-              + " while looking up "
-              + policy
-              + "."
-              + ProcessRunner.quote(body));
-    }
+    checkStatus(code, body, policy);
     List<String> listed = new ArrayList<>();
-    try {
-      JsonArray policies =
-          JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("signingPolicies");
-      if (policies != null) {
-        for (JsonElement element : policies) {
-          JsonObject candidate = element.getAsJsonObject();
-          String project = string(candidate, "projectSlug");
-          String slug = string(candidate, "signingPolicySlug");
-          if (settings.signingPolicySlug().equals(slug) && settings.projectSlug().equals(project)) {
-            String certificate = string(candidate, "certificateBytes");
-            if (certificate == null || certificate.isBlank()) {
-              throw new ToolException("The " + policy + " has no X.509 certificate.");
-            }
-            return Base64.getDecoder().decode(certificate);
-          }
-          listed.add(project + "/" + slug);
-        }
+    for (JsonObject candidate : signingPolicies(body, policy)) {
+      String project = string(candidate, "projectSlug");
+      String slug = string(candidate, "signingPolicySlug");
+      if (settings.signingPolicySlug().equals(slug) && settings.projectSlug().equals(project)) {
+        return certificate(candidate, body, policy);
       }
-    } catch (IllegalStateException | IllegalArgumentException | JsonParseException e) {
-      throw new ToolException(
-          "Unexpected answer from SignPath while looking up "
-              + policy
-              + ": "
-              + e.getMessage()
-              + ProcessRunner.quote(body));
+      listed.add(project + "/" + slug);
     }
     // Observed on 2026-11-22: SignPath leaves the policies with origin verification out of this
     // list, so the CryptoTokenKit cannot use them, while trusted build system verification alone
@@ -556,9 +513,65 @@ final class SignPathTokenSession implements AutoCloseable {
             + ".");
   }
 
+  private static void checkStatus(int code, String body, String policy) throws ToolException {
+    if (code == 401 || code == 403) {
+      throw new ToolException(
+          "SignPath rejected the API token (HTTP " + code + ") while looking up " + policy + ".");
+    }
+    if (code != 200) {
+      throw new ToolException(
+          "SignPath answered HTTP "
+              + code
+              + " while looking up "
+              + policy
+              + "."
+              + ProcessRunner.quote(body));
+    }
+  }
+
+  /** The {@code signingPolicies} of a {@code Cryptoki/MySigningPolicies} response. */
+  private static List<JsonObject> signingPolicies(String body, String policy) throws ToolException {
+    try {
+      JsonArray policies =
+          JsonParser.parseString(body).getAsJsonObject().getAsJsonArray("signingPolicies");
+      List<JsonObject> result = new ArrayList<>();
+      if (policies != null) {
+        for (JsonElement element : policies) {
+          result.add(element.getAsJsonObject());
+        }
+      }
+      return result;
+    } catch (IllegalStateException | JsonParseException e) {
+      throw unexpectedAnswer(body, policy, e);
+    }
+  }
+
+  /** The decoded {@code certificateBytes} of a signing policy. */
+  private static byte[] certificate(JsonObject signingPolicy, String body, String policy)
+      throws ToolException {
+    try {
+      String certificate = string(signingPolicy, "certificateBytes");
+      if (certificate == null || certificate.isBlank()) {
+        throw new ToolException("The " + policy + " has no X.509 certificate.");
+      }
+      return Base64.getDecoder().decode(certificate);
+    } catch (IllegalArgumentException e) {
+      throw unexpectedAnswer(body, policy, e);
+    }
+  }
+
+  private static ToolException unexpectedAnswer(String body, String policy, RuntimeException e) {
+    return new ToolException(
+        "Unexpected answer from SignPath while looking up "
+            + policy
+            + ": "
+            + e.getMessage()
+            + ProcessRunner.quote(body));
+  }
+
   private static String string(JsonObject object, String member) {
     JsonElement value = object.get(member);
-    return value == null || value.isJsonNull() ? null : value.getAsString();
+    return value == null || !value.isJsonPrimitive() ? null : value.getAsString();
   }
 
   static String sha256(Path file) throws IOException {

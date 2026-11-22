@@ -129,24 +129,44 @@ class GitHubActionsSigningTest {
     return new MockResponse.Builder().code(404).build();
   }
 
-  @Test
-  void signsAllFilesInOneRequestAndWritesThemBack() throws Exception {
+  /** Signs {@code lib/app.jar} in place and {@code bin/tool.jar} to {@code out/tool.jar}. */
+  private SigningRequestStatus signAppAndTool() throws Exception {
     Path app = write("lib/app.jar", "app");
     Path tool = write("bin/tool.jar", "tool");
-    Path toolOut = tempDir.resolve("out/tool.jar");
     Map<Path, Path> files = new LinkedHashMap<>();
     files.put(app, app);
-    files.put(tool, toolOut);
+    files.put(tool, tempDir.resolve("out/tool.jar"));
+    return sign(files, Map.of("version", "1.2.3"));
+  }
 
-    SigningRequestStatus status = sign(files, Map.of("version", "1.2.3"));
+  @Test
+  void signsAllFilesInOneRequestAndWritesThemBack() throws Exception {
+    SigningRequestStatus status = signAppAndTool();
 
+    Path app = tempDir.resolve("lib/app.jar");
     assertTrue(status.isCompleted());
     assertEquals("signed:app", Files.readString(app));
-    assertEquals("signed:tool", Files.readString(toolOut));
-    assertEquals("tool", Files.readString(tool), "input untouched when the output differs");
+    assertEquals("signed:tool", Files.readString(tempDir.resolve("out/tool.jar")));
+    assertEquals(
+        "tool",
+        Files.readString(tempDir.resolve("bin/tool.jar")),
+        "input untouched when the output differs");
 
     // the zip holds both files at its root, in order
     assertEquals(List.of("app.jar", "tool.jar"), new ArrayList<>(unzip(uploadedZip).keySet()));
+
+    try (var leftovers = Files.list(app.getParent())) {
+      assertEquals(List.of(app), leftovers.toList(), "work directory next to the output removed");
+    }
+
+    assertTrue(logLines.contains("[SignPath connector] Information: Artifact verified"));
+    assertTrue(logLines.contains("Signing request: https://app.example/req-1"));
+    assertFalse(String.join("\n", logLines).contains("SECRET"), "upload URL must not be logged");
+  }
+
+  @Test
+  void uploadsTheZipAsAWorkflowArtifact() throws Exception {
+    signAppAndTool();
 
     RecordedRequest create = request(TWIRP + "CreateArtifact");
     assertEquals("Bearer " + runtimeToken(), create.getHeaders().get("Authorization"));
@@ -166,6 +186,11 @@ class GitHubActionsSigningTest {
     assertEquals(createBody.get("name"), finalizeBody.get("name"));
     assertEquals(Integer.toString(uploadedZip.length), finalizeBody.get("size").getAsString());
     assertTrue(finalizeBody.get("hash").getAsString().startsWith("sha256:"));
+  }
+
+  @Test
+  void submitsTheArtifactToTheConnector() throws Exception {
+    signAppAndTool();
 
     RecordedRequest submit = request(CONNECTOR_PATH + "/" + ORG + "/SigningRequests");
     assertEquals("1.0", submit.getUrl().queryParameter("api-version"));
@@ -181,14 +206,6 @@ class GitHubActionsSigningTest {
     assertEquals(
         JsonParser.parseString("[{\"name\":\"version\",\"value\":\"1.2.3\"}]"),
         payload.get("parameters"));
-
-    try (var leftovers = Files.list(app.getParent())) {
-      assertEquals(List.of(app), leftovers.toList(), "work directory next to the output removed");
-    }
-
-    assertTrue(logLines.contains("[SignPath connector] Information: Artifact verified"));
-    assertTrue(logLines.contains("Signing request: https://app.example/req-1"));
-    assertFalse(String.join("\n", logLines).contains("SECRET"), "upload URL must not be logged");
   }
 
   @Test
@@ -428,11 +445,13 @@ class GitHubActionsSigningTest {
   void connectorUrlMustUseHttps() throws Exception {
     Path app = write("app.jar", "app");
     SigningWorkflow workflow = new SigningWorkflow(client, Duration.ofMillis(10), logLines::add);
+    GitHubActionsContext context = context();
+    Map<Path, Path> files = Map.of(app, app);
     assertThrows(
         IllegalArgumentException.class,
         () ->
             workflow.signViaGitHubActions(
-                context(), "http://connector.example", "p", "s", null, null, Map.of(app, app)));
+                context, "http://connector.example", "p", "s", null, null, files));
   }
 
   @Test

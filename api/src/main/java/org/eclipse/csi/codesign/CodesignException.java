@@ -56,17 +56,33 @@ public class CodesignException extends Exception {
    * @return the rendered message, or {@code null} if the body is not a problem details document
    */
   private static String describeProblemDetails(String body) {
-    JsonObject json;
+    JsonObject json = parseObject(body);
+    if (json == null) {
+      return null;
+    }
+    List<String> sentences = problemSentences(json);
+    if (sentences.isEmpty()) {
+      return null;
+    }
+    StringBuilder message = new StringBuilder(joinSentences(sentences));
+    String traceId = stringMember(json, "traceId");
+    if (traceId != null) {
+      message.append(" (trace ID: ").append(traceId).append(')');
+    }
+    return message.toString();
+  }
+
+  private static JsonObject parseObject(String body) {
     try {
       JsonElement element = JsonParser.parseString(body);
-      if (!element.isJsonObject()) {
-        return null;
-      }
-      json = element.getAsJsonObject();
+      return element.isJsonObject() ? element.getAsJsonObject() : null;
     } catch (JsonParseException e) {
       return null;
     }
+  }
 
+  /** The title, the detail (unless it repeats the title) and the validation errors. */
+  private static List<String> problemSentences(JsonObject json) {
     List<String> sentences = new ArrayList<>();
     String title = stringMember(json, "title");
     String detail = stringMember(json, "detail");
@@ -78,20 +94,25 @@ public class CodesignException extends Exception {
     }
     if (json.get("errors") instanceof JsonObject errors) {
       for (Map.Entry<String, JsonElement> entry : errors.entrySet()) {
-        List<String> messages = new ArrayList<>();
-        if (entry.getValue().isJsonArray()) {
-          entry.getValue().getAsJsonArray().forEach(m -> messages.add(asText(m)));
-        } else {
-          messages.add(asText(entry.getValue()));
-        }
-        String joined = String.join(" ", messages);
+        String joined = validationMessages(entry.getValue());
         sentences.add(entry.getKey().isEmpty() ? joined : entry.getKey() + ": " + joined);
       }
     }
-    if (sentences.isEmpty()) {
-      return null;
-    }
+    return sentences;
+  }
 
+  private static String validationMessages(JsonElement value) {
+    List<String> messages = new ArrayList<>();
+    if (value.isJsonArray()) {
+      value.getAsJsonArray().forEach(m -> messages.add(asText(m)));
+    } else {
+      messages.add(asText(value));
+    }
+    return String.join(" ", messages);
+  }
+
+  /** Joins sentences, adding a period after those that do not end with punctuation. */
+  private static String joinSentences(List<String> sentences) {
     StringBuilder message = new StringBuilder();
     for (String sentence : sentences) {
       if (!message.isEmpty()) {
@@ -99,10 +120,6 @@ public class CodesignException extends Exception {
         message.append(last == '.' || last == '!' || last == '?' ? " " : ". ");
       }
       message.append(sentence.strip());
-    }
-    String traceId = stringMember(json, "traceId");
-    if (traceId != null) {
-      message.append(" (trace ID: ").append(traceId).append(')');
     }
     return message.toString();
   }

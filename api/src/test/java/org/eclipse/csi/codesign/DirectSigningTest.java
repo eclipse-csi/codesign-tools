@@ -26,6 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -194,6 +196,15 @@ class DirectSigningTest {
         "proj", "policy", "config", "release build", Map.of("version", "1.2.3"), files);
   }
 
+  /** The value of a quoted parameter of a {@code Content-Disposition} header. */
+  private static String dispositionParameter(String disposition, String parameter) {
+    Matcher matcher = Pattern.compile("\\b" + parameter + "=\"([^\"]*)\"").matcher(disposition);
+    if (!matcher.find()) {
+      throw new IllegalStateException("No " + parameter + " in " + disposition);
+    }
+    return matcher.group(1);
+  }
+
   private void readMultipart(RecordedRequest request) {
     String boundary = MediaType.get(request.getHeaders().get("Content-Type")).parameter("boundary");
     try (MultipartReader reader =
@@ -201,10 +212,10 @@ class DirectSigningTest {
       MultipartReader.Part part;
       while ((part = reader.nextPart()) != null) {
         String disposition = part.headers().get("Content-Disposition");
-        String name = disposition.replaceAll(".*\\bname=\"([^\"]*)\".*", "$1");
+        String name = dispositionParameter(disposition, "name");
         byte[] content = part.body().readByteArray();
         if (name.equals("Artifact")) {
-          uploadedFileName = disposition.replaceAll(".*\\bfilename=\"([^\"]*)\".*", "$1");
+          uploadedFileName = dispositionParameter(disposition, "filename");
           uploadedArtifact = content;
         } else {
           submittedFields.put(name, new String(content, StandardCharsets.UTF_8));

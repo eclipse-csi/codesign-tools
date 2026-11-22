@@ -333,6 +333,24 @@ class MacOsSignCommand implements Callable<Integer> {
           spec.commandLine(),
           "No output specified. Use --output-dir <dir>, or --force-overwrite to sign in place.");
     }
+    validateIdentities(targets, viaSignPath);
+    if (entitlements != null && !Files.isRegularFile(entitlements)) {
+      throw new ParameterException(
+          spec.commandLine(), "Entitlements file not found: " + entitlements);
+    }
+    if (outputDir != null) {
+      List<Path> names = targets.keySet().stream().map(Path::getFileName).toList();
+      if (names.stream().distinct().count() != names.size()) {
+        throw new ParameterException(
+            spec.commandLine(), "With --output-dir, the inputs must have distinct names.");
+      }
+    }
+    if (viaSignPath) {
+      validateSignPathOptions();
+    }
+  }
+
+  private void validateIdentities(Map<Path, Kind> targets, boolean viaSignPath) {
     boolean signsCode = targets.values().stream().anyMatch(kind -> kind != Kind.INSTALLER_PACKAGE);
     boolean signsPackages = targets.containsValue(Kind.INSTALLER_PACKAGE);
     if (signsCode && identity == null && !viaSignPath) {
@@ -350,57 +368,45 @@ class MacOsSignCommand implements Callable<Integer> {
           "Sign .pkg files in a separate invocation: a SignPath signing policy has a single"
               + " certificate, so the Developer ID Installer certificate has its own policy.");
     }
-    if (signsPackages) {
-      if (installerIdentity == null && !viaSignPath) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "Signing a .pkg with --token-provider "
-                + PROVIDER_KEYCHAIN
-                + " requires --installer-identity.");
-      }
-      if (AD_HOC_IDENTITY.equals(installerIdentity)) {
-        throw new ParameterException(
-            spec.commandLine(), "Installer packages cannot be signed ad hoc.");
-      }
-    }
-    if (entitlements != null && !Files.isRegularFile(entitlements)) {
+    if (signsPackages && installerIdentity == null && !viaSignPath) {
       throw new ParameterException(
-          spec.commandLine(), "Entitlements file not found: " + entitlements);
+          spec.commandLine(),
+          "Signing a .pkg with --token-provider "
+              + PROVIDER_KEYCHAIN
+              + " requires --installer-identity.");
     }
-    if (outputDir != null) {
-      List<Path> names = targets.keySet().stream().map(Path::getFileName).toList();
-      if (names.stream().distinct().count() != names.size()) {
-        throw new ParameterException(
-            spec.commandLine(), "With --output-dir, the inputs must have distinct names.");
-      }
+    if (signsPackages && AD_HOC_IDENTITY.equals(installerIdentity)) {
+      throw new ParameterException(
+          spec.commandLine(), "Installer packages cannot be signed ad hoc.");
     }
-    if (viaSignPath) {
-      List<String> missing = new ArrayList<>();
-      if (organizationId == null) {
-        missing.add("--organization-id");
-      }
-      if (projectId == null) {
-        missing.add("--project-id");
-      }
-      if (signingPolicy == null) {
-        missing.add("--signing-policy");
-      }
-      if (!missing.isEmpty()) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "--token-provider "
-                + PROVIDER_SIGNPATH
-                + " requires "
-                + String.join(", ", missing)
-                + ".");
-      }
-      if (AD_HOC_IDENTITY.equals(identity)) {
-        throw new ParameterException(
-            spec.commandLine(),
-            "Ad-hoc signing (--identity -) does not use SignPath: add --token-provider "
-                + PROVIDER_KEYCHAIN
-                + ".");
-      }
+  }
+
+  private void validateSignPathOptions() {
+    List<String> missing = new ArrayList<>();
+    if (organizationId == null) {
+      missing.add("--organization-id");
+    }
+    if (projectId == null) {
+      missing.add("--project-id");
+    }
+    if (signingPolicy == null) {
+      missing.add("--signing-policy");
+    }
+    if (!missing.isEmpty()) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "--token-provider "
+              + PROVIDER_SIGNPATH
+              + " requires "
+              + String.join(", ", missing)
+              + ".");
+    }
+    if (AD_HOC_IDENTITY.equals(identity)) {
+      throw new ParameterException(
+          spec.commandLine(),
+          "Ad-hoc signing (--identity -) does not use SignPath: add --token-provider "
+              + PROVIDER_KEYCHAIN
+              + ".");
     }
   }
 
@@ -419,6 +425,16 @@ class MacOsSignCommand implements Callable<Integer> {
     }
     return new SignPathTokenSession.Settings(
         organizationId, projectId, signingPolicy, baseUrl, token, ctkUrl, ctkSha256, ctkApp);
+  }
+
+  /**
+   * The SHA-1 fingerprint of a certificate, in upper case: the hash by which {@code security
+   * find-identity} lists a signing identity, and by which {@code codesign} selects it.
+   */
+  // SHA-1 only names a certificate the keychain already holds here: it secures nothing.
+  @SuppressWarnings("java:S4790")
+  static String sha1Fingerprint(byte[] der) throws NoSuchAlgorithmException {
+    return HexFormat.of().withUpperCase().formatHex(MessageDigest.getInstance("SHA-1").digest(der));
   }
 
   /**
@@ -442,8 +458,7 @@ class MacOsSignCommand implements Callable<Integer> {
               CertificateFactory.getInstance("X.509")
                   .generateCertificate(new ByteArrayInputStream(der));
       subject = certificate.getSubjectX500Principal().getName();
-      sha1 =
-          HexFormat.of().withUpperCase().formatHex(MessageDigest.getInstance("SHA-1").digest(der));
+      sha1 = sha1Fingerprint(der);
     } catch (CertificateException | NoSuchAlgorithmException e) {
       throw new ToolException(
           "SignPath returned an invalid certificate for signing policy '"

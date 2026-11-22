@@ -81,7 +81,7 @@ public class CodesignMojo extends AbstractMojo {
   private static final Set<String> SIGNABLE_PACKAGING_TYPES =
       Set.of("jar", "war", "ear", "rar", "ejb", "maven-plugin");
 
-  private SettingsDecrypter settingsDecrypter;
+  private final SettingsDecrypter settingsDecrypter;
 
   /**
    * SignPath organization identifier.
@@ -558,15 +558,10 @@ public class CodesignMojo extends AbstractMojo {
    * @throws MojoExecutionException if no token source is configured
    */
   String resolveApiToken() throws MojoExecutionException {
-    if (settings != null) {
-      Server server = settings.getServer(serverId);
-      if (server != null) {
-        String password = decryptServerPassword(server);
-        if (password != null && !password.isBlank()) {
-          getLog().debug("Using API token from settings.xml server '" + serverId + "'");
-          return password;
-        }
-      }
+    String password = tokenFromSettings();
+    if (password != null) {
+      getLog().debug("Using API token from settings.xml server '" + serverId + "'");
+      return password;
     }
 
     String envToken = getEnvironmentVariable(CSI_CODESIGN_API_TOKEN);
@@ -575,20 +570,10 @@ public class CodesignMojo extends AbstractMojo {
       return envToken;
     }
 
-    if (configFile != null && configFile.canRead()) {
-      Path configPath = configFile.toPath();
-      checkConfigFilePermissions(configPath, msg -> getLog().warn(msg));
-      Properties props = new Properties();
-      try (Reader reader = Files.newBufferedReader(configPath)) {
-        props.load(reader);
-        String fileToken = props.getProperty("api.token");
-        if (fileToken != null && !fileToken.isBlank()) {
-          getLog().debug("Using API token from config file " + configFile);
-          return fileToken;
-        }
-      } catch (IOException ignored) {
-        // Cannot read the file — fall through
-      }
+    String fileToken = tokenFromConfigFile();
+    if (fileToken != null) {
+      getLog().debug("Using API token from config file " + configFile);
+      return fileToken;
     }
 
     throw new MojoExecutionException(
@@ -602,6 +587,34 @@ public class CodesignMojo extends AbstractMojo {
             + "  3. api.token key in "
             + configFile
             + " (override with -Dcsi.codesign.configFile)");
+  }
+
+  /** The password of the {@code serverId} server in {@code settings.xml}, or {@code null}. */
+  private String tokenFromSettings() {
+    Server server = settings != null ? settings.getServer(serverId) : null;
+    if (server == null) {
+      return null;
+    }
+    String password = decryptServerPassword(server);
+    return password != null && !password.isBlank() ? password : null;
+  }
+
+  /** The {@code api.token} of the config file, or {@code null} if it has none or is unreadable. */
+  private String tokenFromConfigFile() {
+    if (configFile == null || !configFile.canRead()) {
+      return null;
+    }
+    Path configPath = configFile.toPath();
+    checkConfigFilePermissions(configPath, msg -> getLog().warn(msg));
+    Properties props = new Properties();
+    try (Reader reader = Files.newBufferedReader(configPath)) {
+      props.load(reader);
+      String fileToken = props.getProperty("api.token");
+      return fileToken != null && !fileToken.isBlank() ? fileToken : null;
+    } catch (IOException ignored) {
+      // Cannot read the file — fall through
+      return null;
+    }
   }
 
   /**

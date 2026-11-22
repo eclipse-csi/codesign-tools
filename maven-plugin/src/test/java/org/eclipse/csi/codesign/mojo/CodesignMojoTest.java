@@ -135,14 +135,18 @@ class CodesignMojoTest {
             MavenProject project,
             String resourceDirectory,
             List<String> includes,
-            List<String> excludes) {}
+            List<String> excludes) {
+          // The mojo never adds resources.
+        }
 
         @Override
         public void addTestResource(
             MavenProject project,
             String resourceDirectory,
             List<String> includes,
-            List<String> excludes) {}
+            List<String> excludes) {
+          // The mojo never adds test resources.
+        }
       };
 
   private MockWebServer server;
@@ -671,10 +675,10 @@ class CodesignMojoTest {
 
     Settings settings = new Settings();
     if (serverPassword != null) {
-      Server server = new Server();
-      server.setId(serverId);
-      server.setPassword(serverPassword);
-      settings.addServer(server);
+      Server settingsServer = new Server();
+      settingsServer.setId(serverId);
+      settingsServer.setPassword(serverPassword);
+      settings.addServer(settingsServer);
     }
     setField(mojo, "settings", settings);
 

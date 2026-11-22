@@ -40,7 +40,7 @@ class MacOsCommand implements Runnable {
 
   @Override
   public void run() {
-    spec.commandLine().usage(System.err);
+    spec.commandLine().usage(spec.commandLine().getErr());
   }
 
   /** Whether this process runs on macOS. */

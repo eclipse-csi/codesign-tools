@@ -25,6 +25,8 @@ import okhttp3.Response;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class RetryInterceptorTest {
 
@@ -66,51 +68,10 @@ class RetryInterceptorTest {
     assertEquals(1, server.getRequestCount());
   }
 
-  @Test
-  void retriesOn503ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse.Builder().code(503).build());
-    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
-
-    OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
-    Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
-
-    try (Response response = client.newCall(request).execute()) {
-      assertEquals(200, response.code());
-    }
-    assertEquals(2, server.getRequestCount());
-  }
-
-  @Test
-  void retriesOn429ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse.Builder().code(429).build());
-    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
-
-    OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
-    Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
-
-    try (Response response = client.newCall(request).execute()) {
-      assertEquals(200, response.code());
-    }
-    assertEquals(2, server.getRequestCount());
-  }
-
-  @Test
-  void retriesOn502ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse.Builder().code(502).build());
-    server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
-
-    OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);
-    Request request = new Request.Builder().url(server.url(TEST_PATH)).build();
-
-    try (Response response = client.newCall(request).execute()) {
-      assertEquals(200, response.code());
-    }
-    assertEquals(2, server.getRequestCount());
-  }
-
-  @Test
-  void retriesOn504ThenSucceeds() throws IOException {
-    server.enqueue(new MockResponse.Builder().code(504).build());
+  @ParameterizedTest
+  @ValueSource(ints = {429, 502, 503, 504})
+  void retriesOnRetryableStatusThenSucceeds(int status) throws IOException {
+    server.enqueue(new MockResponse.Builder().code(status).build());
     server.enqueue(new MockResponse.Builder().code(200).body(OK_BODY).build());
 
     OkHttpClient client = clientWithRetry(Duration.ofSeconds(10), Duration.ofMillis(50), 10);

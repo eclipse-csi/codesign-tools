@@ -19,7 +19,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -54,6 +53,12 @@ import picocli.CommandLine.Spec;
 class MacOsNotarizeCommand implements Callable<Integer> {
 
   static final String KEY_ENV_VAR = "CSI_CODESIGN_NOTARY_KEY";
+
+  private static final String XCRUN = "xcrun";
+
+  private static final String MESSAGE = "message";
+
+  private static final String ISSUES = "issues";
   static final String KEY_ID_ENV_VAR = "CSI_CODESIGN_NOTARY_KEY_ID";
   static final String ISSUER_ENV_VAR = "CSI_CODESIGN_NOTARY_ISSUER";
 
@@ -142,7 +147,7 @@ class MacOsNotarizeCommand implements Callable<Integer> {
     }
 
     ProcessRunner runner = processRunner();
-    Path workDir = createPrivateTempDirectory();
+    Path workDir = PrivateFiles.createTempDirectory("csi-codesign-notarize-");
     try {
       List<String> credentials = credentials(workDir);
       for (int i = 0; i < targets.size(); i++) {
@@ -241,7 +246,7 @@ class MacOsNotarizeCommand implements Callable<Integer> {
     List<String> submit =
         new ArrayList<>(
             List.of(
-                "xcrun",
+                XCRUN,
                 "notarytool",
                 "submit",
                 submission.toString(),
@@ -261,8 +266,8 @@ class MacOsNotarizeCommand implements Callable<Integer> {
           new StringBuilder("Notarization of ")
               .append(target)
               .append(state != null ? " ended with status " + state : " failed");
-      if (status != null && string(status, "message") != null) {
-        message.append(": ").append(string(status, "message"));
+      if (status != null && string(status, MESSAGE) != null) {
+        message.append(": ").append(string(status, MESSAGE));
       }
       if (id != null) {
         message
@@ -281,27 +286,19 @@ class MacOsNotarizeCommand implements Callable<Integer> {
       return; // Apple cannot staple zip files, and Gatekeeper does not assess them.
     }
     if (!noStaple) {
-      runner.runChecked(List.of("xcrun", "stapler", "staple", target.toString()));
-      runner.runChecked(List.of("xcrun", "stapler", "validate", target.toString()));
+      runner.runChecked(List.of(XCRUN, "stapler", "staple", target.toString()));
+      runner.runChecked(List.of(XCRUN, "stapler", "validate", target.toString()));
       out("Stapled: " + target);
     }
-    List<String> assess =
+    List<String> command = new ArrayList<>(List.of("spctl", "--assess", "--type"));
+    command.addAll(
         switch (kind) {
-          case APP -> List.of("spctl", "--assess", "--type", "execute", "--verbose=2");
-          case DISK_IMAGE ->
-              List.of(
-                  "spctl",
-                  "--assess",
-                  "--type",
-                  "open",
-                  "--context",
-                  "context:primary-signature",
-                  "--verbose=2");
-          case INSTALLER_PACKAGE ->
-              List.of("spctl", "--assess", "--type", "install", "--verbose=2");
+          case APP -> List.of("execute");
+          case DISK_IMAGE -> List.of("open", "--context", "context:primary-signature");
+          case INSTALLER_PACKAGE -> List.of("install");
           case ZIP -> throw new IllegalStateException();
-        };
-    List<String> command = new ArrayList<>(assess);
+        });
+    command.add("--verbose=2");
     command.add(target.toString());
     ProcessRunner.Result assessment = runner.run(command);
     if (assessment.exitCode() != 0) {
@@ -313,17 +310,17 @@ class MacOsNotarizeCommand implements Callable<Integer> {
   /** Fetches the notarization log of a submission and formats its issues. */
   private String issues(ProcessRunner runner, String id, List<String> credentials)
       throws IOException, InterruptedException {
-    List<String> command = new ArrayList<>(List.of("xcrun", "notarytool", "log", id));
+    List<String> command = new ArrayList<>(List.of(XCRUN, "notarytool", "log", id));
     command.addAll(credentials);
     ProcessRunner.Result result = runner.run(command);
     JsonObject log = parseJson(result.output());
-    if (log == null || !log.has("issues") || !log.get("issues").isJsonArray()) {
+    if (log == null || !log.has(ISSUES) || !log.get(ISSUES).isJsonArray()) {
       return result.exitCode() == 0
           ? ProcessRunner.quote(result.output())
           : ". The notarization log could not be fetched" + ProcessRunner.quote(result.output());
     }
     StringBuilder text = new StringBuilder(". Issues:");
-    for (JsonElement element : log.getAsJsonArray("issues")) {
+    for (JsonElement element : log.getAsJsonArray(ISSUES)) {
       if (!element.isJsonObject()) {
         continue;
       }
@@ -335,7 +332,7 @@ class MacOsNotarizeCommand implements Callable<Integer> {
       if (string(issue, "architecture") != null) {
         text.append(" (").append(string(issue, "architecture")).append(')');
       }
-      text.append(": ").append(orElse(string(issue, "message"), ""));
+      text.append(": ").append(orElse(string(issue, MESSAGE), ""));
     }
     return text.toString();
   }
@@ -369,16 +366,6 @@ class MacOsNotarizeCommand implements Callable<Integer> {
 
   private static String nonBlank(String value) {
     return value == null || value.isBlank() ? null : value.strip();
-  }
-
-  private static Path createPrivateTempDirectory() throws IOException {
-    try {
-      return Files.createTempDirectory(
-          "csi-codesign-notarize-",
-          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-    } catch (UnsupportedOperationException e) {
-      return Files.createTempDirectory("csi-codesign-notarize-");
-    }
   }
 
   private static void deleteRecursively(Path root) throws IOException {
