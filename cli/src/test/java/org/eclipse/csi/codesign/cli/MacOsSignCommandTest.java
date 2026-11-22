@@ -22,10 +22,9 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HexFormat;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -692,10 +691,7 @@ class MacOsSignCommandTest {
   void signPathProvider_withoutIdentity_signsWithThePolicyCertificate() throws Exception {
     Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
     policyCertificate = MacOsTestFiles.selfSignedCertificate(tempDir, "Example policy");
-    String sha1 =
-        HexFormat.of()
-            .withUpperCase()
-            .formatHex(MessageDigest.getInstance("SHA-1").digest(policyCertificate));
+    String sha1 = KeychainIdentities.fingerprint(policyCertificate);
     fakeDiskImage();
     runner.on(
         List.of("security", "find-identity"),
@@ -724,6 +720,51 @@ class MacOsSignCommandTest {
         List.of(
             codesign(sha1, "--options", "runtime", binary.toAbsolutePath().normalize().toString())),
         runner.commands("codesign", "--force"));
+  }
+
+  @Test
+  void signPathProvider_findsTheIdentityInTheCryptoTokenKitToken() throws Exception {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    policyCertificate = MacOsTestFiles.selfSignedCertificate(tempDir, "Example policy");
+    String sha1 = KeychainIdentities.fingerprint(policyCertificate);
+    fakeDiskImage();
+    // As on a GitHub Actions runner: security find-identity does not list the identity of the
+    // CryptoTokenKit token, and security export-smartcard prints nothing; system_profiler shows
+    // the token's certificate once the token is there.
+    runner.on(List.of("security", "find-identity"), 0, NO_IDENTITIES);
+    AtomicInteger profiles = new AtomicInteger();
+    String pem =
+        "-----BEGIN CERTIFICATE-----\n"
+            + Base64.getMimeEncoder().encodeToString(policyCertificate)
+            + "\n-----END CERTIFICATE-----";
+    runner.on(
+        List.of("system_profiler", "SPSmartCardsDataType"),
+        command ->
+            new ProcessRunner.Result(
+                0,
+                profiles.incrementAndGet() < 2
+                    ? "Available SmartCards (keychain):"
+                    : "Available SmartCards (keychain):\n  #01: Kind: private RSA 4096-bit\n"
+                        + pem));
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "test-signing",
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(0, exit, err.toString());
+    assertEquals(2, profiles.get());
+    assertEquals(
+        List.of(
+            codesign(sha1, "--options", "runtime", binary.toAbsolutePath().normalize().toString())),
+        runner.commands("codesign", "--force"));
+    assertTrue(err.toString().contains("is not trusted on this machine"), err.toString());
   }
 
   @Test

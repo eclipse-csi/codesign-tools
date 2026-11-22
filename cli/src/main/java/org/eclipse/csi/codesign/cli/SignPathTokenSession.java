@@ -283,6 +283,7 @@ final class SignPathTokenSession implements AutoCloseable {
     StringBuilder text = new StringBuilder();
     appendCommand(text, List.of("security", "find-identity"));
     appendCommand(text, List.of("security", "list-smartcards"));
+    appendCommand(text, List.of("security", "export-smartcard", "-t", "identities"));
     appendCommand(text, List.of("system_profiler", "SPSmartCardsDataType"));
     appendCommand(text, List.of("pluginkit", "-m", "-v", "-p", "com.apple.ctk-tokens"));
     List<Path> logs = new ArrayList<>();

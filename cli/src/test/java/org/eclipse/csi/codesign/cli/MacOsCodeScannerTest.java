@@ -12,12 +12,15 @@ package org.eclipse.csi.codesign.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -176,10 +179,89 @@ class MacOsCodeScannerTest {
             duration -> {},
             List.of("TEAM123456", "Example test signing"),
             Duration.ZERO,
+            false,
             message -> {});
 
     assertEquals("0123456789ABCDEF0123456789ABCDEF01234567", found.get("TEAM123456").sha1());
     assertEquals("CSSMERR_TP_NOT_TRUSTED", found.get("Example test signing").problem());
+  }
+
+  @Test
+  void parseCertificates_readsEachPemCertificateOnce(@TempDir Path dir) throws Exception {
+    byte[] der = MacOsTestFiles.selfSignedCertificate(dir, "Example token signing");
+    String pem = pem(der);
+    // As system_profiler SPSmartCardsDataType lists a token: once under "keychain", once under
+    // "token".
+    String output =
+        """
+        Available SmartCards (keychain):
+            io.example.ctk:1234:
+              #01: Kind: private RSA 2048-bit, Usage: Sign
+        %s
+        Available SmartCards (token):
+            io.example.ctk:1234:
+        %s
+        """
+            .formatted(pem, pem);
+
+    List<KeychainIdentities.Identity> identities = KeychainIdentities.parseCertificates(output);
+
+    assertEquals(1, identities.size());
+    KeychainIdentities.Identity identity = identities.get(0);
+    assertEquals(KeychainIdentities.fingerprint(der), identity.sha1());
+    assertEquals("Example token signing", identity.name());
+    assertTrue(identity.untrusted(), "a self-signed certificate is taken as untrusted");
+  }
+
+  @Test
+  void parseCertificates_ignoresTextWithoutCertificates() {
+    assertTrue(KeychainIdentities.parseCertificates("No smartcards found.").isEmpty());
+    assertTrue(
+        KeychainIdentities.parseCertificates(
+                "-----BEGIN CERTIFICATE-----\nbm90IGEgY2VydGlmaWNhdGU=\n-----END CERTIFICATE-----")
+            .isEmpty());
+    assertTrue(KeychainIdentities.parseCertificates(null).isEmpty());
+  }
+
+  @Test
+  void listTokens_fallsBackToSystemProfiler(@TempDir Path dir) throws Exception {
+    byte[] der = MacOsTestFiles.selfSignedCertificate(dir, "Example token signing");
+    FakeProcessRunner runner = new FakeProcessRunner();
+    runner.on(List.of("security", "export-smartcard"), 0, "");
+    runner.on(List.of("system_profiler", "SPSmartCardsDataType"), 0, pem(der));
+
+    List<KeychainIdentities.Identity> identities = KeychainIdentities.listTokens(runner);
+
+    assertEquals(
+        List.of(KeychainIdentities.fingerprint(der)),
+        identities.stream().map(KeychainIdentities.Identity::sha1).toList());
+  }
+
+  @Test
+  void await_findsAnIdentityOnlyACryptoTokenKitTokenHolds(@TempDir Path dir) throws Exception {
+    byte[] der = MacOsTestFiles.selfSignedCertificate(dir, "Example token signing");
+    String sha1 = KeychainIdentities.fingerprint(der);
+    FakeProcessRunner runner = new FakeProcessRunner();
+    // security find-identity does not list the identities of CryptoTokenKit tokens.
+    runner.on(List.of("security", "find-identity"), 0, "     0 identities found");
+    runner.on(List.of("security", "export-smartcard"), 0, pem(der));
+
+    Map<String, KeychainIdentities.Identity> found =
+        KeychainIdentities.await(
+            runner, duration -> {}, List.of(sha1), Duration.ZERO, true, message -> {});
+
+    assertEquals("Example token signing", found.get(sha1).name());
+    assertThrows(
+        ToolException.class,
+        () ->
+            KeychainIdentities.await(
+                runner, duration -> {}, List.of(sha1), Duration.ZERO, false, message -> {}));
+  }
+
+  private static String pem(byte[] der) {
+    return "-----BEGIN CERTIFICATE-----\n"
+        + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII)).encodeToString(der)
+        + "\n-----END CERTIFICATE-----";
   }
 
   @Test

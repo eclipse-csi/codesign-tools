@@ -16,7 +16,6 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
@@ -24,7 +23,6 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -428,16 +426,6 @@ class MacOsSignCommand implements Callable<Integer> {
   }
 
   /**
-   * The SHA-1 fingerprint of a certificate, in upper case: the hash by which {@code security
-   * find-identity} lists a signing identity, and by which {@code codesign} selects it.
-   */
-  // SHA-1 only names a certificate the keychain already holds here: it secures nothing.
-  @SuppressWarnings("java:S4790")
-  static String sha1Fingerprint(byte[] der) throws NoSuchAlgorithmException {
-    return HexFormat.of().withUpperCase().formatHex(MessageDigest.getInstance("SHA-1").digest(der));
-  }
-
-  /**
    * Defaults {@code --identity} and {@code --installer-identity} to the SHA-1 hash of the signing
    * policy's certificate, the only one the CryptoTokenKit publishes for that policy.
    */
@@ -458,7 +446,7 @@ class MacOsSignCommand implements Callable<Integer> {
               CertificateFactory.getInstance("X.509")
                   .generateCertificate(new ByteArrayInputStream(der));
       subject = certificate.getSubjectX500Principal().getName();
-      sha1 = sha1Fingerprint(der);
+      sha1 = KeychainIdentities.fingerprint(der);
     } catch (CertificateException | NoSuchAlgorithmException e) {
       throw new ToolException(
           "SignPath returned an invalid certificate for signing policy '"
@@ -498,7 +486,7 @@ class MacOsSignCommand implements Callable<Integer> {
     Duration timeout =
         viaSignPath ? Duration.ofSeconds(Math.max(1, identityTimeout)) : Duration.ZERO;
     Map<String, KeychainIdentities.Identity> found =
-        KeychainIdentities.await(runner, pauser(), wanted, timeout, this::verboseOut);
+        KeychainIdentities.await(runner, pauser(), wanted, timeout, viaSignPath, this::verboseOut);
     for (KeychainIdentities.Identity selected : found.values()) {
       verboseOut("Signing identity: " + selected.describe());
       if (selected.untrusted()) {

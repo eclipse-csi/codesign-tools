@@ -293,16 +293,18 @@ violation together with SignPath's hint on how to fix it.
 SignPath has no artifact configuration for Apple formats. Apps, Mach-O binaries, disk images
 and installer packages are signed on a macOS machine by `codesign` and `productsign`, through
 the [SignPath macOS CryptoTokenKit](https://docs.signpath.io/crypto-providers/macos). The
-CryptoTokenKit publishes the certificate of a signing policy in the keychain, and SignPath
-signs each hash the tools send. `csi-codesign macos sign` runs the whole sequence:
+CryptoTokenKit publishes the certificate of a signing policy as a signing identity of a smart
+card token, and SignPath signs each hash the tools send. `csi-codesign macos sign` runs the whole sequence:
 
 1. It downloads `SignPathCryptoTokenKit.dmg` and checks that it carries a valid Developer ID
    signature of SignPath GmbH (Team ID `PDP2N2TC2T`). With `--ctk-sha256`, it also checks the
    download's SHA-256.
 2. It mounts the disk image read-only and starts the CryptoTokenKit for your project and
-   signing policy. The API token reaches the CryptoTokenKit through its environment, never a
-   command line.
-3. It waits until the certificate shows up in the keychain (`--identity-timeout`, default 60 s).
+   signing policy. The API token reaches the CryptoTokenKit in a configuration file that only
+   you can read, never on a command line, and the file is deleted afterwards.
+3. It waits until the certificate shows up in the token (`--identity-timeout`, default 60 s).
+   `security find-identity` does not list token identities: `security export-smartcard -t
+   identities` and `system_profiler SPSmartCardsDataType` do.
 4. It signs each input:
    - **Bundles** (`.app`, `.framework`, …) from the inside out: every nested Mach-O binary and
      bundle comes before the bundle that contains it, with the hardened runtime and a secure
@@ -328,7 +330,7 @@ csi-codesign macos sign signed/MyApp.dmg --force-overwrite \
 
 Without `--identity` (or `--installer-identity` for `.pkg` files), `macos sign` signs with the
 certificate of the signing policy: it looks the certificate up with the SignPath API before
-starting the CryptoTokenKit, and selects it in the keychain by its SHA-1 hash.
+starting the CryptoTokenKit, and selects it by its SHA-1 hash.
 
 Requirements on the SignPath side:
 
@@ -345,7 +347,8 @@ Requirements on the SignPath side:
 `--identity` selects the certificate the way `codesign -s` does: by its SHA-1 hash, or by a part
 of its name, preferring an exact match. Certificates that cannot sign, for example expired ones,
 are ignored. `codesign` then receives the SHA-1 hash of the certificate found, so an older
-certificate with the same name in the keychain does not make the choice ambiguous.
+certificate with the same name in the keychain does not make the choice ambiguous. A self-signed
+certificate in the token counts as untrusted.
 
 `--token-provider keychain` skips the CryptoTokenKit and uses identities already in the
 keychain, e.g. a local certificate, or `--identity -` for an ad-hoc signature when testing.

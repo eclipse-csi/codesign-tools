@@ -60,9 +60,11 @@ send SignPath the hashes to sign. For the [`07-macos-app.sh`](../cli/07-macos-ap
   and disk images. A policy has a single certificate, so `.pkg` installers need a second policy
   with the **Developer ID Installer** certificate, signed in a separate `macos sign` invocation.
 - **Submitter:** the CI user that owns the API token.
-- **Identity:** pass the name of the certificate (or a distinctive part of it, such as the Team
-  ID) as `--identity`, as `security find-identity` shows it once the CryptoTokenKit runs. A
-  self-signed test certificate works too: it is listed with `CSSMERR_TP_NOT_TRUSTED`, and
+- **Identity:** without `--identity`, `macos sign` uses the certificate of the signing policy.
+  Otherwise, pass the common name of the certificate, a distinctive part of it such as the Team
+  ID, or its SHA-1 hash. The CryptoTokenKit holds the identity in a token, which
+  `security find-identity` does not list: `security export-smartcard -t identities` or
+  `system_profiler SPSmartCardsDataType` show it. A self-signed test certificate works too:
   `macos sign` warns that the result is for testing only.
 
 Notarization is a separate, optional step (`csi-codesign macos notarize`). It needs an App Store
