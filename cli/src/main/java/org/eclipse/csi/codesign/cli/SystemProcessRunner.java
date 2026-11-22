@@ -19,9 +19,13 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 /** Runs commands as child processes of this one. */
 class SystemProcessRunner implements ProcessRunner {
+
+  /** How often a timed run checks its stop condition. */
+  private static final Duration CHECK_INTERVAL = Duration.ofMillis(500);
 
   @Override
   public Result run(List<String> command, Map<String, String> environment)
@@ -39,6 +43,13 @@ class SystemProcessRunner implements ProcessRunner {
   @Override
   public Result run(List<String> command, Map<String, String> environment, Duration timeout)
       throws IOException, InterruptedException {
+    return run(command, environment, timeout, () -> false);
+  }
+
+  @Override
+  public Result run(
+      List<String> command, Map<String, String> environment, Duration timeout, BooleanSupplier stop)
+      throws IOException, InterruptedException {
     Process process = start(command, environment);
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     // The output is read on another thread, so that a silent process cannot block the timeout.
@@ -53,7 +64,16 @@ class SystemProcessRunner implements ProcessRunner {
                   }
                 });
     try {
-      boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
+      long deadline = System.nanoTime() + timeout.toNanos();
+      boolean finished = false;
+      while (!finished) {
+        long remaining = deadline - System.nanoTime();
+        if (remaining <= 0 || stop.getAsBoolean()) {
+          break;
+        }
+        finished =
+            process.waitFor(Math.min(remaining, CHECK_INTERVAL.toNanos()), TimeUnit.NANOSECONDS);
+      }
       if (!finished) {
         process.descendants().forEach(ProcessHandle::destroyForcibly);
         process.destroyForcibly();

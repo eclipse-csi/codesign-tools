@@ -65,6 +65,13 @@ final class KeychainIdentities {
   private static final Pattern PEM_CERTIFICATE =
       Pattern.compile("-----BEGIN CERTIFICATE-----([A-Za-z0-9+/=\\s]+)-----END CERTIFICATE-----");
 
+  /** A line of {@code security export-smartcard}: {@code <attribute> : <value>}. */
+  private static final Pattern ATTRIBUTE_LINE =
+      Pattern.compile("^\\s*([A-Za-z0-9]{4}) : (.*)$", Pattern.MULTILINE);
+
+  /** The line that separates two items in the output of {@code security export-smartcard}. */
+  private static final Pattern ITEM_SEPARATOR = Pattern.compile("(?m)^\\s*====\\s*$");
+
   /** The problem of an identity whose certificate is outside its validity period. */
   static final String EXPIRED = "CSSMERR_TP_CERT_EXPIRED";
 
@@ -161,23 +168,69 @@ final class KeychainIdentities {
   }
 
   /**
-   * Lists the signing identities of the CryptoTokenKit tokens, from the certificates that {@code
-   * security export-smartcard} prints, or else {@code system_profiler SPSmartCardsDataType}. Asking
-   * for them also starts the token extensions, which {@code security find-identity} does not.
+   * Lists the signing identities of the CryptoTokenKit tokens, from the attributes that {@code
+   * security export-smartcard} prints, or else from the certificates that {@code system_profiler
+   * SPSmartCardsDataType} prints. Asking for them also starts the token extensions, which {@code
+   * security find-identity} does not.
    *
-   * <p>macOS gives no trust verdict here: an identity is valid unless its certificate is outside
-   * its validity period, or is self-signed, in which case it is taken as untrusted.
+   * <p>macOS gives no trust verdict here: an identity is valid unless its certificate is
+   * self-signed, in which case it is taken as untrusted, or (only known from {@code
+   * system_profiler}) is outside its validity period.
    */
   static List<Identity> listTokens(ProcessRunner runner) throws IOException, InterruptedException {
-    List<Identity> identities =
-        parseCertificates(
-            runner.run(List.of("security", "export-smartcard", "-t", "identities")).output());
+    String exported =
+        runner.run(List.of("security", "export-smartcard", "-t", "identities")).output();
+    List<Identity> identities = parseTokenItems(exported);
+    if (identities.isEmpty()) {
+      identities = parseCertificates(exported);
+    }
     if (identities.isEmpty()) {
       identities =
           parseCertificates(
               runner.run(List.of("system_profiler", "SPSmartCardsDataType")).output());
     }
     return identities;
+  }
+
+  /**
+   * The identities of the items that {@code security export-smartcard} prints: each has the SHA-1
+   * hash of its certificate ({@code sha1 : <57 12 …>}), its label ({@code labl : "…"}), and the DER
+   * of its subject and issuer ({@code subj}, {@code issr}).
+   */
+  static List<Identity> parseTokenItems(String text) {
+    Map<String, Identity> identities = new LinkedHashMap<>();
+    for (String item : ITEM_SEPARATOR.split(text == null ? "" : text)) {
+      Map<String, String> attributes = new LinkedHashMap<>();
+      Matcher matcher = ATTRIBUTE_LINE.matcher(item);
+      while (matcher.find()) {
+        attributes.putIfAbsent(matcher.group(1), matcher.group(2).strip());
+      }
+      String sha1 = hexBytes(attributes.get("sha1"));
+      String label = quoted(attributes.get("labl"));
+      if (sha1 == null || sha1.length() != 40 || label == null) {
+        continue;
+      }
+      String subject = hexBytes(attributes.get("subj"));
+      boolean selfSigned = subject != null && subject.equals(hexBytes(attributes.get("issr")));
+      identities.putIfAbsent(sha1, new Identity(sha1, label, selfSigned ? NOT_TRUSTED : null));
+    }
+    return new ArrayList<>(identities.values());
+  }
+
+  /** {@code <57 12 94>} as {@code 571294}, or {@code null} if it is not such a value. */
+  private static String hexBytes(String value) {
+    if (value == null || !value.startsWith("<") || !value.endsWith(">")) {
+      return null;
+    }
+    String hex = value.substring(1, value.length() - 1).replace(" ", "").toUpperCase(Locale.ROOT);
+    return !hex.isEmpty() && hex.chars().allMatch(c -> Character.digit(c, 16) >= 0) ? hex : null;
+  }
+
+  /** {@code "text"} as {@code text}, or {@code null} if it is not quoted. */
+  private static String quoted(String value) {
+    return value != null && value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")
+        ? value.substring(1, value.length() - 1)
+        : null;
   }
 
   /** The identities of the PEM certificates in {@code text}, each once. */

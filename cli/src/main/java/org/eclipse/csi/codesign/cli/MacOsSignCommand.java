@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -185,6 +186,9 @@ class MacOsSignCommand implements Callable<Integer> {
   /** The time limit of each signing call; {@code null} without the CryptoTokenKit. */
   private Duration signingCallTimeout;
 
+  /** The running CryptoTokenKit, whose logs tell when SignPath refuses to sign. */
+  private SignPathTokenSession tokenSession;
+
   @Option(
       names = "--ctk-url",
       paramLabel = "<url>",
@@ -262,6 +266,7 @@ class MacOsSignCommand implements Callable<Integer> {
         session = newTokenSession(runner, settings);
         session.start();
         signingCallTimeout = Duration.ofSeconds(Math.max(1, signingTimeout));
+        tokenSession = session;
       }
       try {
         awaitIdentities(runner, targets, session != null);
@@ -580,7 +585,19 @@ class MacOsSignCommand implements Callable<Integer> {
       runner.runChecked(command);
       return;
     }
-    ProcessRunner.Result result = runner.run(command, Map.of(), signingCallTimeout);
+    // The CryptoTokenKit does not tell codesign when SignPath refuses to sign: codesign would wait
+    // until the timeout, so it is stopped as soon as the refusal shows up in the logs.
+    ProcessRunner.Result result =
+        runner.run(
+            command,
+            Map.of(),
+            signingCallTimeout,
+            () -> tokenSession.signPathRefusal().isPresent());
+    Optional<String> refusal = tokenSession.signPathRefusal();
+    if (refusal.isPresent()) {
+      throw new ToolException(
+          "SignPath refused to sign the hashes of " + command.get(0) + ": " + refusal.get());
+    }
     if (result.timedOut()) {
       throw new ToolException(
           command.get(0)

@@ -28,12 +28,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
@@ -89,6 +93,14 @@ final class SignPathTokenSession implements AutoCloseable {
 
   /** Prefix of the sandbox containers of the CryptoTokenKit app and of its token extension. */
   static final String CONTAINER_PREFIX = "io.signpath.";
+
+  /**
+   * How the token extension logs a refused hash signing request, e.g. {@code HTTP Request failed
+   * with status code 403 {"title":"Forbidden","detail":"…"}}. It does not tell {@code codesign},
+   * which then waits for ever.
+   */
+  private static final Pattern REFUSAL =
+      Pattern.compile("HTTP Request failed with status code (\\d{3})[ \\t]*([^\\r\\n]*)");
 
   /**
    * Settings of the session.
@@ -154,6 +166,9 @@ final class SignPathTokenSession implements AutoCloseable {
   private Path app;
   private boolean mounted;
   private boolean launched;
+
+  /** The size of each log file before the launch: only what follows is about this session. */
+  private final Map<Path, Long> logSizesAtLaunch = new HashMap<>();
 
   SignPathTokenSession(
       ProcessRunner runner,
@@ -250,6 +265,9 @@ final class SignPathTokenSession implements AutoCloseable {
     if (settings.apiUrl() != null && !DEFAULT_API_URL.equals(settings.apiUrl())) {
       command.add("--api-url");
       command.add(settings.apiUrl());
+    }
+    for (Path logFile : logFiles()) {
+      logSizesAtLaunch.put(logFile, Files.size(logFile));
     }
     log.accept("Starting the SignPath CryptoTokenKit");
     runner.runChecked(command);
@@ -398,6 +416,67 @@ final class SignPathTokenSession implements AutoCloseable {
               + ")"
               + ProcessRunner.quote(result.output()));
     }
+  }
+
+  /**
+   * The reason SignPath gave for refusing a hash signing request of this session, as the token
+   * extension logged it, e.g. {@code HTTP 403: The selected signing policy requires that the
+   * signing request is submitted via a trusted build system.}
+   */
+  Optional<String> signPathRefusal() {
+    for (Path logFile : logFiles()) {
+      try {
+        byte[] bytes = Files.readAllBytes(logFile);
+        int from = (int) Math.min(bytes.length, logSizesAtLaunch.getOrDefault(logFile, 0L));
+        Matcher matcher =
+            REFUSAL.matcher(new String(bytes, from, bytes.length - from, StandardCharsets.UTF_8));
+        if (matcher.find()) {
+          return Optional.of("HTTP " + matcher.group(1) + ": " + refusalDetail(matcher.group(2)));
+        }
+      } catch (IOException e) {
+        // The file may have been rotated: look at the others.
+      }
+    }
+    return Optional.empty();
+  }
+
+  /** The {@code detail} (or {@code title}) of a problem details body, or the body itself. */
+  private String refusalDetail(String body) {
+    try {
+      JsonObject json = JsonParser.parseString(body).getAsJsonObject();
+      String detail = string(json, "detail");
+      String title = string(json, "title");
+      return mask(detail != null ? detail : title != null ? title : body.strip());
+    } catch (IllegalStateException | JsonParseException e) {
+      return mask(body.strip());
+    }
+  }
+
+  /** The files of the app's log directory and of the SignPath containers' log directories. */
+  private List<Path> logFiles() {
+    List<Path> directories = new ArrayList<>(List.of(logDirectory));
+    if (Files.isDirectory(containersDirectory)) {
+      try (Stream<Path> containers = Files.list(containersDirectory)) {
+        containers
+            .filter(dir -> dir.getFileName().toString().startsWith(CONTAINER_PREFIX))
+            .map(dir -> dir.resolve("Data/Library/Logs"))
+            .forEach(directories::add);
+      } catch (IOException e) {
+        // No containers to look at.
+      }
+    }
+    List<Path> files = new ArrayList<>();
+    for (Path directory : directories) {
+      if (!Files.isDirectory(directory)) {
+        continue;
+      }
+      try (Stream<Path> walk = Files.walk(directory, LOG_SEARCH_DEPTH)) {
+        walk.filter(Files::isRegularFile).forEach(files::add);
+      } catch (IOException | UncheckedIOException e) {
+        // Skip a directory that cannot be read.
+      }
+    }
+    return files;
   }
 
   /** The most recently modified file under {@code directory}, searched recursively. */

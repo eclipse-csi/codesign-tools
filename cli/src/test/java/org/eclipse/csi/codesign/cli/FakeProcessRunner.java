@@ -11,10 +11,12 @@
 package org.eclipse.csi.codesign.cli;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * Records the commands it is asked to run and answers them from rules; a command no rule matches
@@ -57,6 +59,15 @@ final class FakeProcessRunner implements ProcessRunner {
       }
     }
     return new Result(0, "");
+  }
+
+  /** Answers the command, then reports it as stopped if {@code stop} holds, as a real run would. */
+  @Override
+  public Result run(
+      List<String> command, Map<String, String> environment, Duration timeout, BooleanSupplier stop)
+      throws IOException {
+    Result result = run(command, environment);
+    return stop.getAsBoolean() ? new Result(-1, result.output(), true) : result;
   }
 
   List<Call> calls() {

@@ -48,4 +48,20 @@ class SystemProcessRunnerTest {
         Duration.ofNanos(System.nanoTime() - start).compareTo(Duration.ofSeconds(20)) < 0,
         "stopped long before the process would have finished");
   }
+
+  @Test
+  void timedRun_stopsAProcessAsSoonAsTheStopConditionHolds() throws Exception {
+    long start = System.nanoTime();
+    ProcessRunner.Result result =
+        runner.run(
+            List.of("sleep", "30"),
+            Map.of(),
+            Duration.ofSeconds(30),
+            () -> System.nanoTime() - start > Duration.ofMillis(300).toNanos());
+
+    assertTrue(result.timedOut());
+    assertTrue(
+        Duration.ofNanos(System.nanoTime() - start).compareTo(Duration.ofSeconds(20)) < 0,
+        "stopped long before the timeout");
+  }
 }

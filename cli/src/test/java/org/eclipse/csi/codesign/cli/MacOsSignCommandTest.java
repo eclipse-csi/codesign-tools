@@ -874,6 +874,77 @@ class MacOsSignCommandTest {
   }
 
   @Test
+  void signPathProvider_refusal_stopsCodesignWithSignPathsReason() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    fakeDiskImage();
+    runner.on(List.of("security", "find-identity"), 0, IDENTITIES);
+    Path extensionLogs =
+        tempDir.resolve("containers/io.signpath.apps.Example/Data/Library/Logs/ctk");
+    Files.createDirectories(extensionLogs);
+    // As the token extension logs it while codesign waits for an answer that never comes.
+    runner.on(
+        List.of("codesign", "--force"),
+        command -> {
+          Files.writeString(
+              extensionLogs.resolve("ctk.log"),
+              "TokenSession signData\nHTTP Request failed with status code 403"
+                  + " {\"title\":\"Forbidden\",\"status\":403,\"detail\":\"The selected"
+                  + " signing policy requires that the signing request is submitted via a trusted"
+                  + " build system.\"}\n");
+          return new ProcessRunner.Result(0, "");
+        });
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "release-signing",
+            "--identity",
+            APP_IDENTITY,
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(1, exit);
+    String error = err.toString();
+    assertTrue(
+        error.contains(
+            "SignPath refused to sign the hashes of codesign: HTTP 403: The selected signing policy"
+                + " requires that the signing request is submitted via a trusted build system."),
+        error);
+    assertEquals(1, runner.commands("pkill").size());
+  }
+
+  @Test
+  void signPathProvider_refusalOfAnEarlierSession_isIgnored() throws IOException {
+    Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
+    fakeDiskImage();
+    runner.on(List.of("security", "find-identity"), 0, IDENTITIES);
+    Path extensionLogs =
+        tempDir.resolve("containers/io.signpath.apps.Example/Data/Library/Logs/ctk");
+    Files.createDirectories(extensionLogs);
+    Files.writeString(
+        extensionLogs.resolve("old.log"), "HTTP Request failed with status code 403 {}\n");
+
+    int exit =
+        sign(
+            "-O",
+            "org-id",
+            "-p",
+            "my-project",
+            "-s",
+            "release-signing",
+            "--identity",
+            APP_IDENTITY,
+            "--force-overwrite",
+            binary.toString());
+
+    assertEquals(0, exit, err.toString());
+  }
+
+  @Test
   void signPathProvider_customApiUrlIsPassedToCryptoTokenKit() throws IOException {
     Path binary = MacOsTestFiles.write(tempDir.resolve("tool"), MacOsTestFiles.MACH_O_64);
     fakeDiskImage();

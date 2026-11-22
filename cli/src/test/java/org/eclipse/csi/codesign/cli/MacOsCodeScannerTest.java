@@ -213,6 +213,58 @@ class MacOsCodeScannerTest {
     assertTrue(identity.untrusted(), "a self-signed certificate is taken as untrusted");
   }
 
+  /** {@code security export-smartcard -t identities}, as a GitHub Actions runner printed it. */
+  private static final String EXPORT_SMARTCARD_OUTPUT =
+      """
+      slnr : <00 95 14 5e 95 ef d8 bd 33>
+          certdata : <CFData 0x100fe5cd0 [0x1f7241348]>{length = 1569, capacity = 1569, bytes = 0x3082}
+          certtkid : "io.signpath.apps.SignPathCryptoTokenKit.ctk:00907cb0"
+          priv : 1
+          sha1 : <57 12 94 7d 3a ec 9a e9 8d 9c a2 1b b0 52 4d 4c 36 f3 47 b4>
+          pkhh : <49 30 f5 23 32 a8 ef 6a 92 cb c4 a2 5f bc ca 14 13 ba ad 6b>
+          accc : constraints: {
+                  osgn : true
+              }
+          subj : <31 1b 30 19 06 03 55 04 03 13 12 45 43 4c 49 50 53 45>
+          sign : 1
+          issr : <31 1b 30 19 06 03 55 04 03 13 12 45 43 4c 49 50 53 45>
+          agrp : "com.apple.token"
+          labl : "Eclipse Foundation"
+      ====
+      slnr : <01>
+          sha1 : <11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11>
+          subj : <31 01>
+          issr : <31 02>
+          labl : "Developer ID Application: Example (TEAM123456)"
+      ====
+      """;
+
+  @Test
+  void parseTokenItems_readsTheSha1AndLabelOfEachIdentity() {
+    List<KeychainIdentities.Identity> identities =
+        KeychainIdentities.parseTokenItems(EXPORT_SMARTCARD_OUTPUT);
+
+    assertEquals(
+        List.of(
+            new KeychainIdentities.Identity(
+                "5712947D3AEC9AE98D9CA21BB0524D4C36F347B4",
+                "Eclipse Foundation",
+                KeychainIdentities.NOT_TRUSTED),
+            new KeychainIdentities.Identity(
+                "1".repeat(40), "Developer ID Application: Example (TEAM123456)")),
+        identities);
+    assertTrue(KeychainIdentities.parseTokenItems("No smartcards found.").isEmpty());
+  }
+
+  @Test
+  void listTokens_prefersTheItemsOfSecurityExportSmartcard() throws Exception {
+    FakeProcessRunner runner = new FakeProcessRunner();
+    runner.on(List.of("security", "export-smartcard"), 0, EXPORT_SMARTCARD_OUTPUT);
+
+    assertEquals(2, KeychainIdentities.listTokens(runner).size());
+    assertTrue(runner.commands("system_profiler").isEmpty());
+  }
+
   @Test
   void parseCertificates_ignoresTextWithoutCertificates() {
     assertTrue(KeychainIdentities.parseCertificates("No smartcards found.").isEmpty());

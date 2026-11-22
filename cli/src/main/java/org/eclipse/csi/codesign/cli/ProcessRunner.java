@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BooleanSupplier;
 
 /**
  * Runs the external tools that the {@code macos} commands drive ({@code codesign}, {@code
@@ -48,6 +49,17 @@ interface ProcessRunner {
   default Result run(List<String> command, Map<String, String> environment, Duration timeout)
       throws IOException, InterruptedException {
     return run(command, environment);
+  }
+
+  /**
+   * Runs {@code command} like {@link #run(List, Map, Duration)}, and also stops it as soon as
+   * {@code stop}, checked about twice a second, returns {@code true}: the result is then
+   * {@linkplain Result#timedOut() timed out} too.
+   */
+  default Result run(
+      List<String> command, Map<String, String> environment, Duration timeout, BooleanSupplier stop)
+      throws IOException, InterruptedException {
+    return run(command, environment, timeout);
   }
 
   /**
