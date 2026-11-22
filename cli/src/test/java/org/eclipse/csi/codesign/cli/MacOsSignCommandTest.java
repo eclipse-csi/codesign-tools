@@ -14,16 +14,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -588,6 +592,18 @@ class MacOsSignCommandTest {
         command ->
             new ProcessRunner.Result(
                 0, lookups.incrementAndGet() < 3 ? NO_IDENTITIES : IDENTITIES));
+    // The configuration file exists only while the CryptoTokenKit runs: read it when it starts.
+    List<String> config = new ArrayList<>();
+    runner.on(
+        List.of("open"),
+        command -> {
+          Path file = Path.of(command.get(command.indexOf("--config") + 1));
+          config.add(Files.readString(file));
+          config.add(PosixFilePermissions.toString(Files.getPosixFilePermissions(file)));
+          config.add(
+              PosixFilePermissions.toString(Files.getPosixFilePermissions(file.getParent())));
+          return new ProcessRunner.Result(0, "");
+        });
 
     int exit =
         sign(
@@ -626,17 +642,19 @@ class MacOsSignCommandTest {
             app.toString()),
         commands.get(2));
 
-    // The token goes through the environment of open, never on a command line.
+    // The token goes in a configuration file that only the user can read, never on a command
+    // line: open does not pass its environment to the app.
     FakeProcessRunner.Call open = runner.calls().get(3);
+    Path configFile = mountPoint.resolveSibling(SignPathTokenSession.CONFIG_FILE);
     assertEquals(
         List.of(
             "open",
             "-n",
             "-g",
-            "--env",
-            "SIGNPATH_API_TOKEN",
             app.toString(),
             "--args",
+            "--config",
+            configFile.toString(),
             "--organization-id",
             "org-id",
             "--project-slug",
@@ -644,8 +662,15 @@ class MacOsSignCommandTest {
             "--signing-policy-slug",
             "release-signing"),
         open.command());
-    assertEquals(TOKEN, open.environment().get("SIGNPATH_API_TOKEN"));
+    assertEquals(Map.of(), open.environment());
     assertTrue(commands.stream().flatMap(List::stream).noneMatch(arg -> arg.contains(TOKEN)));
+    JsonObject json = JsonParser.parseString(config.get(0)).getAsJsonObject();
+    assertEquals(TOKEN, json.get("ApiToken").getAsString());
+    assertEquals("org-id", json.get("OrganizationId").getAsString());
+    assertEquals("my-project", json.get("ProjectSlug").getAsString());
+    assertEquals("release-signing", json.get("SigningPolicySlug").getAsString());
+    assertEquals("rw-------", config.get(1));
+    assertEquals("rwx------", config.get(2));
 
     // It polls the keychain until the identity shows up.
     assertEquals(3, lookups.get());

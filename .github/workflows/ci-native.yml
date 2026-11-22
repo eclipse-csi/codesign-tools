@@ -14,9 +14,9 @@ on:
         type: choice
         options:
           - none
-          - test-signing
+          - untrusted-test-signing
           - apple-application-release
-        default: none
+        default: untrusted-test-signing
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,8 +34,13 @@ jobs:
       artifact-retention-days: 7
       # Pull requests are not signed: forks and Dependabot have no access to the secret.
       signing-policy: ${{ github.event_name != 'pull_request' && 'test-signing' || '' }}
-      # Only on demand for now: the macOS binary is signed through the SignPath macOS
-      # CryptoTokenKit (hash signing) when a policy is chosen when running the workflow by hand.
-      macos-signing-policy: ${{ inputs.macos-signing-policy != 'none' && inputs.macos-signing-policy || '' }}
+      # The macOS binary is signed through the SignPath macOS CryptoTokenKit (hash signing).
+      # SignPath does not offer policies with origin verification for hash signing, so a push
+      # signs it with untrusted-test-signing: a self-signed certificate, without trusted build
+      # system verification. A run by hand can choose another policy, or none.
+      macos-signing-policy: >-
+        ${{ github.event_name == 'push' && 'untrusted-test-signing'
+        || (github.event_name == 'workflow_dispatch' && inputs.macos-signing-policy != 'none'
+        && inputs.macos-signing-policy || '') }}
     secrets:
       SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}

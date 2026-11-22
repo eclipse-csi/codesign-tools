@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -29,7 +30,6 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -52,10 +52,11 @@ import okhttp3.Response;
  *       its SHA-256 when one is pinned, and checks that the disk image and the app carry a valid
  *       Developer ID signature of SignPath GmbH (Team ID {@value #SIGNPATH_TEAM_ID});
  *   <li>mounts the disk image read-only and launches the app with {@code open}, passing the API
- *       token in the {@code SIGNPATH_API_TOKEN} environment variable, so that it never appears on a
- *       command line;
+ *       token in a configuration file ({@code --config}) that only the current user can read, so
+ *       that it never appears on a command line. {@code open} does not pass its own environment to
+ *       the app, and {@code open --env} would need the token on its command line;
  *   <li>on {@link #close()}, also run from a shutdown hook, stops the app, unmounts the disk image
- *       and deletes the download.
+ *       and deletes the download and the configuration file.
  * </ol>
  */
 final class SignPathTokenSession implements AutoCloseable {
@@ -74,7 +75,8 @@ final class SignPathTokenSession implements AutoCloseable {
 
   static final String APP_NAME = "SignPathCryptoTokenKit.app";
 
-  static final String TOKEN_ENV_VAR = "SIGNPATH_API_TOKEN";
+  /** Name of the configuration file of the CryptoTokenKit, in the private work directory. */
+  static final String CONFIG_FILE = "config.json";
 
   private static final int LOG_TAIL_LINES = 30;
 
@@ -165,13 +167,13 @@ final class SignPathTokenSession implements AutoCloseable {
     shutdownHook = new Thread(this::close, "csi-codesign-ctk-cleanup");
     Runtime.getRuntime().addShutdownHook(shutdownHook);
 
+    workDir = createPrivateTempDirectory();
     if (settings.preinstalledApp() != null) {
       app = settings.preinstalledApp().toAbsolutePath().normalize();
       if (!Files.isDirectory(app)) {
         throw new ToolException("SignPath CryptoTokenKit app not found: " + app);
       }
     } else {
-      workDir = Files.createTempDirectory("csi-codesign-ctk-");
       Path dmg = workDir.resolve("SignPathCryptoTokenKit.dmg");
       log.accept("Downloading " + settings.dmgUrl());
       downloader.download(settings.dmgUrl(), dmg);
@@ -209,6 +211,7 @@ final class SignPathTokenSession implements AutoCloseable {
       }
     }
     verifySignature(app);
+    Path config = writeConfig(workDir.resolve(CONFIG_FILE));
 
     List<String> command =
         new ArrayList<>(
@@ -216,10 +219,10 @@ final class SignPathTokenSession implements AutoCloseable {
                 "open",
                 "-n",
                 "-g",
-                "--env",
-                TOKEN_ENV_VAR, // copied from the environment of open, see below
                 app.toString(),
                 "--args",
+                "--config",
+                config.toString(),
                 "--organization-id",
                 settings.organizationId(),
                 "--project-slug",
@@ -231,8 +234,41 @@ final class SignPathTokenSession implements AutoCloseable {
       command.add(settings.apiUrl());
     }
     log.accept("Starting the SignPath CryptoTokenKit");
-    runner.runChecked(command, Map.of(TOKEN_ENV_VAR, settings.apiToken()));
+    runner.runChecked(command);
     launched = true;
+  }
+
+  /**
+   * Writes the configuration file of the CryptoTokenKit, readable by the current user only. It
+   * holds the API token, which would otherwise have to go on a command line.
+   */
+  private Path writeConfig(Path file) throws IOException {
+    JsonObject config = new JsonObject();
+    config.addProperty("OrganizationId", settings.organizationId());
+    config.addProperty("ApiToken", settings.apiToken());
+    if (settings.apiUrl() != null) {
+      config.addProperty("ApiUrl", settings.apiUrl());
+    }
+    config.addProperty("ProjectSlug", settings.projectSlug());
+    config.addProperty("SigningPolicySlug", settings.signingPolicySlug());
+    try {
+      Files.createFile(
+          file, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")));
+    } catch (UnsupportedOperationException e) {
+      Files.createFile(file);
+    }
+    Files.writeString(file, config.toString());
+    return file;
+  }
+
+  private static Path createPrivateTempDirectory() throws IOException {
+    try {
+      return Files.createTempDirectory(
+          "csi-codesign-ctk-",
+          PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+    } catch (UnsupportedOperationException e) {
+      return Files.createTempDirectory("csi-codesign-ctk-");
+    }
   }
 
   /**
