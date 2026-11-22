@@ -454,7 +454,8 @@ body.book #toc,body.book #preamble,body.book h1.sect0,body.book .sect1>h2{page-b
                     [<strong>--identity-timeout</strong>=<em>&lt;seconds&gt;</em>]
                     [<strong>--installer-identity</strong>=<em>&lt;name|sha1&gt;</em>] [<strong>-O</strong>=<em>&lt;id&gt;</em>]
                     [<strong>--output-dir</strong>=<em>&lt;dir&gt;</em>] [<strong>-p</strong>=<em>&lt;slug&gt;</em>] [<strong>-s</strong>=<em>&lt;slug&gt;</em>]
-                    [<strong>--token-provider</strong>=<em>&lt;provider&gt;</em>] <em>&lt;path&gt;</em>&#8230;&#8203;</p>
+                    [<strong>--signing-timeout</strong>=<em>&lt;seconds&gt;</em>] [<strong>--token-provider</strong>=<em>&lt;provider&gt;</em>]
+                    <em>&lt;path&gt;</em>&#8230;&#8203;</p>
 </div>
 </div>
 </div>
@@ -512,6 +513,10 @@ Bundles are signed from the inside out, with the hardened runtime and a secure t
 <dd>
 <p>Maximum seconds to wait for the CryptoTokenKit to publish the signing identities (default: 60).</p>
 </dd>
+<dt class="hdlist1"><strong>--signing-timeout</strong>=<em>&lt;seconds&gt;</em></dt>
+<dd>
+<p>Maximum seconds each codesign or productsign call may take with the SignPath CryptoTokenKit, which waits for SignPath to sign each hash (default: 300).</p>
+</dd>
 <dt class="hdlist1"><strong>--ctk-url</strong>=<em>&lt;url&gt;</em></dt>
 <dd>
 <p>HTTPS URL of SignPathCryptoTokenKit.dmg (default: <a href="https://download.signpath.io/cryptoproviders/macos-cryptotokenkit/2-latest/SignPathCryptoTokenKit.dmg" class="bare">https://download.signpath.io/cryptoproviders/macos-cryptotokenkit/2-latest/SignPathCryptoTokenKit.dmg</a>).</p>
@@ -565,7 +570,7 @@ Bundles are signed from the inside out, with the hardened runtime and a secure t
 <div id="footer">
 <div id="footer-text">
 Version <br>
-Last updated 2026-11-22 14:34:44 UTC
+Last updated 2026-11-22 15:03:36 UTC
 </div>
 </div>
 </body>
