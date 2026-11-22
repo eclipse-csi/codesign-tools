@@ -217,7 +217,14 @@ A SignPath signing policy with **trusted build system verification** (as used by
 Foundation projects) rejects files uploaded directly to the REST API. SignPath has to fetch
 the file from GitHub itself, so that it can verify which repository, workflow and branch
 built it. Select this flow with `--submission-mode github-actions` (CLI) or
-`<submissionMode>github-actions</submissionMode>` (plugin). Here is what it does:
+`<submissionMode>github-actions</submissionMode>` (plugin).
+
+> **Signing files outside of a Maven build?** Use the
+> [`eclipse-csi/codesign-action`](https://github.com/eclipse-csi/codesign-action) GitHub Action.
+> In one step it downloads and verifies `csi-codesign`, hands it the job's credentials, and signs
+> the files in this mode. Nothing below needs to be set up by hand.
+
+Here is what it does:
 
 1. The files of one invocation (CLI) or one execution (plugin) are stored as an artifact of the
    running GitHub Actions job, kept for one day:
