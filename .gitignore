@@ -21,3 +21,6 @@ bin/
 ### OS ###
 .DS_Store
 Thumbs.db
+
+# APM dependencies
+apm_modules/

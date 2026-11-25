@@ -1,0 +1,101 @@
+lockfile_version: '1'
+apm_version: 0.36.1
+dependencies:
+- repo_url: eclipse-csi/skills
+  name: conventional-commits
+  host: github.com
+  resolved_commit: 4e7bd99ddd0e669e25e3785dc364c85ce83e0a08
+  version: unknown
+  virtual_path: conventional-commits
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/conventional-commits
+  - .agents/skills/conventional-commits/SKILL.md
+  - .agents/skills/conventional-commits/references/signing.md
+  - .agents/skills/conventional-commits/scripts/validate_commit_msg.py
+  - .claude/skills/conventional-commits
+  - .claude/skills/conventional-commits/SKILL.md
+  - .claude/skills/conventional-commits/references/signing.md
+  - .claude/skills/conventional-commits/scripts/validate_commit_msg.py
+  deployed_file_hashes:
+    .agents/skills/conventional-commits/SKILL.md: sha256:b46df7208f5fcd4b7e8adafdbbd38d111d0fd95536abd8a3d80bfe7524fcd48e
+    .agents/skills/conventional-commits/references/signing.md: sha256:61957b7c4ae6f666608def767c3975ee9c83acdf0883da81e47c4e8340935e01
+    .agents/skills/conventional-commits/scripts/validate_commit_msg.py: sha256:7db3b0828a6981e24bfe8185f3bd7c62029e0a193fddb13b59aa5ed4d4e1987e
+    .claude/skills/conventional-commits/SKILL.md: sha256:b46df7208f5fcd4b7e8adafdbbd38d111d0fd95536abd8a3d80bfe7524fcd48e
+    .claude/skills/conventional-commits/references/signing.md: sha256:61957b7c4ae6f666608def767c3975ee9c83acdf0883da81e47c4e8340935e01
+    .claude/skills/conventional-commits/scripts/validate_commit_msg.py: sha256:7db3b0828a6981e24bfe8185f3bd7c62029e0a193fddb13b59aa5ed4d4e1987e
+  content_hash: sha256:44bce924629f23c82817b1c1650c36ae46c166bd03e8386e3ffb321bf6fdd916
+deployments:
+- kind: project-relative
+  target: agent-skills
+  value: .agents/skills/conventional-commits
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: null
+- kind: project-relative
+  target: agent-skills
+  value: .agents/skills/conventional-commits/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:b46df7208f5fcd4b7e8adafdbbd38d111d0fd95536abd8a3d80bfe7524fcd48e
+- kind: project-relative
+  target: agent-skills
+  value: .agents/skills/conventional-commits/references/signing.md
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:61957b7c4ae6f666608def767c3975ee9c83acdf0883da81e47c4e8340935e01
+- kind: project-relative
+  target: agent-skills
+  value: .agents/skills/conventional-commits/scripts/validate_commit_msg.py
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:7db3b0828a6981e24bfe8185f3bd7c62029e0a193fddb13b59aa5ed4d4e1987e
+- kind: project-relative
+  target: claude
+  value: .claude/skills/conventional-commits
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: null
+- kind: project-relative
+  target: claude
+  value: .claude/skills/conventional-commits/SKILL.md
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:b46df7208f5fcd4b7e8adafdbbd38d111d0fd95536abd8a3d80bfe7524fcd48e
+- kind: project-relative
+  target: claude
+  value: .claude/skills/conventional-commits/references/signing.md
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:61957b7c4ae6f666608def767c3975ee9c83acdf0883da81e47c4e8340935e01
+- kind: project-relative
+  target: claude
+  value: .claude/skills/conventional-commits/scripts/validate_commit_msg.py
+  runtime: null
+  scope: project
+  owners:
+  - eclipse-csi/skills/conventional-commits
+  active_owner: eclipse-csi/skills/conventional-commits
+  content_hash: sha256:7db3b0828a6981e24bfe8185f3bd7c62029e0a193fddb13b59aa5ed4d4e1987e

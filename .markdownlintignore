@@ -1,0 +1,3 @@
+# Skills deployed by APM (see apm.yml): their content comes from another
+# repository and is pinned by hash in apm.lock.yaml, so it cannot be fixed here.
+.agents/
