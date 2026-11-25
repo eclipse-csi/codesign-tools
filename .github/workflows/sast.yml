@@ -86,7 +86,7 @@ jobs:
         env:
           OPENGREP_VERSION: ${{ steps.versions.outputs.opengrep }}
         run: |
-          base="https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_manylinux_x86"
+          base="https://github.com/opengrep/opengrep/releases/download/${OPENGREP_VERSION}/opengrep_linux_x86"
           curl -fsSL "${base}"      -o opengrep
           curl -fsSL "${base}.cert" -o opengrep.cert
           curl -fsSL "${base}.sig"  -o opengrep.sig
