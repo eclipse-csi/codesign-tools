@@ -74,7 +74,7 @@
          -Dpomchecker.release=false to keep every other POM check. Real releases keep it true. -->
     <pomchecker.release>true</pomchecker.release>
 
-    <maven.version>3.10.1</maven.version>
+    <maven.version>3.10.2</maven.version>
     <okhttp.version>5.5.1</okhttp.version>
     <picocli.version>4.7.7</picocli.version>
     <archunit.version>1.5.1</archunit.version>
